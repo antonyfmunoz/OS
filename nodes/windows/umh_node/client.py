@@ -1263,6 +1263,7 @@ class NodeClient:
             ack = ack or {"ok": False, "error": "missing acknowledgement"}
             attempts.append(
                 {
+                    "method": "durable_command.claimed",
                     "ok": bool(ack.get("ok")),
                     "error": str(ack.get("error", "")),
                 }
@@ -1273,6 +1274,33 @@ class NodeClient:
             retryable = bool(ack.get("retryable")) or (
                 "timed out" in error or "missing acknowledgement" in error
             )
+            if retryable:
+                readback = await self._reconcile_durable_claim_state(
+                    req,
+                    claim_id=claim_id,
+                    timeout_s=min(_CONTROL_TIMEOUT_S, max(0.0, deadline - time.monotonic())),
+                )
+                attempts.append(
+                    {
+                        "method": "durable_command.claim_state",
+                        "ok": bool(readback.get("ok")),
+                        "error": str(readback.get("error", "")),
+                    }
+                )
+                if readback.get("ok"):
+                    return {
+                        "ok": True,
+                        "attempts": attempts,
+                        "claim_id": claim_id,
+                        "reconciled": True,
+                    }
+                if not readback.get("retryable"):
+                    return {
+                        "ok": False,
+                        "error": str(readback.get("error", "claim readback rejected")),
+                        "attempts": attempts,
+                        "claim_id": claim_id,
+                    }
             if not retryable:
                 return {
                     "ok": False,
@@ -1283,6 +1311,72 @@ class NodeClient:
             await asyncio.sleep(
                 min(_DURABLE_CLAIM_RETRY_SLEEP_S, max(0.0, deadline - time.monotonic()))
             )
+
+    async def _reconcile_durable_claim_state(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        timeout_s: float,
+    ) -> dict[str, Any]:
+        """Read back the controller's canonical claim after a lost direct ACK."""
+        if timeout_s <= 0:
+            return {"ok": False, "error": "claim readback deadline expired", "retryable": False}
+        payload = {
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "candidate_sha": req.candidate_sha,
+            "node_id": req.node_id,
+            "claim_id": claim_id,
+        }
+        try:
+            readback = await self._send_durable_event(
+                "durable_command.claim_state",
+                payload,
+                expect_ack=True,
+                timeout_s=timeout_s,
+            )
+        except Exception as exc:  # noqa: BLE001
+            return {"ok": False, "error": f"{type(exc).__name__}: {exc}", "retryable": True}
+        readback = readback or {"ok": False, "error": "missing claim readback"}
+        if not readback.get("ok") or not readback.get("accepted"):
+            readback["ok"] = False
+            readback.setdefault("error", "claim readback not accepted")
+            error = readback.get("error")
+            if isinstance(error, dict) and error.get("code") == -32601:
+                readback["retryable"] = True
+            elif "unknown method" in str(error):
+                readback["retryable"] = True
+            readback.setdefault("retryable", False)
+            return readback
+        mismatches: list[str] = []
+        expected = {
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "candidate_sha": req.candidate_sha,
+            "node_id": req.node_id,
+            "claim_id": claim_id,
+            "lifecycle_state": "CLAIMED",
+        }
+        for key, value in expected.items():
+            if str(readback.get(key, "")) != str(value):
+                mismatches.append(key)
+        if mismatches:
+            return {
+                "ok": False,
+                "accepted": False,
+                "error": "claim readback mismatch: " + ",".join(mismatches),
+                "retryable": False,
+            }
+        lease_expires_at = float(readback.get("lease_expires_at", 0.0) or 0.0)
+        if lease_expires_at and lease_expires_at <= time.time():
+            return {
+                "ok": False,
+                "accepted": False,
+                "error": "claim readback lease expired",
+                "retryable": False,
+            }
+        return {"ok": True, "accepted": True}
 
     async def _announce_durable_running(
         self,

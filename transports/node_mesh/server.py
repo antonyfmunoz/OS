@@ -417,6 +417,10 @@ class NodeMeshServer:
                     await self._handle_durable_claimed(
                         node_id, params, msg_id, ws, connection_id
                     )
+                elif method == "durable_command.claim_state" and node_id:
+                    await self._handle_durable_claim_state(
+                        node_id, params, msg_id, ws, connection_id
+                    )
                 elif method == "durable_command.result" and node_id:
                     await self._handle_durable_result(
                         node_id, params, msg_id, ws, connection_id
@@ -853,6 +857,82 @@ class NodeMeshServer:
                     {
                         "jsonrpc": "2.0",
                         "result": {"ok": ok, "error": error},
+                        "id": msg_id,
+                    }
+                )
+            )
+
+    async def _handle_durable_claim_state(
+        self,
+        node_id: str,
+        params: dict[str, Any],
+        msg_id: Any,
+        ws: ServerConnection,
+        connection_id: str = "",
+    ) -> None:
+        request_id = str(params.get("request_id", ""))
+        correlation_id = str(params.get("correlation_id", ""))
+        candidate_sha = str(params.get("candidate_sha", ""))
+        claim_id = str(params.get("claim_id", ""))
+        result: dict[str, Any] = {
+            "ok": False,
+            "accepted": False,
+            "error": "",
+            "request_id": request_id,
+            "correlation_id": "",
+            "candidate_sha": "",
+            "node_id": node_id,
+            "claim_id": "",
+            "lifecycle_state": "",
+            "lease_expires_at": 0.0,
+            "process_tree": {},
+        }
+        try:
+            if connection_id and not self._registry.owns(node_id, connection_id):
+                result["error"] = "stale node connection"
+                raise RuntimeError(result["error"])
+            req = self._durable_store.get_request(request_id)
+            if req is None:
+                result["error"] = "request not found"
+            elif req.node_id != node_id:
+                result["error"] = "request not found for node"
+            else:
+                result.update(
+                    {
+                        "request_id": req.request_id,
+                        "correlation_id": req.correlation_id,
+                        "candidate_sha": req.candidate_sha,
+                        "node_id": req.node_id,
+                        "claim_id": req.claim_id,
+                        "lifecycle_state": req.lifecycle_state,
+                        "lease_expires_at": req.lease_expires_at,
+                        "process_tree": req.process_tree,
+                    }
+                )
+                mismatches: list[str] = []
+                if not correlation_id or req.correlation_id != correlation_id:
+                    mismatches.append("correlation_id")
+                if not candidate_sha or req.candidate_sha != candidate_sha:
+                    mismatches.append("candidate_sha")
+                if not claim_id or req.claim_id != claim_id:
+                    mismatches.append("claim_id")
+                if req.lifecycle_state != "CLAIMED":
+                    mismatches.append("lifecycle_state")
+                if mismatches:
+                    result["error"] = "claim mismatch: " + ",".join(mismatches)
+                else:
+                    result["ok"] = True
+                    result["accepted"] = True
+        except Exception as exc:  # noqa: BLE001
+            result["ok"] = False
+            result["accepted"] = False
+            result["error"] = str(exc)
+        if msg_id is not None:
+            await ws.send(
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "result": result,
                         "id": msg_id,
                     }
                 )

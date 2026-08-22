@@ -25,8 +25,8 @@ import time
 
 import pytest
 
-from substrate.execution.executor import WorkPacketExecutor
 from substrate.execution.durable_remote_transport import DurableRemoteStore, make_request
+from substrate.execution.executor import WorkPacketExecutor
 from substrate.sockets.capability_socket import CapabilitySocket
 from substrate.sockets.outcome_socket import OutcomeSocket
 from substrate.sockets.signal_socket import SignalSocket
@@ -608,6 +608,193 @@ def test_claim_conflict_ack_reports_rejection(tmp_path):
     result = asyncio.run(_claim_conflict_ack_reports_rejection(tmp_path))
     assert result["ok"] is False
     assert "RECONCILIATION_REQUIRED" in result["error"]
+
+
+async def _claim_state_reports_exact_accepted_claim(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="claim-state-test",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(req)
+    claimed = s._durable_store.mark_claimed(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"node_pid": 123, "claimed_at": 10.0},
+    )
+
+    class Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+
+        async def send(self, payload: str) -> None:
+            self.sent.append(payload)
+
+    ws = Ws()
+    await s._handle_durable_claim_state(
+        "n1",
+        {
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "candidate_sha": req.candidate_sha,
+            "claim_id": claimed.claim_id,
+        },
+        98,
+        ws,  # type: ignore[arg-type]
+    )
+    return json.loads(ws.sent[0])["result"]
+
+
+def test_claim_state_reports_exact_accepted_claim(tmp_path):
+    result = asyncio.run(_claim_state_reports_exact_accepted_claim(tmp_path))
+    assert result["ok"] is True
+    assert result["accepted"] is True
+    assert result["claim_id"] == "claim-1"
+    assert result["candidate_sha"] == "sha"
+    assert result["correlation_id"] == "claim-state-test"
+    assert result["lifecycle_state"] == "CLAIMED"
+    assert result["process_tree"]["node_pid"] == 123
+
+
+async def _claim_state_rejects_foreign_claim(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="claim-state-foreign-test",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(req)
+    s._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    class Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+
+        async def send(self, payload: str) -> None:
+            self.sent.append(payload)
+
+    ws = Ws()
+    await s._handle_durable_claim_state(
+        "n1",
+        {
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "candidate_sha": req.candidate_sha,
+            "claim_id": "claim-2",
+        },
+        99,
+        ws,  # type: ignore[arg-type]
+    )
+    return json.loads(ws.sent[0])["result"]
+
+
+def test_claim_state_rejects_foreign_claim(tmp_path):
+    result = asyncio.run(_claim_state_rejects_foreign_claim(tmp_path))
+    assert result["ok"] is False
+    assert result["accepted"] is False
+    assert result["claim_id"] == "claim-1"
+    assert "claim mismatch" in result["error"]
+
+
+async def _claim_state_requires_complete_identity(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="claim-state-required-test",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(req)
+    s._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    class Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+
+        async def send(self, payload: str) -> None:
+            self.sent.append(payload)
+
+    ws = Ws()
+    await s._handle_durable_claim_state(
+        "n1",
+        {"request_id": req.request_id, "correlation_id": req.correlation_id},
+        100,
+        ws,  # type: ignore[arg-type]
+    )
+    return json.loads(ws.sent[0])["result"]
+
+
+def test_claim_state_requires_complete_identity(tmp_path):
+    result = asyncio.run(_claim_state_requires_complete_identity(tmp_path))
+    assert result["ok"] is False
+    assert result["accepted"] is False
+    assert "candidate_sha" in result["error"]
+    assert "claim_id" in result["error"]
+
+
+async def _claim_state_foreign_node_does_not_echo_request(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="claim-state-node-test",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "secret-ish command"},
+        authority_id="authority-hidden",
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(req)
+    s._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    class Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+
+        async def send(self, payload: str) -> None:
+            self.sent.append(payload)
+
+    ws = Ws()
+    await s._handle_durable_claim_state(
+        "foreign-node",
+        {
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "candidate_sha": req.candidate_sha,
+            "claim_id": req.claim_id,
+        },
+        101,
+        ws,  # type: ignore[arg-type]
+    )
+    return json.loads(ws.sent[0])["result"]
+
+
+def test_claim_state_foreign_node_does_not_echo_request(tmp_path):
+    result = asyncio.run(_claim_state_foreign_node_does_not_echo_request(tmp_path))
+    assert result["ok"] is False
+    assert result["accepted"] is False
+    assert result["error"] == "request not found for node"
+    assert result["claim_id"] == ""
+    assert result["correlation_id"] == ""
+    assert result["candidate_sha"] == ""
+    assert "params" not in result
+    assert "authority_id" not in result
 
 
 async def _duplicate_terminal_result_ack_reports_rejection(tmp_path) -> dict:
