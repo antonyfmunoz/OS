@@ -874,6 +874,7 @@ class NodeMeshServer:
         correlation_id = str(params.get("correlation_id", ""))
         candidate_sha = str(params.get("candidate_sha", ""))
         claim_id = str(params.get("claim_id", ""))
+        expected_state = str(params.get("state", "CLAIMED")).upper()
         result: dict[str, Any] = {
             "ok": False,
             "accepted": False,
@@ -916,7 +917,9 @@ class NodeMeshServer:
                     mismatches.append("candidate_sha")
                 if not claim_id or req.claim_id != claim_id:
                     mismatches.append("claim_id")
-                if req.lifecycle_state != "CLAIMED":
+                if expected_state not in {"CLAIMED", "RUNNING"}:
+                    mismatches.append("state")
+                if req.lifecycle_state != expected_state:
                     mismatches.append("lifecycle_state")
                 if mismatches:
                     result["error"] = "claim mismatch: " + ",".join(mismatches)

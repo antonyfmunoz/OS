@@ -1278,6 +1278,7 @@ class NodeClient:
                 readback = await self._reconcile_durable_claim_state(
                     req,
                     claim_id=claim_id,
+                    expected_state="CLAIMED",
                     timeout_s=min(_CONTROL_TIMEOUT_S, max(0.0, deadline - time.monotonic())),
                 )
                 attempts.append(
@@ -1317,6 +1318,7 @@ class NodeClient:
         req: DurableRemoteRequest,
         *,
         claim_id: str,
+        expected_state: str,
         timeout_s: float,
     ) -> dict[str, Any]:
         """Read back the controller's canonical claim after a lost direct ACK."""
@@ -1328,6 +1330,7 @@ class NodeClient:
             "candidate_sha": req.candidate_sha,
             "node_id": req.node_id,
             "claim_id": claim_id,
+            "state": expected_state,
         }
         try:
             readback = await self._send_durable_event(
@@ -1356,7 +1359,7 @@ class NodeClient:
             "candidate_sha": req.candidate_sha,
             "node_id": req.node_id,
             "claim_id": claim_id,
-            "lifecycle_state": "CLAIMED",
+            "lifecycle_state": expected_state,
         }
         for key, value in expected.items():
             if str(readback.get(key, "")) != str(value):
@@ -1405,7 +1408,24 @@ class NodeClient:
             },
             expect_ack=True,
         )
-        return ack or {"ok": False, "error": "missing acknowledgement"}
+        ack = ack or {"ok": False, "error": "missing acknowledgement"}
+        if ack.get("ok"):
+            return ack
+        error = str(ack.get("error", ""))
+        retryable = bool(ack.get("retryable")) or (
+            "timed out" in error or "missing acknowledgement" in error
+        )
+        if not retryable:
+            return ack
+        readback = await self._reconcile_durable_claim_state(
+            req,
+            claim_id=claim_id,
+            expected_state="RUNNING",
+            timeout_s=_CONTROL_TIMEOUT_S,
+        )
+        if readback.get("ok"):
+            return {"ok": True, "reconciled": True}
+        return readback
 
     async def _cancel_durable_request(
         self,

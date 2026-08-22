@@ -492,6 +492,174 @@ def test_durable_node_does_not_run_adapter_when_running_ack_is_rejected(tmp_path
     assert "running acknowledgement rejected" in result["result"]["error"]
 
 
+def test_durable_node_running_ack_timeout_reads_back_running_before_execution(
+    tmp_path, monkeypatch
+):
+    from nodes.windows.umh_node import client as client_mod
+    from nodes.windows.umh_node.config import CapabilityConfig
+
+    client = _durable_node_client(tmp_path)
+    client._ws = _DurableAckWs(client)
+    client._config.capabilities = {
+        "dummy": CapabilityConfig(enabled=True, max_risk_class="read_only")
+    }
+    monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
+    executed = False
+    methods: list[tuple[str, str]] = []
+
+    class _Adapter:
+        def execute(self, *_args, **_kwargs):
+            nonlocal executed
+            executed = True
+            return {"success": True, "stdout": "ran"}
+
+    async def _send_event(method, payload, **_kwargs):
+        methods.append((method, str(payload.get("state", ""))))
+        if method == "durable_command.claimed" and payload.get("state") == "CLAIMED":
+            return {"ok": True, "error": ""}
+        if method == "durable_command.claimed" and payload.get("state") == "RUNNING":
+            return {"ok": False, "error": "durable_command.claimed acknowledgement timed out"}
+        if method == "durable_command.claim_state":
+            current = client._durable_store.get_request(str(payload["request_id"]))
+            assert current is not None
+            return {
+                "ok": True,
+                "accepted": True,
+                "request_id": current.request_id,
+                "correlation_id": current.correlation_id,
+                "candidate_sha": current.candidate_sha,
+                "node_id": current.node_id,
+                "claim_id": current.claim_id,
+                "lifecycle_state": current.lifecycle_state,
+                "lease_expires_at": current.lease_expires_at,
+                "process_tree": current.process_tree,
+            }
+        return {"ok": True, "error": ""}
+
+    client._adapters = {"dummy": _Adapter()}
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    req = _durable_request(capability="dummy.execute", params={}, risk_class="read_only")
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    assert executed is True
+    assert ("durable_command.claim_state", "RUNNING") in methods
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "SUCCEEDED"
+
+
+def test_durable_node_missing_running_ack_reads_back_running_before_execution(
+    tmp_path, monkeypatch
+):
+    from nodes.windows.umh_node.config import CapabilityConfig
+
+    client = _durable_node_client(tmp_path)
+    client._ws = _DurableAckWs(client)
+    client._config.capabilities = {
+        "dummy": CapabilityConfig(enabled=True, max_risk_class="read_only")
+    }
+    executed = False
+
+    class _Adapter:
+        def execute(self, *_args, **_kwargs):
+            nonlocal executed
+            executed = True
+            return {"success": True, "stdout": "ran"}
+
+    async def _send_event(method, payload, **_kwargs):
+        if method == "durable_command.claimed" and payload.get("state") == "CLAIMED":
+            return {"ok": True, "error": ""}
+        if method == "durable_command.claimed" and payload.get("state") == "RUNNING":
+            return None
+        if method == "durable_command.claim_state":
+            current = client._durable_store.get_request(str(payload["request_id"]))
+            assert current is not None
+            return {
+                "ok": True,
+                "accepted": True,
+                "request_id": current.request_id,
+                "correlation_id": current.correlation_id,
+                "candidate_sha": current.candidate_sha,
+                "node_id": current.node_id,
+                "claim_id": current.claim_id,
+                "lifecycle_state": current.lifecycle_state,
+                "lease_expires_at": current.lease_expires_at,
+                "process_tree": current.process_tree,
+            }
+        return {"ok": True, "error": ""}
+
+    client._adapters = {"dummy": _Adapter()}
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    req = _durable_request(capability="dummy.execute", params={}, risk_class="read_only")
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    assert executed is True
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "SUCCEEDED"
+
+
+def test_durable_node_running_ack_timeout_rejected_readback_does_not_execute(
+    tmp_path, monkeypatch
+):
+    from nodes.windows.umh_node import client as client_mod
+    from nodes.windows.umh_node.config import CapabilityConfig
+
+    client = _durable_node_client(tmp_path)
+    client._ws = _DurableAckWs(client)
+    client._config.capabilities = {
+        "dummy": CapabilityConfig(enabled=True, max_risk_class="read_only")
+    }
+    monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
+    executed = False
+
+    class _Adapter:
+        def execute(self, *_args, **_kwargs):
+            nonlocal executed
+            executed = True
+            return {"success": True, "stdout": "ran"}
+
+    async def _send_event(method, payload, **_kwargs):
+        if method == "durable_command.claimed" and payload.get("state") == "CLAIMED":
+            return {"ok": True, "error": ""}
+        if method == "durable_command.claimed" and payload.get("state") == "RUNNING":
+            return {"ok": False, "error": "durable_command.claimed acknowledgement timed out"}
+        if method == "durable_command.claim_state":
+            return {
+                "ok": False,
+                "accepted": False,
+                "error": "claim readback mismatch: lifecycle_state",
+                "retryable": False,
+            }
+        return {"ok": True, "error": ""}
+
+    client._adapters = {"dummy": _Adapter()}
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    req = _durable_request(capability="dummy.execute", params={}, risk_class="read_only")
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    assert executed is False
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "FAILED"
+    assert "running acknowledgement rejected" in result["result"]["error"]
+
+
 def test_durable_control_send_waits_for_shared_ws_send_lock(tmp_path):
     client = _durable_node_client(tmp_path)
 
@@ -1080,6 +1248,63 @@ def test_durable_lost_claim_ack_reads_back_canonical_claim_before_execution(
     assert methods.count("durable_command.claim_state") == 1
 
 
+def test_durable_missing_claim_ack_reads_back_canonical_claim_before_execution(
+    tmp_path, monkeypatch
+):
+    from nodes.windows.umh_node import client as client_mod
+    from nodes.windows.umh_node.config import CapabilityConfig
+
+    marker = tmp_path / "marker.txt"
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    client._config.capabilities = {
+        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+    }
+    client._adapters = {"shell": object()}
+    monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
+
+    async def _send_event(method, payload, **_kwargs):
+        if method == "durable_command.claimed" and payload.get("state") == "CLAIMED":
+            return None
+        if method == "durable_command.claim_state":
+            current = client._durable_store.get_request(str(payload["request_id"]))
+            assert current is not None
+            return {
+                "ok": True,
+                "accepted": True,
+                "request_id": current.request_id,
+                "correlation_id": current.correlation_id,
+                "candidate_sha": current.candidate_sha,
+                "node_id": current.node_id,
+                "claim_id": current.claim_id,
+                "lifecycle_state": current.lifecycle_state,
+                "lease_expires_at": current.lease_expires_at,
+                "process_tree": current.process_tree,
+            }
+        return {"ok": True, "error": ""}
+
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    req = _durable_request(
+        params={
+            "argv": [
+                sys.executable,
+                "-c",
+                f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
+            ],
+            "timeout": 5,
+        },
+        risk_class="read_only",
+    )
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    assert marker.read_text(encoding="utf-8") == "ran"
+
+
 def test_durable_claim_ack_timeout_can_resume_from_claimed_replay(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
@@ -1249,6 +1474,56 @@ def test_durable_claim_state_unknown_method_remains_bounded_retryable(
     assert current.lifecycle_state == "CLAIMED"
 
 
+def test_durable_claim_state_unknown_method_string_remains_bounded_retryable(
+    tmp_path, monkeypatch
+):
+    from nodes.windows.umh_node import client as client_mod
+    from nodes.windows.umh_node.config import CapabilityConfig
+
+    marker = tmp_path / "marker.txt"
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    client._config.capabilities = {
+        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+    }
+    client._adapters = {"shell": object()}
+    monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_ACQUIRE_TIMEOUT_S", 0.02)
+    monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
+    claim_state_calls = 0
+
+    async def _send_event(method, payload, **_kwargs):
+        nonlocal claim_state_calls
+        if method == "durable_command.claimed" and payload.get("state") == "CLAIMED":
+            return {"ok": False, "error": "durable_command.claimed acknowledgement timed out"}
+        if method == "durable_command.claim_state":
+            claim_state_calls += 1
+            return {"ok": False, "error": "unknown method: durable_command.claim_state"}
+        return {"ok": True, "error": ""}
+
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    req = _durable_request(
+        params={
+            "argv": [
+                sys.executable,
+                "-c",
+                f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
+            ],
+            "timeout": 5,
+        },
+        risk_class="read_only",
+    )
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    assert claim_state_calls >= 2
+    assert marker.exists() is False
+    assert client._durable_store.result_for(req.request_id) is None
+
+
 def test_durable_claim_foreign_rejection_fails_closed_without_execution(tmp_path, monkeypatch):
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -1372,6 +1647,77 @@ def test_durable_claim_readback_accepted_wrong_identity_fails_closed(
                 "lease_expires_at": 9_999_999_999.0,
                 "process_tree": {},
             }
+        return {"ok": True, "error": ""}
+
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    req = _durable_request(
+        params={
+            "argv": [
+                sys.executable,
+                "-c",
+                f"from pathlib import Path; Path({str(marker)!r}).write_text('ran')",
+            ],
+            "timeout": 5,
+        },
+        risk_class="read_only",
+    )
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    assert marker.exists() is False
+    assert client._durable_store.result_for(req.request_id) is None
+
+
+@pytest.mark.parametrize(
+    "field,bad_value",
+    [
+        ("request_id", "foreign-request"),
+        ("correlation_id", "foreign-correlation"),
+        ("candidate_sha", "foreign-sha"),
+        ("node_id", "foreign-node"),
+        ("claim_id", "foreign-claim"),
+        ("lifecycle_state", "RUNNING"),
+    ],
+)
+def test_durable_claim_readback_accepted_single_identity_mismatch_fails_closed(
+    tmp_path, monkeypatch, field, bad_value
+):
+    from nodes.windows.umh_node import client as client_mod
+    from nodes.windows.umh_node.config import CapabilityConfig
+
+    marker = tmp_path / "marker.txt"
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    client._config.capabilities = {
+        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+    }
+    client._adapters = {"shell": object()}
+    monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
+
+    async def _send_event(method, payload, **_kwargs):
+        if method == "durable_command.claimed" and payload.get("state") == "CLAIMED":
+            return {"ok": False, "error": "durable_command.claimed acknowledgement timed out"}
+        if method == "durable_command.claim_state":
+            current = client._durable_store.get_request(str(payload["request_id"]))
+            assert current is not None
+            response = {
+                "ok": True,
+                "accepted": True,
+                "request_id": current.request_id,
+                "correlation_id": current.correlation_id,
+                "candidate_sha": current.candidate_sha,
+                "node_id": current.node_id,
+                "claim_id": current.claim_id,
+                "lifecycle_state": current.lifecycle_state,
+                "lease_expires_at": 9_999_999_999.0,
+                "process_tree": {},
+            }
+            response[field] = bad_value
+            return response
         return {"ok": True, "error": ""}
 
     monkeypatch.setattr(client, "_send_durable_event", _send_event)
