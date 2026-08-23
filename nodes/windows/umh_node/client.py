@@ -1061,7 +1061,21 @@ class NodeClient:
             )
             return
 
-        if req.lifecycle_state == "CLAIMED" and req.claim_id and not req.process_tree.get("root_pid"):
+        if self._durable_request_expired(req) and req.lifecycle_state in {"QUEUED", "CLAIMED"}:
+            await self._fail_unresolved_durable_request(
+                req,
+                reason="request expired before claim authority",
+            )
+            return
+
+        if req.lifecycle_state == "CLAIMED" and req.claim_id:
+            if req.process_tree.get("root_pid"):
+                await self._fail_durable_claim_acquisition(
+                    req,
+                    claim_id=req.claim_id,
+                    reason="claimed request has root pid before running authority",
+                )
+                return
             ack = await self._acquire_durable_claim(
                 req,
                 claim_id=req.claim_id,
@@ -1072,6 +1086,12 @@ class NodeClient:
                     "durable claim unresolved for %s: %s",
                     req.request_id,
                     ack.get("error", "missing acknowledgement"),
+                )
+                await self._fail_durable_claim_acquisition(
+                    req,
+                    claim_id=req.claim_id,
+                    reason=str(ack.get("error", "missing acknowledgement")),
+                    attempts=ack.get("attempts"),
                 )
                 return
             current = self._durable_store.get_request(req.request_id) or req
@@ -1099,6 +1119,14 @@ class NodeClient:
                     current.lifecycle_state,
                     current.claim_id,
                 )
+                await self._fail_durable_claim_acquisition(
+                    current,
+                    claim_id=req.claim_id,
+                    reason=(
+                        "claim no longer executable: "
+                        f"state={current.lifecycle_state} claim={current.claim_id}"
+                    ),
+                )
                 return
             await self._execute_accepted_durable_claim(
                 current,
@@ -1107,8 +1135,21 @@ class NodeClient:
             )
             return
 
+        if (
+            req.lifecycle_state == "RUNNING"
+            and req.claim_id
+            and req.process_tree.get("pre_start_containment")
+            and not req.process_tree.get("root_pid")
+        ):
+            await self._fail_durable_claim_acquisition(
+                req,
+                claim_id=req.claim_id,
+                reason="running without root pid cannot prove process ownership",
+            )
+            return
+
         if req.lifecycle_state in {"CLAIMED", "RUNNING"} and req.claim_id:
-            await self._send_durable_event(
+            ack = await self._send_durable_event(
                 "durable_command.claimed",
                 {
                     "request_id": req.request_id,
@@ -1117,6 +1158,19 @@ class NodeClient:
                     "process_tree": req.process_tree,
                 },
                 expect_ack=True,
+            )
+            if req.lifecycle_state == "RUNNING" and not (ack or {}).get("ok"):
+                await self._fail_durable_running_redelivery(
+                    req,
+                    claim_id=req.claim_id,
+                    reason=str((ack or {}).get("error", "missing acknowledgement")),
+                )
+            return
+
+        if self._durable_request_expired(req):
+            await self._fail_unresolved_durable_request(
+                req,
+                reason="request expired before claim authority",
             )
             return
 
@@ -1133,6 +1187,12 @@ class NodeClient:
                 "durable claim rejected for %s: %s",
                 req.request_id,
                 ack.get("error", "missing acknowledgement"),
+            )
+            await self._fail_durable_claim_acquisition(
+                req,
+                claim_id=claim_id,
+                reason=str(ack.get("error", "missing acknowledgement")),
+                attempts=ack.get("attempts"),
             )
             return
 
@@ -1160,6 +1220,14 @@ class NodeClient:
                 req.request_id,
                 current.lifecycle_state,
                 current.claim_id,
+            )
+            await self._fail_durable_claim_acquisition(
+                current,
+                claim_id=claim_id,
+                reason=(
+                    "claim no longer executable: "
+                    f"state={current.lifecycle_state} claim={current.claim_id}"
+                ),
             )
             return
 
@@ -1200,6 +1268,21 @@ class NodeClient:
                     current.lifecycle_state,
                     current.claim_id,
                 )
+                await self._fail_durable_claim_acquisition(
+                    current,
+                    claim_id=claim_id,
+                    reason=(
+                        "claim refused execution: "
+                        f"state={current.lifecycle_state} claim={current.claim_id}"
+                    ),
+                )
+                return
+            if self._durable_request_expired(current):
+                await self._fail_durable_claim_acquisition(
+                    current,
+                    claim_id=claim_id,
+                    reason="request expired before execution authority",
+                )
                 return
             result = await self._execute_capability_for_durable(
                 current,
@@ -1208,6 +1291,18 @@ class NodeClient:
             )
             state = "SUCCEEDED" if result.get("success") else "FAILED"
             cleanup = dict(result.get("cleanup") or {"process_residue": []})
+            if result.get("durable_request_missing_after_running"):
+                await self._send_durable_event(
+                    "durable_command.result",
+                    {
+                        "request_id": current.request_id,
+                        "claim_id": claim_id,
+                        "state": state,
+                        "result": result,
+                        "cleanup": cleanup,
+                    },
+                )
+                return
             self._durable_store.publish_result(
                 current.request_id,
                 claim_id=claim_id,
@@ -1225,6 +1320,150 @@ class NodeClient:
                     "cleanup": cleanup,
                 },
             )
+
+    @staticmethod
+    def _durable_request_expired(req: DurableRemoteRequest) -> bool:
+        return bool(req.expires_at and time.time() >= req.expires_at)
+
+    async def _fail_unresolved_durable_request(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        reason: str,
+    ) -> DurableRemoteRequest:
+        terminal = self._durable_store.fail_unresolved_request(req.request_id, reason=reason)
+        published = self._durable_store.result_for(req.request_id) or {}
+        await self._send_durable_event(
+            "durable_command.result",
+            {
+                "request_id": terminal.request_id,
+                "claim_id": published.get("claim_id", terminal.claim_id or "unclaimed"),
+                "state": terminal.lifecycle_state,
+                "result": published.get(
+                    "result",
+                    {
+                        "success": False,
+                        "error": "durable remote unresolved request failed closed",
+                        "reason": reason,
+                    },
+                ),
+                "cleanup": published.get("cleanup", terminal.cleanup or {"process_residue": []}),
+            },
+        )
+        return terminal
+
+    async def _fail_durable_running_redelivery(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        reason: str,
+    ) -> DurableRemoteRequest:
+        cleanup = {
+            "process_residue": [],
+            "running_redelivery_failed_closed": True,
+            "claim_id": claim_id,
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "node_id": req.node_id,
+            "candidate_sha": req.candidate_sha,
+        }
+        root_pid = req.process_tree.get("root_pid")
+        if root_pid:
+            cleanup["process_residue"] = [
+                {"pid": root_pid, "state": "running_redelivery_ack_unresolved"}
+            ]
+        result: dict[str, Any] = {
+            "success": False,
+            "error": "durable running acknowledgement failed closed",
+            "reason": reason,
+        }
+        try:
+            self._durable_store.publish_result(
+                req.request_id,
+                claim_id=claim_id,
+                state="FAILED",
+                result=result,
+                cleanup=cleanup,
+            )
+        except KeyError:
+            result["durable_request_missing_after_running"] = True
+        await self._send_durable_event(
+            "durable_command.result",
+            {
+                "request_id": req.request_id,
+                "claim_id": claim_id,
+                "state": "FAILED",
+                "result": result,
+                "cleanup": cleanup,
+            },
+        )
+        return self._durable_store.get_request(req.request_id) or req
+
+    async def _fail_durable_claim_acquisition(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        reason: str,
+        attempts: object | None = None,
+    ) -> DurableRemoteRequest:
+        """Fail closed when a claimed request cannot prove execution authority."""
+        current = self._durable_store.get_request(req.request_id) or req
+        if current.lifecycle_state == "CANCEL_REQUESTED":
+            terminal = await self._cancel_durable_request(
+                current,
+                claim_id=claim_id,
+                reason="cancel requested by controller",
+            )
+            await self._send_durable_event(
+                "durable_command.result",
+                {
+                    "request_id": current.request_id,
+                    "claim_id": terminal.claim_id,
+                    "state": terminal.lifecycle_state,
+                    "result": {"success": False, "error": "cancel requested by controller"},
+                    "cleanup": terminal.cleanup,
+                },
+            )
+            return terminal
+        if current.lifecycle_state in {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"}:
+            return current
+
+        cleanup = {
+            "process_residue": [],
+            "claim_acquisition_failed_closed": True,
+            "claim_id": claim_id,
+            "request_id": current.request_id,
+            "correlation_id": current.correlation_id,
+            "node_id": current.node_id,
+            "candidate_sha": current.candidate_sha,
+        }
+        result: dict[str, Any] = {
+            "success": False,
+            "error": "durable claim acquisition failed closed",
+            "reason": reason,
+        }
+        if isinstance(attempts, list):
+            result["claim_acquisition_attempts"] = attempts
+        terminal = self._durable_store.publish_result(
+            current.request_id,
+            claim_id=claim_id,
+            state="FAILED",
+            result=result,
+            cleanup=cleanup,
+        )
+        await self._send_durable_event(
+            "durable_command.result",
+            {
+                "request_id": terminal.request_id,
+                "claim_id": claim_id,
+                "state": terminal.lifecycle_state,
+                "result": result,
+                "cleanup": cleanup,
+            },
+        )
+        return terminal
 
     async def _acquire_durable_claim(
         self,
@@ -1629,6 +1868,36 @@ class NodeClient:
                 "success": False,
                 "error": f"running acknowledgement rejected: {running_ack.get('error', '')}",
             }
+        current = self._durable_store.get_request(req.request_id)
+        if current is None:
+            return {
+                "success": False,
+                "error": "durable request missing before adapter start",
+                "durable_request_missing_after_running": True,
+                "cleanup": {"process_residue": []},
+            }
+        if current and current.lifecycle_state == "CANCEL_REQUESTED":
+            cleanup = {
+                "process_residue": [],
+                "cancel_reason": "cancel requested before adapter start",
+                **current.cancellation_identity(claim_id=claim_id),
+            }
+            return {
+                "success": False,
+                "error": "cancel requested before adapter start",
+                "cleanup": cleanup,
+            }
+        if current and (current.lifecycle_state != "RUNNING" or current.claim_id != claim_id):
+            return {
+                "success": False,
+                "error": f"running state changed before adapter start: {current.lifecycle_state}",
+            }
+        if current and self._durable_request_expired(current):
+            return {
+                "success": False,
+                "error": "request expired before adapter start",
+                "cleanup": {"process_residue": []},
+            }
         try:
             if hasattr(adapter, "execute_async") and callable(adapter.execute_async):
                 return await asyncio.wait_for(adapter.execute_async(cap_name, cap_params), timeout=timeout)
@@ -1698,10 +1967,23 @@ class NodeClient:
                     "error": "cancel requested before process start",
                     "cleanup": cleanup,
                 }
+            if current is None:
+                return {
+                    "success": False,
+                    "error": "durable request missing before process start",
+                    "durable_request_missing_after_running": True,
+                    "cleanup": {"process_residue": []},
+                }
             if current and (current.lifecycle_state != "RUNNING" or current.claim_id != claim_id):
                 return {
                     "success": False,
                     "error": f"running state changed before process start: {current.lifecycle_state}",
+                }
+            if current and self._durable_request_expired(current):
+                return {
+                    "success": False,
+                    "error": "request expired before process start",
+                    "cleanup": {"process_residue": []},
                 }
 
             extra: dict[str, Any] = {}
