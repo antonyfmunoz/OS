@@ -26,6 +26,8 @@ import struct
 import sys
 import threading
 import time
+import urllib.error
+import urllib.request
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
@@ -1508,7 +1510,49 @@ class NodeClient:
                 }
             )
             if ack.get("ok"):
-                return {"ok": True, "attempts": attempts, "claim_id": claim_id}
+                validated_ack = self._validate_durable_claim_authority(
+                    ack,
+                    req,
+                    claim_id=claim_id,
+                    expected_state="CLAIMED",
+                    label="claim acknowledgement",
+                )
+                if validated_ack.get("ok"):
+                    return {"ok": True, "attempts": attempts, "claim_id": claim_id}
+                readback = await self._reconcile_durable_claim_state(
+                    req,
+                    claim_id=claim_id,
+                    expected_state="CLAIMED",
+                    timeout_s=min(_CONTROL_TIMEOUT_S, max(0.0, deadline - time.monotonic())),
+                )
+                attempts.append(
+                    {
+                        "method": "canonical_durable_claim_state",
+                        "ok": bool(readback.get("ok")),
+                        "error": str(
+                            readback.get("error", validated_ack.get("error", ""))
+                        ),
+                    }
+                )
+                if readback.get("ok"):
+                    return {
+                        "ok": True,
+                        "attempts": attempts,
+                        "claim_id": claim_id,
+                        "reconciled": True,
+                    }
+                if not readback.get("retryable"):
+                    return {
+                        "ok": False,
+                        "error": str(
+                            readback.get(
+                                "error",
+                                validated_ack.get("error", "claim authority rejected"),
+                            )
+                        ),
+                        "attempts": attempts,
+                        "claim_id": claim_id,
+                    }
             error = str(ack.get("error", ""))
             retryable = bool(ack.get("retryable")) or (
                 "timed out" in error or "missing acknowledgement" in error
@@ -1522,7 +1566,7 @@ class NodeClient:
                 )
                 attempts.append(
                     {
-                        "method": "durable_command.claim_state",
+                        "method": "canonical_durable_claim_state",
                         "ok": bool(readback.get("ok")),
                         "error": str(readback.get("error", "")),
                     }
@@ -1572,10 +1616,8 @@ class NodeClient:
             "state": expected_state,
         }
         try:
-            readback = await self._send_durable_event(
-                "durable_command.claim_state",
+            readback = await self._read_canonical_durable_claim_state(
                 payload,
-                expect_ack=True,
                 timeout_s=timeout_s,
             )
         except Exception as exc:  # noqa: BLE001
@@ -1591,6 +1633,30 @@ class NodeClient:
                 readback["retryable"] = True
             readback.setdefault("retryable", False)
             return readback
+        return self._validate_durable_claim_authority(
+            readback,
+            req,
+            claim_id=claim_id,
+            expected_state=expected_state,
+            label="claim readback",
+        )
+
+    def _validate_durable_claim_authority(
+        self,
+        readback: dict[str, Any],
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        expected_state: str,
+        label: str,
+    ) -> dict[str, Any]:
+        if not readback.get("accepted"):
+            return {
+                "ok": False,
+                "accepted": False,
+                "error": f"{label} not accepted",
+                "retryable": False,
+            }
         mismatches: list[str] = []
         expected = {
             "request_id": req.request_id,
@@ -1607,7 +1673,14 @@ class NodeClient:
             return {
                 "ok": False,
                 "accepted": False,
-                "error": "claim readback mismatch: " + ",".join(mismatches),
+                "error": f"{label} mismatch: " + ",".join(mismatches),
+                "retryable": False,
+            }
+        if str(readback.get("authority_source", "")) != "vps_canonical_durable_store":
+            return {
+                "ok": False,
+                "accepted": False,
+                "error": f"{label} authority source is not canonical durable store",
                 "retryable": False,
             }
         lease_expires_at = float(readback.get("lease_expires_at", 0.0) or 0.0)
@@ -1615,10 +1688,70 @@ class NodeClient:
             return {
                 "ok": False,
                 "accepted": False,
-                "error": "claim readback lease expired",
+                "error": f"{label} lease expired",
                 "retryable": False,
             }
         return {"ok": True, "accepted": True}
+
+    async def _read_canonical_durable_claim_state(
+        self,
+        payload: dict[str, Any],
+        *,
+        timeout_s: float,
+    ) -> dict[str, Any]:
+        """Read VPS canonical durable state outside the WebSocket RPC waiter path."""
+        if timeout_s <= 0:
+            return {"ok": False, "error": "claim readback deadline expired", "retryable": False}
+        if not self._config.vps_host or not self._config.token:
+            return {
+                "ok": False,
+                "error": "canonical claim readback unavailable: missing node auth",
+                "retryable": False,
+            }
+
+        def _post() -> dict[str, Any]:
+            body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+            req = urllib.request.Request(
+                self._config.relay_http_url.rstrip("/") + "/durable-claim-state",
+                data=body,
+                headers={
+                    "Authorization": f"Bearer {self._config.token}",
+                    "Content-Type": "application/json",
+                },
+                method="POST",
+            )
+            try:
+                with urllib.request.urlopen(req, timeout=max(0.1, timeout_s)) as resp:
+                    raw = resp.read(64 * 1024)
+            except urllib.error.HTTPError as exc:
+                return {
+                    "ok": False,
+                    "error": f"canonical claim readback HTTP {exc.code}",
+                    "retryable": 500 <= exc.code < 600,
+                }
+            except (OSError, TimeoutError) as exc:
+                return {
+                    "ok": False,
+                    "error": f"canonical claim readback unavailable: {exc}",
+                    "retryable": True,
+                }
+            try:
+                parsed = json.loads(raw.decode("utf-8"))
+            except Exception as exc:  # noqa: BLE001
+                return {
+                    "ok": False,
+                    "error": f"canonical claim readback invalid JSON: {exc}",
+                    "retryable": False,
+                }
+            if not isinstance(parsed, dict):
+                return {
+                    "ok": False,
+                    "error": "canonical claim readback returned non-object",
+                    "retryable": False,
+                }
+            return parsed
+
+        return await asyncio.to_thread(_post)
 
     async def _announce_durable_running(
         self,
@@ -1649,7 +1782,33 @@ class NodeClient:
         )
         ack = ack or {"ok": False, "error": "missing acknowledgement"}
         if ack.get("ok"):
-            return ack
+            validated_ack = self._validate_durable_claim_authority(
+                ack,
+                req,
+                claim_id=claim_id,
+                expected_state="RUNNING",
+                label="running acknowledgement",
+            )
+            if validated_ack.get("ok"):
+                return ack
+            readback = await self._reconcile_durable_claim_state(
+                req,
+                claim_id=claim_id,
+                expected_state="RUNNING",
+                timeout_s=_CONTROL_TIMEOUT_S,
+            )
+            if readback.get("ok"):
+                return {"ok": True, "reconciled": True}
+            return {
+                "ok": False,
+                "error": str(
+                    readback.get(
+                        "error",
+                        validated_ack.get("error", "running acknowledgement rejected"),
+                    )
+                ),
+                "retryable": bool(readback.get("retryable")),
+            }
         error = str(ack.get("error", ""))
         retryable = bool(ack.get("retryable")) or (
             "timed out" in error or "missing acknowledgement" in error

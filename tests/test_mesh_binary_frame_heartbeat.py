@@ -610,6 +610,50 @@ def test_claim_conflict_ack_reports_rejection(tmp_path):
     assert "RECONCILIATION_REQUIRED" in result["error"]
 
 
+async def _claim_ack_reports_canonical_identity(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="claim-ack-test",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(req)
+
+    class Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+
+        async def send(self, payload: str) -> None:
+            self.sent.append(payload)
+
+    ws = Ws()
+    await s._handle_durable_claimed(
+        "n1",
+        {"request_id": req.request_id, "claim_id": "claim-1", "state": "CLAIMED"},
+        99,
+        ws,  # type: ignore[arg-type]
+    )
+    return json.loads(ws.sent[0])["result"]
+
+
+def test_claim_ack_reports_canonical_identity(tmp_path):
+    result = asyncio.run(_claim_ack_reports_canonical_identity(tmp_path))
+
+    assert result["ok"] is True
+    assert result["accepted"] is True
+    assert result["correlation_id"] == "claim-ack-test"
+    assert result["candidate_sha"] == "sha"
+    assert result["node_id"] == "n1"
+    assert result["claim_id"] == "claim-1"
+    assert result["lifecycle_state"] == "CLAIMED"
+    assert result["authority_source"] == "vps_canonical_durable_store"
+
+
 async def _claim_state_reports_exact_accepted_claim(tmp_path) -> dict:
     s = _server()
     s._durable_store = DurableRemoteStore(tmp_path)
@@ -660,6 +704,111 @@ def test_claim_state_reports_exact_accepted_claim(tmp_path):
     assert result["correlation_id"] == "claim-state-test"
     assert result["lifecycle_state"] == "CLAIMED"
     assert result["process_tree"]["node_pid"] == 123
+    assert result["authority_source"] == "vps_canonical_durable_store"
+
+
+def test_canonical_claim_state_http_auth_binds_node_token_to_node_id(tmp_path):
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="claim-state-http",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(req)
+    claimed = s._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    assert s._http_authenticated_node_id("Bearer tok-n1") == "n1"
+    response = s._canonical_durable_claim_state(
+        "n1",
+        {
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "candidate_sha": req.candidate_sha,
+            "node_id": "n1",
+            "claim_id": claimed.claim_id,
+            "state": "CLAIMED",
+        },
+    )
+
+    assert response["ok"] is True
+    assert response["accepted"] is True
+    assert response["authority_source"] == "vps_canonical_durable_store"
+
+
+async def _canonical_claim_state_http_relay_reads_store(tmp_path, monkeypatch) -> dict:
+    monkeypatch.setenv("UMH_MESH_RELAY_BIND", "127.0.0.1")
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="claim-state-http-relay",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(req)
+    claimed = s._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    s.start()
+    try:
+        last_exc: Exception | None = None
+        for _ in range(50):
+            try:
+                reader, writer = await asyncio.open_connection(
+                    "127.0.0.1", s._config.port + 1
+                )
+                break
+            except OSError as exc:
+                last_exc = exc
+                await asyncio.sleep(0.05)
+        else:
+            raise AssertionError(f"HTTP relay did not start: {last_exc}")
+
+        body = json.dumps(
+            {
+                "request_id": req.request_id,
+                "correlation_id": req.correlation_id,
+                "candidate_sha": req.candidate_sha,
+                "node_id": req.node_id,
+                "claim_id": claimed.claim_id,
+                "state": "CLAIMED",
+            },
+            separators=(",", ":"),
+        ).encode("utf-8")
+        writer.write(
+            b"POST /durable-claim-state HTTP/1.1\r\n"
+            b"Host: 127.0.0.1\r\n"
+            b"Authorization: Bearer tok-n1\r\n"
+            b"Content-Type: application/json\r\n"
+            + f"Content-Length: {len(body)}\r\n".encode("ascii")
+            + b"Connection: close\r\n\r\n"
+            + body
+        )
+        await writer.drain()
+        raw = await reader.read()
+        writer.close()
+        await writer.wait_closed()
+    finally:
+        s.stop()
+
+    _, _, response_body = raw.partition(b"\r\n\r\n")
+    return json.loads(response_body.decode("utf-8"))
+
+
+def test_canonical_claim_state_http_relay_reads_store(tmp_path, monkeypatch):
+    response = asyncio.run(_canonical_claim_state_http_relay_reads_store(tmp_path, monkeypatch))
+
+    assert response["ok"] is True
+    assert response["accepted"] is True
+    assert response["request_id"]
+    assert response["node_id"] == "n1"
+    assert response["authority_source"] == "vps_canonical_durable_store"
 
 
 async def _claim_state_reports_exact_running_claim(tmp_path) -> dict:

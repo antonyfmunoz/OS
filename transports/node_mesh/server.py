@@ -604,6 +604,15 @@ class NodeMeshServer:
                 return nt.node_id
         return None
 
+    def _http_authenticated_node_id(self, auth_header: str) -> str | None:
+        if not auth_header or auth_header[:7].lower() != "bearer ":
+            return None
+        token = auth_header[7:].strip()
+        relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+        if relay_secret and hmac_compare(token, relay_secret):
+            return "*"
+        return self._node_id_for_token(token)
+
     async def _handle_hello(
         self,
         ws: ServerConnection,
@@ -826,37 +835,81 @@ class NodeMeshServer:
         claim_id = str(params.get("claim_id", ""))
         state = str(params.get("state", "CLAIMED")).upper()
         process_tree = dict(params.get("process_tree") or {})
-        ok = False
-        error = ""
+        result: dict[str, Any] = {
+            "ok": False,
+            "accepted": False,
+            "error": "",
+            "request_id": request_id,
+            "correlation_id": "",
+            "candidate_sha": "",
+            "node_id": node_id,
+            "claim_id": "",
+            "lifecycle_state": "",
+            "lease_expires_at": 0.0,
+            "process_tree": {},
+            "authority_source": "vps_canonical_durable_store",
+        }
         try:
             if connection_id and not self._registry.owns(node_id, connection_id):
-                error = "stale node connection"
-                raise RuntimeError(error)
+                result["error"] = "stale node connection"
+                raise RuntimeError(result["error"])
             req = self._durable_store.get_request(request_id)
             if req is None or req.node_id != node_id:
-                error = "request not found for node"
+                result["error"] = "request not found for node"
+            elif state not in {"CLAIMED", "RUNNING"}:
+                result["error"] = "unsupported claim state"
             elif state == "RUNNING":
                 updated = self._durable_store.mark_running(
                     request_id, claim_id=claim_id, process_tree=process_tree
                 )
-                ok = updated.lifecycle_state == "RUNNING" and updated.claim_id == claim_id
-                if not ok:
-                    error = f"claim rejected into {updated.lifecycle_state}"
+                result.update(
+                    {
+                        "request_id": updated.request_id,
+                        "correlation_id": updated.correlation_id,
+                        "candidate_sha": updated.candidate_sha,
+                        "node_id": updated.node_id,
+                        "claim_id": updated.claim_id,
+                        "lifecycle_state": updated.lifecycle_state,
+                        "lease_expires_at": updated.lease_expires_at,
+                        "process_tree": updated.process_tree,
+                    }
+                )
+                result["ok"] = updated.lifecycle_state == "RUNNING" and updated.claim_id == claim_id
+                result["accepted"] = result["ok"]
+                if not result["ok"]:
+                    result["error"] = f"claim rejected into {updated.lifecycle_state}"
             else:
                 updated = self._durable_store.mark_claimed(
                     request_id, claim_id=claim_id, process_tree=process_tree
                 )
-                ok = updated.lifecycle_state == "CLAIMED" and updated.claim_id == claim_id
-                if not ok:
-                    error = f"claim rejected into {updated.lifecycle_state}"
+                result.update(
+                    {
+                        "request_id": updated.request_id,
+                        "correlation_id": updated.correlation_id,
+                        "candidate_sha": updated.candidate_sha,
+                        "node_id": updated.node_id,
+                        "claim_id": updated.claim_id,
+                        "lifecycle_state": updated.lifecycle_state,
+                        "lease_expires_at": updated.lease_expires_at,
+                        "process_tree": updated.process_tree,
+                    }
+                )
+                result["ok"] = (
+                    updated.lifecycle_state == "CLAIMED" and updated.claim_id == claim_id
+                )
+                result["accepted"] = result["ok"]
+                if not result["ok"]:
+                    result["error"] = f"claim rejected into {updated.lifecycle_state}"
         except Exception as exc:  # noqa: BLE001
-            error = str(exc)
+            result["ok"] = False
+            result["accepted"] = False
+            result["error"] = str(exc)
         if msg_id is not None:
             await ws.send(
                 json.dumps(
                     {
                         "jsonrpc": "2.0",
-                        "result": {"ok": ok, "error": error},
+                        "result": result,
                         "id": msg_id,
                     }
                 )
@@ -870,6 +923,45 @@ class NodeMeshServer:
         ws: ServerConnection,
         connection_id: str = "",
     ) -> None:
+        result: dict[str, Any] = {
+            "ok": False,
+            "accepted": False,
+            "error": "",
+            "request_id": str(params.get("request_id", "")),
+            "correlation_id": "",
+            "candidate_sha": "",
+            "node_id": node_id,
+            "claim_id": "",
+            "lifecycle_state": "",
+            "lease_expires_at": 0.0,
+            "process_tree": {},
+            "authority_source": "vps_canonical_durable_store",
+        }
+        try:
+            if connection_id and not self._registry.owns(node_id, connection_id):
+                result["error"] = "stale node connection"
+                raise RuntimeError(result["error"])
+            result = self._canonical_durable_claim_state(node_id, params)
+        except Exception as exc:  # noqa: BLE001
+            result["ok"] = False
+            result["accepted"] = False
+            result["error"] = str(exc)
+        if msg_id is not None:
+            await ws.send(
+                json.dumps(
+                    {
+                        "jsonrpc": "2.0",
+                        "result": result,
+                        "id": msg_id,
+                    }
+                )
+            )
+
+    def _canonical_durable_claim_state(
+        self,
+        node_id: str,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
         request_id = str(params.get("request_id", ""))
         correlation_id = str(params.get("correlation_id", ""))
         candidate_sha = str(params.get("candidate_sha", ""))
@@ -887,59 +979,44 @@ class NodeMeshServer:
             "lifecycle_state": "",
             "lease_expires_at": 0.0,
             "process_tree": {},
+            "authority_source": "vps_canonical_durable_store",
         }
-        try:
-            if connection_id and not self._registry.owns(node_id, connection_id):
-                result["error"] = "stale node connection"
-                raise RuntimeError(result["error"])
-            req = self._durable_store.get_request(request_id)
-            if req is None:
-                result["error"] = "request not found"
-            elif req.node_id != node_id:
-                result["error"] = "request not found for node"
-            else:
-                result.update(
-                    {
-                        "request_id": req.request_id,
-                        "correlation_id": req.correlation_id,
-                        "candidate_sha": req.candidate_sha,
-                        "node_id": req.node_id,
-                        "claim_id": req.claim_id,
-                        "lifecycle_state": req.lifecycle_state,
-                        "lease_expires_at": req.lease_expires_at,
-                        "process_tree": req.process_tree,
-                    }
-                )
-                mismatches: list[str] = []
-                if not correlation_id or req.correlation_id != correlation_id:
-                    mismatches.append("correlation_id")
-                if not candidate_sha or req.candidate_sha != candidate_sha:
-                    mismatches.append("candidate_sha")
-                if not claim_id or req.claim_id != claim_id:
-                    mismatches.append("claim_id")
-                if expected_state not in {"CLAIMED", "RUNNING"}:
-                    mismatches.append("state")
-                if req.lifecycle_state != expected_state:
-                    mismatches.append("lifecycle_state")
-                if mismatches:
-                    result["error"] = "claim mismatch: " + ",".join(mismatches)
-                else:
-                    result["ok"] = True
-                    result["accepted"] = True
-        except Exception as exc:  # noqa: BLE001
-            result["ok"] = False
-            result["accepted"] = False
-            result["error"] = str(exc)
-        if msg_id is not None:
-            await ws.send(
-                json.dumps(
-                    {
-                        "jsonrpc": "2.0",
-                        "result": result,
-                        "id": msg_id,
-                    }
-                )
-            )
+        req = self._durable_store.get_request(request_id)
+        if req is None:
+            result["error"] = "request not found"
+            return result
+        if req.node_id != node_id:
+            result["error"] = "request not found for node"
+            return result
+        result.update(
+            {
+                "request_id": req.request_id,
+                "correlation_id": req.correlation_id,
+                "candidate_sha": req.candidate_sha,
+                "node_id": req.node_id,
+                "claim_id": req.claim_id,
+                "lifecycle_state": req.lifecycle_state,
+                "lease_expires_at": req.lease_expires_at,
+                "process_tree": req.process_tree,
+            }
+        )
+        mismatches: list[str] = []
+        if not correlation_id or req.correlation_id != correlation_id:
+            mismatches.append("correlation_id")
+        if not candidate_sha or req.candidate_sha != candidate_sha:
+            mismatches.append("candidate_sha")
+        if not claim_id or req.claim_id != claim_id:
+            mismatches.append("claim_id")
+        if expected_state not in {"CLAIMED", "RUNNING"}:
+            mismatches.append("state")
+        if req.lifecycle_state != expected_state:
+            mismatches.append("lifecycle_state")
+        if mismatches:
+            result["error"] = "claim mismatch: " + ",".join(mismatches)
+            return result
+        result["ok"] = True
+        result["accepted"] = True
+        return result
 
     async def _handle_durable_result(
         self,
@@ -1354,6 +1431,29 @@ class NodeMeshServer:
                         await self._write_unauthorized(writer)
                         return
                     resp = self._http_nodes()
+                elif method == "POST" and path.rstrip("/") == "/durable-claim-state":
+                    authed_node_id = self._http_authenticated_node_id(
+                        headers.get("authorization", "")
+                    )
+                    if not authed_node_id:
+                        await self._write_unauthorized(writer)
+                        return
+                    payload = json.loads(body)
+                    if not isinstance(payload, dict):
+                        resp = {"ok": False, "accepted": False, "error": "invalid payload"}
+                    else:
+                        requested_node_id = str(payload.get("node_id", ""))
+                        if authed_node_id != "*" and requested_node_id != authed_node_id:
+                            resp = {
+                                "ok": False,
+                                "accepted": False,
+                                "error": "node token does not match requested node_id",
+                            }
+                        else:
+                            resp = self._canonical_durable_claim_state(
+                                requested_node_id,
+                                payload,
+                            )
                 else:
                     resp = {"error": "not found"}
 
