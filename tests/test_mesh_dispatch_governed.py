@@ -2475,6 +2475,55 @@ def test_durable_running_replay_without_root_pid_fails_closed_without_fabricated
     assert result["cleanup"]["process_residue"] == []
 
 
+def test_durable_prestart_running_redelivery_with_local_owner_does_not_fail_closed(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    prestart_tree = {
+        "node_pid": os.getpid(),
+        "root_pid": None,
+        "pre_start_containment": True,
+        "claimed_at": time.time(),
+    }
+    client._durable_store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree=prestart_tree,
+    )
+    delivered = client._durable_store.get_request(req.request_id)
+    assert delivered is not None
+    executed = False
+
+    async def _execute(*_args, **_kwargs):
+        nonlocal executed
+        executed = True
+        return {"success": True, "cleanup": {"process_residue": []}}
+
+    monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
+    lock = client._durable_execution_locks.setdefault(req.request_id, asyncio.Lock())
+
+    async def _redeliver_while_owned():
+        await lock.acquire()
+        try:
+            await client._handle_durable_command(
+                {"method": "durable_command.request", "params": delivered.to_dict()}
+            )
+        finally:
+            lock.release()
+
+    asyncio.run(_redeliver_while_owned())
+
+    assert executed is False
+    assert client._durable_store.result_for(req.request_id) is None
+    current = client._durable_store.get_request(req.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RUNNING"
+    assert current.process_tree.get("root_pid") is None
+
+
 def test_durable_expired_request_fails_closed_before_claim_or_execution(tmp_path, monkeypatch):
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)

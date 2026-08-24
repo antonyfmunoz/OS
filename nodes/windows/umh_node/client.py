@@ -1142,6 +1142,14 @@ class NodeClient:
             and self._durable_request_is_shell_backed(req)
             and not req.process_tree.get("root_pid")
         ):
+            execution_lock = self._durable_execution_locks.get(req.request_id)
+            if execution_lock is not None and execution_lock.locked():
+                logger.info(
+                    "durable running redelivery for %s observed local pre-start owner; "
+                    "suppressing duplicate launch",
+                    req.request_id,
+                )
+                return
             await self._fail_durable_claim_acquisition(
                 req,
                 claim_id=req.claim_id,
@@ -1304,6 +1312,14 @@ class NodeClient:
                 self._durable_request_is_shell_backed(current)
                 and not effective_process_tree.get("root_pid")
             ):
+                execution_lock = self._durable_execution_locks.get(current.request_id)
+                if execution_lock is not None and execution_lock.locked():
+                    logger.info(
+                        "durable running replay for %s observed local pre-start owner; "
+                        "suppressing duplicate launch",
+                        current.request_id,
+                    )
+                    return
                 await self._fail_durable_claim_acquisition(
                     current,
                     claim_id=claim_id,
