@@ -62,6 +62,8 @@ _MEDIA_QUEUE_MAX = 4
 _CONTROL_TIMEOUT_S = 8.0
 _DURABLE_CLAIM_ACQUIRE_TIMEOUT_S = 30.0
 _DURABLE_CLAIM_RETRY_SLEEP_S = 1.0
+_DURABLE_TRAJECTORY_TOMBSTONE_TTL_S = 300.0
+_DURABLE_TRAJECTORY_MAX = 512
 _DURABLE_CLAIM_PROOF_STATES = frozenset(
     {
         "CLAIMED",
@@ -483,6 +485,7 @@ class NodeClient:
         self._durable_processes: dict[str, subprocess.Popen[str]] = {}
         self._durable_execution_locks: dict[str, asyncio.Lock] = {}
         self._durable_request_gates: dict[str, dict[str, Any]] = {}
+        self._durable_request_trajectories: dict[str, dict[str, Any]] = {}
 
         # Media plane: bounded frame queue — stream thread pushes, drain task sends
         self._media_queue: deque[str] = deque(maxlen=_MEDIA_QUEUE_MAX)
@@ -990,27 +993,284 @@ class NodeClient:
         except Exception as exc:  # noqa: BLE001
             logger.error("durable command handler crashed: %s", exc, exc_info=True)
 
+    def _durable_request_identity(self, req: DurableRemoteRequest) -> dict[str, str]:
+        return {
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "node_id": req.node_id,
+            "candidate_sha": req.candidate_sha,
+            "idempotency_key": req.idempotency_key,
+            "payload_digest": req.payload_digest,
+        }
+
+    @staticmethod
+    def _durable_trajectory_identity_matches(
+        trajectory: dict[str, Any], req: DurableRemoteRequest
+    ) -> bool:
+        identity = dict(trajectory.get("identity") or {})
+        for key in (
+            "request_id",
+            "correlation_id",
+            "node_id",
+            "candidate_sha",
+            "idempotency_key",
+            "payload_digest",
+        ):
+            if str(identity.get(key, "")) != str(getattr(req, key, "")):
+                return False
+        return True
+
+    def _prune_durable_request_trajectories(self) -> None:
+        trajectories = getattr(self, "_durable_request_trajectories", None)
+        if not trajectories:
+            return
+        now = time.monotonic()
+        for request_id, trajectory in list(trajectories.items()):
+            if trajectory.get("refs", 0) > 0:
+                continue
+            retain_until = float(trajectory.get("retain_until", 0.0) or 0.0)
+            if retain_until and retain_until <= now:
+                trajectories.pop(request_id, None)
+        if len(trajectories) <= _DURABLE_TRAJECTORY_MAX:
+            return
+        terminal = [
+            (float(trajectory.get("updated_at", 0.0) or 0.0), request_id)
+            for request_id, trajectory in trajectories.items()
+            if trajectory.get("refs", 0) <= 0
+            and trajectory.get("status")
+            in {"FAIL_CLOSED", "TERMINAL_OBSERVED", "RECONCILIATION_PENDING"}
+        ]
+        for _, request_id in sorted(terminal)[: max(0, len(trajectories) - _DURABLE_TRAJECTORY_MAX)]:
+            trajectories.pop(request_id, None)
+
+    def _durable_request_trajectory(self, req: DurableRemoteRequest) -> dict[str, Any]:
+        trajectories = getattr(self, "_durable_request_trajectories", None)
+        if trajectories is None:
+            trajectories = {}
+            self._durable_request_trajectories = trajectories
+        self._prune_durable_request_trajectories()
+        trajectory = trajectories.get(req.request_id)
+        if trajectory is None:
+            now = time.monotonic()
+            trajectory = {
+                "lock": asyncio.Lock(),
+                "refs": 0,
+                "identity": self._durable_request_identity(req),
+                "status": "ACQUIRING",
+                "claim_id": "",
+                "created_at": now,
+                "updated_at": now,
+                "retain_until": now + _DURABLE_TRAJECTORY_TOMBSTONE_TTL_S,
+            }
+            trajectories[req.request_id] = trajectory
+        return trajectory
+
+    def _record_durable_request_trajectory(
+        self,
+        request_id: str,
+        *,
+        status: str,
+        claim_id: str | None = None,
+        terminal: bool = False,
+    ) -> None:
+        trajectories = getattr(self, "_durable_request_trajectories", None)
+        if not trajectories:
+            return
+        trajectory = trajectories.get(request_id)
+        if trajectory is None:
+            return
+        if claim_id:
+            trajectory["claim_id"] = claim_id
+        trajectory["status"] = status
+        trajectory["updated_at"] = time.monotonic()
+        if terminal:
+            trajectory["retain_until"] = time.monotonic() + _DURABLE_TRAJECTORY_TOMBSTONE_TTL_S
+
+    def _sync_durable_request_trajectory(
+        self, trajectory: dict[str, Any], req: DurableRemoteRequest
+    ) -> None:
+        if req.claim_id and not trajectory.get("claim_id"):
+            trajectory["claim_id"] = req.claim_id
+        existing_status = str(trajectory.get("status", "") or "")
+        if (
+            existing_status in {"FAIL_CLOSED", "RECONCILIATION_PENDING"}
+            and req.lifecycle_state not in {"RUNNING", *TERMINAL_STATES}
+        ):
+            trajectory["updated_at"] = time.monotonic()
+            return
+        if req.lifecycle_state == "RUNNING":
+            trajectory["status"] = "RUNNING_OR_RECONCILING"
+        elif req.lifecycle_state in TERMINAL_STATES:
+            trajectory["status"] = "TERMINAL_OBSERVED"
+            trajectory["retain_until"] = (
+                time.monotonic() + _DURABLE_TRAJECTORY_TOMBSTONE_TTL_S
+            )
+        elif req.lifecycle_state == "RECONCILIATION_REQUIRED":
+            trajectory["status"] = "RECONCILIATION_PENDING"
+            trajectory["retain_until"] = (
+                time.monotonic() + _DURABLE_TRAJECTORY_TOMBSTONE_TTL_S
+            )
+        elif req.lifecycle_state == "CLAIMED":
+            trajectory["status"] = "ACQUIRING"
+        trajectory["updated_at"] = time.monotonic()
+
     async def _with_durable_request_gate(
-        self, request_id: str, handler: Callable[[], Any]
+        self, delivered_req: DurableRemoteRequest, handler: Callable[[dict[str, Any]], Any]
     ) -> None:
         """Coalesce redeliveries of one durable request without becoming authority."""
+        request_id = delivered_req.request_id
+        trajectory = self._durable_request_trajectory(delivered_req)
         gates = getattr(self, "_durable_request_gates", None)
         if gates is None:
             gates = {}
             self._durable_request_gates = gates
         gate = gates.get(request_id)
         if gate is None:
-            gate = {"lock": asyncio.Lock(), "refs": 0}
+            gate = {"lock": trajectory["lock"], "refs": 0}
             gates[request_id] = gate
         gate["refs"] += 1
-        lock = gate["lock"]
+        trajectory["refs"] = int(trajectory.get("refs", 0) or 0) + 1
+        lock = trajectory["lock"]
         try:
             async with lock:
-                await handler()
+                try:
+                    await handler(trajectory)
+                except asyncio.CancelledError as exc:
+                    await self._fail_interrupted_durable_request_trajectory(
+                        delivered_req,
+                        trajectory=trajectory,
+                        exc=exc,
+                    )
+                    raise
+                except Exception as exc:  # noqa: BLE001
+                    await self._fail_interrupted_durable_request_trajectory(
+                        delivered_req,
+                        trajectory=trajectory,
+                        exc=exc,
+                    )
         finally:
             gate["refs"] -= 1
+            trajectory["refs"] = max(0, int(trajectory.get("refs", 0) or 0) - 1)
             if gate["refs"] <= 0 and gates.get(request_id) is gate:
                 gates.pop(request_id, None)
+            self._prune_durable_request_trajectories()
+
+    async def _fail_interrupted_durable_request_trajectory(
+        self,
+        delivered_req: DurableRemoteRequest,
+        *,
+        trajectory: dict[str, Any],
+        exc: BaseException,
+    ) -> None:
+        """Terminalize an interrupted local trajectory without granting authority."""
+        current = self._durable_store.get_request(delivered_req.request_id) or delivered_req
+        existing = self._durable_store.result_for(delivered_req.request_id)
+        if existing:
+            self._record_durable_request_trajectory(
+                delivered_req.request_id,
+                status="TERMINAL_OBSERVED",
+                claim_id=str(existing.get("claim_id", "")),
+                terminal=True,
+            )
+            return
+        reason = (
+            "durable request trajectory interrupted before governed outcome: "
+            f"{type(exc).__name__}: {exc}"
+        )
+        claim_id = str(trajectory.get("claim_id", "") or current.claim_id or "")
+        root_pid = current.process_tree.get("root_pid")
+        proc = self._durable_processes.get(delivered_req.request_id)
+        if current.lifecycle_state == "RUNNING" or root_pid or proc is not None:
+            cleanup: dict[str, Any] = {
+                "process_residue": [],
+                "interrupted_running_failed_closed": True,
+                "request_id": current.request_id,
+                "correlation_id": current.correlation_id,
+                "node_id": current.node_id,
+                "candidate_sha": current.candidate_sha,
+                "claim_id": claim_id or current.claim_id or "unclaimed",
+            }
+            if proc is not None and proc.poll() is None:
+                cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+                cleanup["interrupted_running_failed_closed"] = True
+                cleanup.update(
+                    {
+                        "request_id": current.request_id,
+                        "correlation_id": current.correlation_id,
+                        "node_id": current.node_id,
+                        "candidate_sha": current.candidate_sha,
+                        "claim_id": claim_id or current.claim_id or "unclaimed",
+                    }
+                )
+            elif root_pid:
+                cleanup["process_residue"] = [
+                    {"pid": root_pid, "state": "running_interruption_unverified"}
+                ]
+            result = {
+                "success": False,
+                "error": "durable running trajectory interrupted",
+                "reason": reason,
+            }
+            terminal = self._durable_store.publish_result(
+                current.request_id,
+                claim_id=claim_id or current.claim_id or "unclaimed",
+                state="FAILED",
+                result=result,
+                cleanup=cleanup,
+            )
+            self._record_durable_request_trajectory(
+                current.request_id,
+                status="FAIL_CLOSED",
+                claim_id=terminal.claim_id,
+                terminal=True,
+            )
+            await self._send_durable_event(
+                "durable_command.result",
+                {
+                    "request_id": terminal.request_id,
+                    "claim_id": terminal.claim_id,
+                    "state": terminal.lifecycle_state,
+                    "result": result,
+                    "cleanup": cleanup,
+                },
+            )
+            return
+        if claim_id and claim_id != "unclaimed":
+            await self._fail_durable_claim_acquisition(
+                current,
+                claim_id=claim_id,
+                reason=reason,
+            )
+            return
+        await self._fail_unresolved_durable_request(current, reason=reason)
+
+    async def _fail_durable_trajectory_identity_mismatch(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        trajectory: dict[str, Any],
+    ) -> None:
+        reason = "durable request trajectory identity mismatch"
+        current = self._durable_store.get_request(req.request_id) or req
+        if self._durable_store.get_request(req.request_id) is None:
+            current = self._durable_store.put_request(req)
+        if current.claim_id:
+            await self._fail_durable_claim_acquisition(
+                current,
+                claim_id=current.claim_id,
+                reason=reason,
+            )
+            return
+        current.cleanup = {
+            "process_residue": [],
+            "trajectory_identity_mismatch_failed_closed": True,
+            "request_id": current.request_id,
+            "correlation_id": current.correlation_id,
+            "node_id": current.node_id,
+            "candidate_sha": current.candidate_sha,
+        }
+        self._durable_store.update_request(current, "TRAJECTORY_IDENTITY_MISMATCH")
+        await self._fail_unresolved_durable_request(current, reason=reason)
 
     async def _send_durable_event(
         self,
@@ -1066,13 +1326,26 @@ class NodeClient:
             self._durable_store.put_request(delivered_req)
             self._durable_store.update_request(delivered_req, "CANCEL_REQUESTED")
 
-        async def _run() -> None:
-            await self._handle_durable_command_locked(delivered_req)
+        async def _run(trajectory: dict[str, Any]) -> None:
+            await self._handle_durable_command_locked(delivered_req, trajectory)
 
-        await self._with_durable_request_gate(delivered_req.request_id, _run)
+        await self._with_durable_request_gate(delivered_req, _run)
 
-    async def _handle_durable_command_locked(self, delivered_req: DurableRemoteRequest) -> None:
+    async def _handle_durable_command_locked(
+        self, delivered_req: DurableRemoteRequest, trajectory: dict[str, Any]
+    ) -> None:
+        if not self._durable_trajectory_identity_matches(trajectory, delivered_req):
+            logger.error(
+                "durable request identity mismatch for coalesced trajectory: %s",
+                delivered_req.request_id,
+            )
+            await self._fail_durable_trajectory_identity_mismatch(
+                delivered_req,
+                trajectory=trajectory,
+            )
+            return
         req = self._durable_store.put_request(delivered_req)
+        self._sync_durable_request_trajectory(trajectory, req)
         if delivered_req.lifecycle_state == "CANCEL_REQUESTED":
             if (
                 not delivered_req.cancellation_requested_at
@@ -1085,8 +1358,15 @@ class NodeClient:
                 return
             self._durable_store.update_request(delivered_req, "CANCEL_REQUESTED")
             req = self._durable_store.get_request(delivered_req.request_id) or delivered_req
+            self._sync_durable_request_trajectory(trajectory, req)
         existing = self._durable_store.result_for(req.request_id)
         if existing:
+            self._record_durable_request_trajectory(
+                req.request_id,
+                status="TERMINAL_OBSERVED",
+                claim_id=str(existing.get("claim_id", "")),
+                terminal=True,
+            )
             await self._send_durable_event(
                 "durable_command.result",
                 {
@@ -1105,6 +1385,12 @@ class NodeClient:
                 req,
                 claim_id=req.claim_id or f"{self._config.node_id}-{uuid4().hex[:12]}",
                 reason="cancel requested by controller",
+            )
+            self._record_durable_request_trajectory(
+                req.request_id,
+                status="TERMINAL_OBSERVED",
+                claim_id=terminal.claim_id,
+                terminal=True,
             )
             await self._send_durable_event(
                 "durable_command.result",
@@ -1125,7 +1411,29 @@ class NodeClient:
             )
             return
 
+        trajectory_claim_id = str(trajectory.get("claim_id", "") or "")
+        trajectory_status = str(trajectory.get("status", "") or "")
+        if (
+            trajectory_claim_id
+            and trajectory_status in {"FAIL_CLOSED", "RECONCILIATION_PENDING"}
+            and req.lifecycle_state not in {"RUNNING", *TERMINAL_STATES}
+        ):
+            await self._fail_durable_claim_acquisition(
+                req,
+                claim_id=trajectory_claim_id,
+                reason=(
+                    "duplicate durable delivery observed existing request trajectory "
+                    f"status={trajectory_status}"
+                ),
+            )
+            return
+
         if req.lifecycle_state == "CLAIMED" and req.claim_id:
+            self._record_durable_request_trajectory(
+                req.request_id,
+                status="ACQUIRING",
+                claim_id=req.claim_id,
+            )
             if req.process_tree.get("root_pid"):
                 await self._fail_durable_claim_acquisition(
                     req,
@@ -1199,6 +1507,13 @@ class NodeClient:
             return
 
         if req.lifecycle_state in {"CLAIMED", "RUNNING"} and req.claim_id:
+            self._record_durable_request_trajectory(
+                req.request_id,
+                status="RUNNING_OR_RECONCILING"
+                if req.lifecycle_state == "RUNNING"
+                else "ACQUIRING",
+                claim_id=req.claim_id,
+            )
             ack = await self._send_durable_event(
                 "durable_command.claimed",
                 {
@@ -1224,7 +1539,53 @@ class NodeClient:
             )
             return
 
-        claim_id = f"{self._config.node_id}-{uuid4().hex[:12]}"
+        if trajectory_claim_id:
+            current = self._durable_store.get_request(req.request_id) or req
+            if trajectory_status in {
+                "FAIL_CLOSED",
+                "RECONCILIATION_PENDING",
+            }:
+                await self._fail_durable_claim_acquisition(
+                    current,
+                    claim_id=trajectory_claim_id,
+                    reason=(
+                        "duplicate durable delivery observed existing request trajectory "
+                        f"status={trajectory_status}"
+                    ),
+                )
+                return
+            if current.claim_id == trajectory_claim_id:
+                await self._resolve_proven_durable_claim(
+                    current,
+                    claim_id=trajectory_claim_id,
+                    process_tree=current.process_tree,
+                    claim_authority={
+                        "lifecycle_state": current.lifecycle_state,
+                        "process_tree": current.process_tree,
+                    },
+                )
+                return
+            if trajectory_status in {
+                "TERMINAL_OBSERVED",
+                "RUNNING_OR_RECONCILING",
+                "CLAIM_PROVEN",
+            }:
+                await self._fail_durable_claim_acquisition(
+                    current,
+                    claim_id=trajectory_claim_id,
+                    reason=(
+                        "duplicate durable delivery observed existing request trajectory "
+                        f"status={trajectory_status}"
+                    ),
+                )
+                return
+
+        claim_id = trajectory_claim_id or f"{self._config.node_id}-{uuid4().hex[:12]}"
+        self._record_durable_request_trajectory(
+            req.request_id,
+            status="ACQUIRING",
+            claim_id=claim_id,
+        )
         process_tree = {"node_pid": os.getpid(), "claimed_at": time.time()}
         self._durable_store.mark_claimed(req.request_id, claim_id=claim_id, process_tree=process_tree)
         ack = await self._acquire_durable_claim(
@@ -1342,6 +1703,11 @@ class NodeClient:
             )
             return
         if effective_state == "CLAIMED":
+            self._record_durable_request_trajectory(
+                current.request_id,
+                status="CLAIM_PROVEN",
+                claim_id=claim_id,
+            )
             await self._execute_accepted_durable_claim(
                 current,
                 claim_id=claim_id,
@@ -1367,6 +1733,11 @@ class NodeClient:
                     reason="running without root pid cannot prove process ownership",
                 )
                 return
+            self._record_durable_request_trajectory(
+                current.request_id,
+                status="RUNNING_OR_RECONCILING",
+                claim_id=claim_id,
+            )
             ack = await self._send_durable_event(
                 "durable_command.claimed",
                 {
@@ -1385,6 +1756,12 @@ class NodeClient:
                 )
             return
         if effective_state in TERMINAL_STATES:
+            self._record_durable_request_trajectory(
+                current.request_id,
+                status="TERMINAL_OBSERVED",
+                claim_id=claim_id,
+                terminal=True,
+            )
             return
         await self._fail_durable_claim_acquisition(
             current,
@@ -1410,8 +1787,19 @@ class NodeClient:
     ) -> None:
         lock = self._durable_execution_locks.setdefault(req.request_id, asyncio.Lock())
         async with lock:
+            self._record_durable_request_trajectory(
+                req.request_id,
+                status="RUNNING_OR_RECONCILING",
+                claim_id=claim_id,
+            )
             existing = self._durable_store.result_for(req.request_id)
             if existing:
+                self._record_durable_request_trajectory(
+                    req.request_id,
+                    status="TERMINAL_OBSERVED",
+                    claim_id=str(existing.get("claim_id", claim_id)),
+                    terminal=True,
+                )
                 await self._send_durable_event(
                     "durable_command.result",
                     {
@@ -1474,6 +1862,12 @@ class NodeClient:
                 result=result,
                 cleanup=cleanup,
             )
+            self._record_durable_request_trajectory(
+                current.request_id,
+                status="TERMINAL_OBSERVED",
+                claim_id=claim_id,
+                terminal=True,
+            )
             await self._send_durable_event(
                 "durable_command.result",
                 {
@@ -1496,6 +1890,12 @@ class NodeClient:
         reason: str,
     ) -> DurableRemoteRequest:
         terminal = self._durable_store.fail_unresolved_request(req.request_id, reason=reason)
+        self._record_durable_request_trajectory(
+            terminal.request_id,
+            status="FAIL_CLOSED",
+            claim_id=terminal.claim_id or "unclaimed",
+            terminal=True,
+        )
         published = self._durable_store.result_for(req.request_id) or {}
         await self._send_durable_event(
             "durable_command.result",
@@ -1552,6 +1952,12 @@ class NodeClient:
             )
         except KeyError:
             result["durable_request_missing_after_running"] = True
+        self._record_durable_request_trajectory(
+            req.request_id,
+            status="FAIL_CLOSED",
+            claim_id=claim_id,
+            terminal=True,
+        )
         await self._send_durable_event(
             "durable_command.result",
             {
@@ -1579,6 +1985,12 @@ class NodeClient:
                 current,
                 claim_id=claim_id,
                 reason="cancel requested by controller",
+            )
+            self._record_durable_request_trajectory(
+                current.request_id,
+                status="TERMINAL_OBSERVED",
+                claim_id=terminal.claim_id,
+                terminal=True,
             )
             await self._send_durable_event(
                 "durable_command.result",
@@ -1616,6 +2028,12 @@ class NodeClient:
             state="FAILED",
             result=result,
             cleanup=cleanup,
+        )
+        self._record_durable_request_trajectory(
+            current.request_id,
+            status="FAIL_CLOSED",
+            claim_id=claim_id,
+            terminal=True,
         )
         await self._send_durable_event(
             "durable_command.result",
@@ -1959,6 +2377,11 @@ class NodeClient:
                 "ok": False,
                 "error": f"running rejected into {updated.lifecycle_state}",
             }
+        self._record_durable_request_trajectory(
+            req.request_id,
+            status="RUNNING_OR_RECONCILING",
+            claim_id=claim_id,
+        )
         ack = await self._send_durable_event(
             "durable_command.claimed",
             {
@@ -2033,13 +2456,20 @@ class NodeClient:
             cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
             cleanup["cancel_reason"] = reason
             cleanup.update(req.cancellation_identity(claim_id=claim_id))
-        return self._durable_store.publish_result(
+        terminal = self._durable_store.publish_result(
             req.request_id,
             claim_id=claim_id,
             state="CANCELLED",
             result={"success": False, "error": reason},
             cleanup=cleanup,
         )
+        self._record_durable_request_trajectory(
+            req.request_id,
+            status="TERMINAL_OBSERVED",
+            claim_id=claim_id,
+            terminal=True,
+        )
+        return terminal
 
     async def _terminate_durable_process_tree(
         self, proc: subprocess.Popen[str], *, graceful_timeout: float
@@ -2284,6 +2714,9 @@ class NodeClient:
         else:
             return {"success": False, "error": "no command or argv provided"}
 
+        proc: subprocess.Popen[str] | None = None
+        output_collector: _DurablePipeCollector | None = None
+        last_tree_pids: list[int] = []
         try:
             pre_start_tree = dict(process_tree)
             pre_start_tree.update(
@@ -2435,6 +2868,44 @@ class NodeClient:
                 "stderr": captured["stderr"],
                 "exit_code": proc.returncode,
                 "output_capture": captured["output_capture"],
+            }
+        except asyncio.CancelledError:
+            cleanup: dict[str, Any] = {
+                "process_residue": [],
+                "interrupted_running_failed_closed": True,
+                "request_id": req.request_id,
+                "correlation_id": req.correlation_id,
+                "node_id": req.node_id,
+                "candidate_sha": req.candidate_sha,
+                "claim_id": claim_id,
+            }
+            captured: dict[str, Any] = {}
+            if proc is not None and proc.poll() is None:
+                cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+                cleanup["interrupted_running_failed_closed"] = True
+                cleanup.update(
+                    {
+                        "request_id": req.request_id,
+                        "correlation_id": req.correlation_id,
+                        "node_id": req.node_id,
+                        "candidate_sha": req.candidate_sha,
+                        "claim_id": claim_id,
+                    }
+                )
+                if output_collector is not None:
+                    captured = self._capture_timed_out_process_output(proc, output_collector)
+                    if captured.get("output_capture", {}).get("timed_out"):
+                        cleanup["reader_timeout_after_termination"] = True
+                        cleanup = _durable_fail_closed_reader_timeout_cleanup(
+                            proc,
+                            cleanup,
+                            last_tree_pids or [proc.pid],
+                        )
+            return {
+                "success": False,
+                "error": "durable shell execution cancelled before terminal result",
+                "cleanup": cleanup,
+                **captured,
             }
         except Exception as exc:  # noqa: BLE001
             return {"success": False, "error": f"{type(exc).__name__}: {exc}"}

@@ -339,6 +339,7 @@ def _durable_node_client(tmp_path, node_id: str = "windows-desktop"):
     client._durable_processes = {}
     client._durable_execution_locks = {}
     client._durable_request_gates = {}
+    client._durable_request_trajectories = {}
     client._media_queue = deque(maxlen=4)
     client._media_event = asyncio.Event()
     client._adapters = {}
@@ -650,6 +651,373 @@ def test_durable_same_request_redeliveries_coalesce_before_claim_settles(
     assert acquire_calls == 1
     assert execute_calls == 1
     assert client._durable_request_gates == {}
+
+
+def test_durable_same_request_queued_redeliveries_do_not_reacquire_after_fail_closed(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = _durable_request()
+    acquire_started = asyncio.Event()
+    release_acquire = asyncio.Event()
+    acquire_calls: list[str] = []
+    claim_ids: list[str] = []
+    result_events: list[dict] = []
+
+    async def _acquire(current, *, claim_id, process_tree):
+        acquire_calls.append(current.request_id)
+        claim_ids.append(claim_id)
+        acquire_started.set()
+        await release_acquire.wait()
+        return {
+            "ok": False,
+            "error": "synthetic unresolved claim authority",
+            "claim_id": claim_id,
+            "attempts": [{"method": "unit", "ok": False}],
+        }
+
+    async def _send_event(method, payload, **kwargs):
+        if method == "durable_command.result":
+            result_events.append(dict(payload))
+        return {"ok": True, "accepted": True}
+
+    monkeypatch.setattr(client, "_acquire_durable_claim", _acquire)
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+
+    async def _run() -> None:
+        first = asyncio.create_task(
+            client._handle_durable_command(
+                {"method": "durable_command.request", "params": req.to_dict()}
+            )
+        )
+        await asyncio.wait_for(acquire_started.wait(), timeout=1)
+        duplicates = [
+            asyncio.create_task(
+                client._handle_durable_command(
+                    {"method": "durable_command.request", "params": req.to_dict()}
+                )
+            )
+            for _ in range(6)
+        ]
+        await asyncio.sleep(0)
+        release_acquire.set()
+        await asyncio.gather(first, *duplicates)
+
+    asyncio.run(_run())
+
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "FAILED"
+    assert acquire_calls == [req.request_id]
+    assert len(set(claim_ids)) == 1
+    assert result_events
+    assert all(event.get("idempotent_replay") or event["state"] == "FAILED" for event in result_events)
+    trajectory = client._durable_request_trajectories[req.request_id]
+    assert trajectory["status"] in {"FAIL_CLOSED", "TERMINAL_OBSERVED"}
+    assert trajectory["claim_id"] == claim_ids[0]
+    assert client._durable_request_gates == {}
+
+
+def test_durable_fail_closed_trajectory_never_authorizes_same_claim_execution(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = client._durable_store.put_request(_durable_request())
+    claim_id = "windows-desktop-retained-claim"
+    process_tree = {"node_pid": 123, "claimed_at": time.time()}
+    client._durable_store.mark_claimed(
+        req.request_id,
+        claim_id=claim_id,
+        process_tree=process_tree,
+    )
+    trajectory = client._durable_request_trajectory(req)
+    trajectory["claim_id"] = claim_id
+    trajectory["status"] = "FAIL_CLOSED"
+    execute_calls = 0
+
+    async def _execute(*_args, **_kwargs):
+        nonlocal execute_calls
+        execute_calls += 1
+        return {"success": True, "stdout": "should-not-run", "cleanup": {"process_residue": []}}
+
+    monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "FAILED"
+    assert result["claim_id"] == claim_id
+    assert execute_calls == 0
+    assert client._durable_request_trajectories[req.request_id]["status"] == "FAIL_CLOSED"
+
+
+def test_durable_interrupted_acquisition_fail_closes_before_late_duplicate(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = _durable_request()
+    acquire_calls = 0
+    execute_calls = 0
+
+    async def _acquire(current, *, claim_id, process_tree):
+        nonlocal acquire_calls
+        acquire_calls += 1
+        raise RuntimeError("synthetic interruption after claimed persistence")
+
+    async def _execute(*_args, **_kwargs):
+        nonlocal execute_calls
+        execute_calls += 1
+        return {"success": True, "stdout": "should-not-run", "cleanup": {"process_residue": []}}
+
+    monkeypatch.setattr(client, "_acquire_durable_claim", _acquire)
+    monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "FAILED"
+    assert result["cleanup"]["process_residue"] == []
+    assert result["cleanup"]["claim_acquisition_failed_closed"] is True
+    assert acquire_calls == 1
+    assert execute_calls == 0
+    assert client._durable_request_trajectories[req.request_id]["status"] == "TERMINAL_OBSERVED"
+    assert client._durable_request_gates == {}
+
+
+def test_durable_cancelled_acquisition_fail_closes_before_late_duplicate(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = _durable_request()
+    acquire_started = asyncio.Event()
+    release_acquire = asyncio.Event()
+    acquire_calls = 0
+    execute_calls = 0
+
+    async def _acquire(current, *, claim_id, process_tree):
+        nonlocal acquire_calls
+        acquire_calls += 1
+        acquire_started.set()
+        await release_acquire.wait()
+        return {
+            "ok": True,
+            "claim_id": claim_id,
+            "lifecycle_state": "CLAIMED",
+            "process_tree": process_tree,
+        }
+
+    async def _execute(*_args, **_kwargs):
+        nonlocal execute_calls
+        execute_calls += 1
+        return {"success": True, "stdout": "should-not-run", "cleanup": {"process_residue": []}}
+
+    monkeypatch.setattr(client, "_acquire_durable_claim", _acquire)
+    monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
+
+    async def _run() -> None:
+        first = asyncio.create_task(
+            client._handle_durable_command(
+                {"method": "durable_command.request", "params": req.to_dict()}
+            )
+        )
+        await asyncio.wait_for(acquire_started.wait(), timeout=1)
+        first.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await first
+        release_acquire.set()
+        await client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+
+    asyncio.run(_run())
+
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "FAILED"
+    assert result["cleanup"]["process_residue"] == []
+    assert result["cleanup"]["claim_acquisition_failed_closed"] is True
+    assert acquire_calls == 1
+    assert execute_calls == 0
+    assert client._durable_request_trajectories[req.request_id]["status"] == "TERMINAL_OBSERVED"
+
+
+def test_durable_cancelled_running_trajectory_terminates_owned_process(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = client._durable_store.put_request(_durable_request())
+    claim_id = "windows-desktop-running-claim"
+    proc = subprocess.Popen(
+        ["sleep", "30"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+    try:
+        process_tree = {"node_pid": 123, "claimed_at": time.time(), "root_pid": proc.pid}
+        running = client._durable_store.mark_running(
+            req.request_id,
+            claim_id=claim_id,
+            process_tree=process_tree,
+        )
+        client._durable_processes[req.request_id] = proc
+        trajectory = client._durable_request_trajectory(running)
+        trajectory["claim_id"] = claim_id
+        trajectory["status"] = "RUNNING_OR_RECONCILING"
+        result_events: list[dict] = []
+
+        async def _send_event(method, payload, **kwargs):
+            if method == "durable_command.result":
+                result_events.append(dict(payload))
+            return {"ok": True, "accepted": True}
+
+        monkeypatch.setattr(client, "_send_durable_event", _send_event)
+
+        asyncio.run(
+            client._fail_interrupted_durable_request_trajectory(
+                running,
+                trajectory=trajectory,
+                exc=asyncio.CancelledError(),
+            )
+        )
+
+        result = client._durable_store.result_for(req.request_id)
+        assert result is not None
+        assert result["state"] == "FAILED"
+        assert result["cleanup"]["interrupted_running_failed_closed"] is True
+        assert result["cleanup"]["process_residue"] == []
+        assert proc.poll() is not None
+        assert result_events
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+            proc.wait(timeout=5)
+
+
+def test_durable_handle_cancellation_after_shell_start_terminalizes_and_cleans_process(
+    tmp_path
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    client._adapters = {"shell": object()}
+    req = _durable_request(params={"argv": ["sleep", "30"], "timeout": 30})
+
+    async def _run() -> None:
+        task = asyncio.create_task(
+            client._handle_durable_command(
+                {"method": "durable_command.request", "params": req.to_dict()}
+            )
+        )
+        deadline = time.monotonic() + 3.0
+        proc = None
+        while time.monotonic() < deadline:
+            proc = client._durable_processes.get(req.request_id)
+            if proc is not None and proc.poll() is None:
+                break
+            await asyncio.sleep(0.05)
+        assert proc is not None
+        assert proc.poll() is None
+        task.cancel()
+        await task
+        return proc
+
+    proc = asyncio.run(_run())
+
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "FAILED"
+    assert result["cleanup"]["interrupted_running_failed_closed"] is True
+    assert result["cleanup"]["process_residue"] == []
+    assert proc.poll() is not None
+    assert client._durable_processes.get(req.request_id) is None
+
+
+def test_durable_terminal_canonical_truth_overrides_local_fail_closed_tombstone(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = client._durable_store.put_request(_durable_request())
+    claim_id = "windows-desktop-terminal-claim"
+    process_tree = {"node_pid": 123, "claimed_at": time.time()}
+    client._durable_store.mark_claimed(
+        req.request_id,
+        claim_id=claim_id,
+        process_tree=process_tree,
+    )
+    client._durable_store.publish_result(
+        req.request_id,
+        claim_id=claim_id,
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "done"},
+        cleanup={"process_residue": []},
+    )
+    trajectory = client._durable_request_trajectory(req)
+    trajectory["claim_id"] = claim_id
+    trajectory["status"] = "FAIL_CLOSED"
+
+    asyncio.run(
+        client._handle_durable_command(
+            {"method": "durable_command.request", "params": req.to_dict()}
+        )
+    )
+
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "SUCCEEDED"
+    assert client._durable_request_trajectories[req.request_id]["status"] == "TERMINAL_OBSERVED"
+
+
+def test_durable_trajectory_identity_mismatch_fails_closed_with_evidence(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = _durable_request()
+    trajectory = client._durable_request_trajectory(req)
+    foreign = _durable_request()
+    foreign.request_id = req.request_id
+    foreign.idempotency_key = req.idempotency_key
+    foreign.payload_digest = req.payload_digest
+    foreign.correlation_id = "foreign-correlation"
+    result_events: list[dict] = []
+
+    async def _send_event(method, payload, **kwargs):
+        if method == "durable_command.result":
+            result_events.append(dict(payload))
+        return {"ok": True, "accepted": True}
+
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+
+    asyncio.run(client._handle_durable_command_locked(foreign, trajectory))
+
+    result = client._durable_store.result_for(foreign.request_id)
+    assert result is not None
+    assert result["state"] == "FAILED"
+    assert "identity mismatch" in result["result"]["reason"]
+    assert result["cleanup"]["process_residue"] == []
+    assert result_events
 
 
 def test_durable_distinct_requests_keep_concurrent_claim_acquisition(
