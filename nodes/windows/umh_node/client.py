@@ -51,6 +51,8 @@ from nodes.windows.umh_node.workspace import collect_workstation_state, _state_h
 from substrate.execution.durable_remote_transport import (
     DurableRemoteRequest,
     DurableRemoteStore,
+    STATE_ORDER,
+    TERMINAL_STATES,
     default_node_root,
 )
 
@@ -60,6 +62,18 @@ _MEDIA_QUEUE_MAX = 4
 _CONTROL_TIMEOUT_S = 8.0
 _DURABLE_CLAIM_ACQUIRE_TIMEOUT_S = 30.0
 _DURABLE_CLAIM_RETRY_SLEEP_S = 1.0
+_DURABLE_CLAIM_PROOF_STATES = frozenset(
+    {
+        "CLAIMED",
+        "RUNNING",
+        "CANCEL_REQUESTED",
+        "CANCELLED",
+        "EXPIRED",
+        "FAILED",
+        "SUCCEEDED",
+        "RECONCILIATION_REQUIRED",
+    }
+)
 _DURABLE_TIMEOUT_STDOUT_LIMIT = 20000
 _DURABLE_TIMEOUT_STDERR_LIMIT = 20000
 _DURABLE_TIMEOUT_TOTAL_LIMIT = (
@@ -1114,33 +1128,18 @@ class NodeClient:
                     },
                 )
                 return
-            if current.lifecycle_state != "CLAIMED" or current.claim_id != req.claim_id:
-                logger.warning(
-                    "durable claim no longer executable for %s: state=%s claim=%s",
-                    req.request_id,
-                    current.lifecycle_state,
-                    current.claim_id,
-                )
-                await self._fail_durable_claim_acquisition(
-                    current,
-                    claim_id=req.claim_id,
-                    reason=(
-                        "claim no longer executable: "
-                        f"state={current.lifecycle_state} claim={current.claim_id}"
-                    ),
-                )
-                return
-            await self._execute_accepted_durable_claim(
+            await self._resolve_proven_durable_claim(
                 current,
                 claim_id=req.claim_id,
                 process_tree=current.process_tree,
+                claim_authority=ack,
             )
             return
 
         if (
             req.lifecycle_state == "RUNNING"
             and req.claim_id
-            and req.process_tree.get("pre_start_containment")
+            and self._durable_request_is_shell_backed(req)
             and not req.process_tree.get("root_pid")
         ):
             await self._fail_durable_claim_acquisition(
@@ -1216,9 +1215,53 @@ class NodeClient:
                 },
             )
             return
-        if current.lifecycle_state != "CLAIMED" or current.claim_id != claim_id:
+        await self._resolve_proven_durable_claim(
+            current,
+            claim_id=claim_id,
+            process_tree=current.process_tree,
+            claim_authority=ack,
+        )
+
+    async def _resolve_proven_durable_claim(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        process_tree: dict[str, Any],
+        claim_authority: dict[str, Any] | None = None,
+    ) -> None:
+        """Separate monotonic claim proof from current launch eligibility."""
+        existing = self._durable_store.result_for(req.request_id)
+        if existing:
+            await self._send_durable_event(
+                "durable_command.result",
+                {
+                    "request_id": req.request_id,
+                    "claim_id": existing.get("claim_id", ""),
+                    "state": existing.get("state", "FAILED"),
+                    "result": existing.get("result", {}),
+                    "cleanup": existing.get("cleanup", {}),
+                    "idempotent_replay": True,
+                },
+            )
+            return
+        current = self._durable_store.get_request(req.request_id) or req
+        authority_state = str((claim_authority or {}).get("lifecycle_state", "") or "")
+        authority_process_tree = (claim_authority or {}).get("process_tree")
+        current_state = str(current.lifecycle_state)
+        effective_state = current_state
+        if authority_state and STATE_ORDER.get(authority_state, -1) > STATE_ORDER.get(
+            current_state, -1
+        ):
+            effective_state = authority_state
+        effective_process_tree = (
+            authority_process_tree
+            if isinstance(authority_process_tree, dict) and authority_process_tree
+            else current.process_tree
+        )
+        if current.claim_id != claim_id:
             logger.warning(
-                "durable claim no longer executable for %s: state=%s claim=%s",
+                "durable claim refused after proof for %s: state=%s claim=%s",
                 req.request_id,
                 current.lifecycle_state,
                 current.claim_id,
@@ -1232,12 +1275,74 @@ class NodeClient:
                 ),
             )
             return
-
-        await self._execute_accepted_durable_claim(
+        if effective_state == "CANCEL_REQUESTED" or current.lifecycle_state == "CANCEL_REQUESTED":
+            terminal = await self._cancel_durable_request(
+                current,
+                claim_id=claim_id,
+                reason="cancel requested by controller",
+            )
+            await self._send_durable_event(
+                "durable_command.result",
+                {
+                    "request_id": current.request_id,
+                    "claim_id": terminal.claim_id,
+                    "state": terminal.lifecycle_state,
+                    "result": {"success": False, "error": "cancel requested by controller"},
+                    "cleanup": terminal.cleanup,
+                },
+            )
+            return
+        if effective_state == "CLAIMED":
+            await self._execute_accepted_durable_claim(
+                current,
+                claim_id=claim_id,
+                process_tree=current.process_tree or process_tree,
+            )
+            return
+        if effective_state == "RUNNING":
+            if (
+                self._durable_request_is_shell_backed(current)
+                and not effective_process_tree.get("root_pid")
+            ):
+                await self._fail_durable_claim_acquisition(
+                    current,
+                    claim_id=claim_id,
+                    reason="running without root pid cannot prove process ownership",
+                )
+                return
+            ack = await self._send_durable_event(
+                "durable_command.claimed",
+                {
+                    "request_id": current.request_id,
+                    "claim_id": claim_id,
+                    "state": effective_state,
+                    "process_tree": effective_process_tree,
+                },
+                expect_ack=True,
+            )
+            if not (ack or {}).get("ok"):
+                await self._fail_durable_running_redelivery(
+                    current,
+                    claim_id=claim_id,
+                    reason=str((ack or {}).get("error", "missing acknowledgement")),
+                )
+            return
+        if effective_state in TERMINAL_STATES:
+            return
+        await self._fail_durable_claim_acquisition(
             current,
             claim_id=claim_id,
-            process_tree=current.process_tree,
+            reason=(
+                "claim no longer executable: "
+                f"state={effective_state} claim={current.claim_id}"
+            ),
         )
+
+    @staticmethod
+    def _durable_request_is_shell_backed(req: DurableRemoteRequest) -> bool:
+        cap_name = str(req.capability or "")
+        adapter_key = cap_name.split(".")[0] if "." in cap_name else cap_name
+        return adapter_key == "shell"
 
     async def _execute_accepted_durable_claim(
         self,
@@ -1516,14 +1621,22 @@ class NodeClient:
                     claim_id=claim_id,
                     expected_state="CLAIMED",
                     label="claim acknowledgement",
+                    allow_monotonic_claim_state=True,
                 )
                 if validated_ack.get("ok"):
-                    return {"ok": True, "attempts": attempts, "claim_id": claim_id}
+                    return {
+                        "ok": True,
+                        "attempts": attempts,
+                        "claim_id": claim_id,
+                        "lifecycle_state": validated_ack.get("lifecycle_state"),
+                        "process_tree": validated_ack.get("process_tree", {}),
+                    }
                 readback = await self._reconcile_durable_claim_state(
                     req,
                     claim_id=claim_id,
                     expected_state="CLAIMED",
                     timeout_s=min(_CONTROL_TIMEOUT_S, max(0.0, deadline - time.monotonic())),
+                    allow_monotonic_claim_state=True,
                 )
                 attempts.append(
                     {
@@ -1540,6 +1653,8 @@ class NodeClient:
                         "attempts": attempts,
                         "claim_id": claim_id,
                         "reconciled": True,
+                        "lifecycle_state": readback.get("lifecycle_state"),
+                        "process_tree": readback.get("process_tree", {}),
                     }
                 if not readback.get("retryable"):
                     return {
@@ -1563,6 +1678,7 @@ class NodeClient:
                     claim_id=claim_id,
                     expected_state="CLAIMED",
                     timeout_s=min(_CONTROL_TIMEOUT_S, max(0.0, deadline - time.monotonic())),
+                    allow_monotonic_claim_state=True,
                 )
                 attempts.append(
                     {
@@ -1577,6 +1693,8 @@ class NodeClient:
                         "attempts": attempts,
                         "claim_id": claim_id,
                         "reconciled": True,
+                        "lifecycle_state": readback.get("lifecycle_state"),
+                        "process_tree": readback.get("process_tree", {}),
                     }
                 if not readback.get("retryable"):
                     return {
@@ -1603,6 +1721,7 @@ class NodeClient:
         claim_id: str,
         expected_state: str,
         timeout_s: float,
+        allow_monotonic_claim_state: bool = False,
     ) -> dict[str, Any]:
         """Read back the controller's canonical claim after a lost direct ACK."""
         if timeout_s <= 0:
@@ -1639,6 +1758,7 @@ class NodeClient:
             claim_id=claim_id,
             expected_state=expected_state,
             label="claim readback",
+            allow_monotonic_claim_state=allow_monotonic_claim_state,
         )
 
     def _validate_durable_claim_authority(
@@ -1649,6 +1769,7 @@ class NodeClient:
         claim_id: str,
         expected_state: str,
         label: str,
+        allow_monotonic_claim_state: bool = False,
     ) -> dict[str, Any]:
         if not readback.get("accepted"):
             return {
@@ -1664,11 +1785,16 @@ class NodeClient:
             "candidate_sha": req.candidate_sha,
             "node_id": req.node_id,
             "claim_id": claim_id,
-            "lifecycle_state": expected_state,
         }
         for key, value in expected.items():
             if str(readback.get(key, "")) != str(value):
                 mismatches.append(key)
+        observed_state = str(readback.get("lifecycle_state", ""))
+        if allow_monotonic_claim_state:
+            if observed_state not in _DURABLE_CLAIM_PROOF_STATES:
+                mismatches.append("lifecycle_state")
+        elif observed_state != expected_state:
+            mismatches.append("lifecycle_state")
         if mismatches:
             return {
                 "ok": False,
@@ -1691,7 +1817,13 @@ class NodeClient:
                 "error": f"{label} lease expired",
                 "retryable": False,
             }
-        return {"ok": True, "accepted": True}
+        process_tree = readback.get("process_tree")
+        return {
+            "ok": True,
+            "accepted": True,
+            "lifecycle_state": observed_state,
+            "process_tree": process_tree if isinstance(process_tree, dict) else {},
+        }
 
     async def _read_canonical_durable_claim_state(
         self,

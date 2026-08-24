@@ -32,6 +32,19 @@ from transports.node_mesh.registry import ConnectedNode, NodeCapability, NodeReg
 
 logger = logging.getLogger(__name__)
 
+_DURABLE_CLAIM_PROOF_STATES = frozenset(
+    {
+        "CLAIMED",
+        "RUNNING",
+        "CANCEL_REQUESTED",
+        "CANCELLED",
+        "EXPIRED",
+        "FAILED",
+        "SUCCEEDED",
+        "RECONCILIATION_REQUIRED",
+    }
+)
+
 
 def hmac_compare(a: str, b: str) -> bool:
     """Constant-time token comparison (avoids timing side channels)."""
@@ -895,7 +908,8 @@ class NodeMeshServer:
                     }
                 )
                 result["ok"] = (
-                    updated.lifecycle_state == "CLAIMED" and updated.claim_id == claim_id
+                    updated.claim_id == claim_id
+                    and updated.lifecycle_state in _DURABLE_CLAIM_PROOF_STATES
                 )
                 result["accepted"] = result["ok"]
                 if not result["ok"]:
@@ -1009,7 +1023,10 @@ class NodeMeshServer:
             mismatches.append("claim_id")
         if expected_state not in {"CLAIMED", "RUNNING"}:
             mismatches.append("state")
-        if req.lifecycle_state != expected_state:
+        elif expected_state == "CLAIMED":
+            if req.lifecycle_state not in _DURABLE_CLAIM_PROOF_STATES:
+                mismatches.append("lifecycle_state")
+        elif req.lifecycle_state != expected_state:
             mismatches.append("lifecycle_state")
         if mismatches:
             result["error"] = "claim mismatch: " + ",".join(mismatches)

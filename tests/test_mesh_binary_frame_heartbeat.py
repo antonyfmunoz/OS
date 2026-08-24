@@ -863,6 +863,109 @@ def test_claim_state_reports_exact_running_claim(tmp_path):
     assert result["process_tree"]["root_pid"] == 456
 
 
+async def _claim_state_claimed_proof_accepts_same_claim_running(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="claim-state-running-proof-test",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(req)
+    s._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    s._durable_store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"node_pid": 123, "root_pid": 456, "running_at": 11.0},
+    )
+
+    class Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+
+        async def send(self, payload: str) -> None:
+            self.sent.append(payload)
+
+    ws = Ws()
+    await s._handle_durable_claim_state(
+        "n1",
+        {
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "candidate_sha": req.candidate_sha,
+            "claim_id": "claim-1",
+            "state": "CLAIMED",
+        },
+        103,
+        ws,  # type: ignore[arg-type]
+    )
+    return json.loads(ws.sent[0])["result"]
+
+
+def test_claim_state_claimed_proof_accepts_same_claim_running(tmp_path):
+    result = asyncio.run(_claim_state_claimed_proof_accepts_same_claim_running(tmp_path))
+    assert result["ok"] is True
+    assert result["accepted"] is True
+    assert result["claim_id"] == "claim-1"
+    assert result["lifecycle_state"] == "RUNNING"
+    assert result["process_tree"]["root_pid"] == 456
+
+
+async def _claimed_ack_accepts_running_without_regression(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="claimed-ack-running-proof-test",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(req)
+    s._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    s._durable_store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"node_pid": 123, "root_pid": 456, "running_at": 11.0},
+    )
+
+    class Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+
+        async def send(self, payload: str) -> None:
+            self.sent.append(payload)
+
+    ws = Ws()
+    await s._handle_durable_claimed(
+        "n1",
+        {
+            "request_id": req.request_id,
+            "claim_id": "claim-1",
+            "state": "CLAIMED",
+            "process_tree": {"node_pid": 123, "claimed_at": 12.0},
+        },
+        104,
+        ws,  # type: ignore[arg-type]
+    )
+    return json.loads(ws.sent[0])["result"]
+
+
+def test_claimed_ack_accepts_running_without_regression(tmp_path):
+    result = asyncio.run(_claimed_ack_accepts_running_without_regression(tmp_path))
+    assert result["ok"] is True
+    assert result["accepted"] is True
+    assert result["claim_id"] == "claim-1"
+    assert result["lifecycle_state"] == "RUNNING"
+    assert result["process_tree"]["root_pid"] == 456
+
+
 async def _claim_state_rejects_wrong_lifecycle_state(tmp_path, requested_state: str) -> dict:
     s = _server()
     s._durable_store = DurableRemoteStore(tmp_path)

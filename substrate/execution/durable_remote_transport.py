@@ -670,6 +670,8 @@ class DurableRemoteStore:
             if req.claim_id and req.claim_id != claim_id:
                 req.diagnostics["claim_conflict"] = {"existing": req.claim_id, "incoming": claim_id}
                 return self._enter_reconciliation(req, reason="claim_conflict")
+            if STATE_ORDER.get(req.lifecycle_state, 0) > STATE_ORDER["CLAIMED"]:
+                return req
             req.claim_id = claim_id
             req.lease_expires_at = now_s() + lease_seconds
             req.lifecycle_state = "CLAIMED"

@@ -43,6 +43,29 @@ def test_request_is_persisted_before_delivery_and_claimed_idempotently(tmp_path)
     assert again.claim_id == "claim-1"
 
 
+def test_same_claim_claimed_replay_does_not_regress_running_state(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"node_pid": 10})
+    running = store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"node_pid": 10, "root_pid": 11, "running_at": 2.0},
+    )
+    assert running.lifecycle_state == "RUNNING"
+
+    replay = store.mark_claimed(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"node_pid": 10, "claimed_at": 3.0},
+    )
+
+    assert replay.lifecycle_state == "RUNNING"
+    assert replay.claim_id == "claim-1"
+    assert replay.process_tree["root_pid"] == 11
+    assert replay.process_tree["running_at"] == 2.0
+
+
 def test_duplicate_request_id_with_different_payload_fails_closed(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = _request(idempotency_key="same-key")
