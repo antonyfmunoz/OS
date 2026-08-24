@@ -4633,7 +4633,7 @@ def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
     _remove_container_and_wait(runner, _CANDIDATE_NGINX_CONTAINER)
     _remove_container_and_wait(runner, _CANDIDATE_CONTAINER)
 
-    homes_swept = _sweep_run_homes(sha, run_id) if run_id else {"ok": True, "note": "no run_id"}
+    homes_swept = _sweep_run_homes(sha, run_id) if run_id else _no_run_ref_proof()
 
     secret_shredded = _shred_run_secret(runner, sha) if sha else True
     _restore_tailscale_serve(runner)
@@ -4693,6 +4693,52 @@ def _sweep_run_homes(sha: str, run_id: str) -> dict[str, Any]:
         run_id=run_id,
     )
     return res.to_dict()
+
+
+def _no_run_ref_proof() -> dict[str, Any]:
+    """Positive protected-ref proof for teardown calls without a run binding."""
+    namespaces = ["refs/umh", "refs/candidates", "refs/wave2"]
+    cmd = [
+        "git",
+        "for-each-ref",
+        "--format=%(refname) %(objectname)",
+        *namespaces,
+    ]
+    proc = subprocess.run(
+        cmd,
+        cwd=str(_WORKTREE),
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if proc.returncode != 0:
+        return {
+            "ok": True,
+            "note": "no run_id",
+            "zero_ref_residue": False,
+            "ref_enumeration_executed": False,
+            "ref_namespaces_checked": namespaces,
+            "ref_inventory": [],
+            "ref_residue": ["protected-ref-enumeration:<failed>"],
+            "quarantined_refs": ["protected-ref-enumeration:<failed>"],
+            "unexpected_ref_count": 1,
+            "errors": [proc.stderr.strip() or "protected-ref enumeration failed"],
+        }
+    inventory = [line for line in proc.stdout.splitlines() if line.strip()]
+    return {
+        "ok": True,
+        "note": "no run_id",
+        "zero_ref_residue": not inventory,
+        "ref_enumeration_executed": True,
+        "ref_namespaces_checked": namespaces,
+        "ref_inventory": inventory,
+        "ref_residue": inventory,
+        "quarantined_refs": inventory,
+        "unexpected_ref_count": len(inventory),
+        "refs_deleted": [],
+        "errors": [],
+    }
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -5696,14 +5742,27 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
         # A missing key is treated as FAILURE (same rule as homes_swept): an
         # older teardown result must not let ref residue hide behind absence.
         ref_residue = homes.get("ref_residue") if isinstance(homes, dict) else None
-        zero_refs = isinstance(homes, dict) and homes.get("zero_ref_residue") is True
+        ref_inventory = homes.get("ref_inventory") if isinstance(homes, dict) else None
+        ref_enumerated = (
+            isinstance(homes, dict) and homes.get("ref_enumeration_executed") is True
+        )
+        ref_count = homes.get("unexpected_ref_count") if isinstance(homes, dict) else None
+        zero_refs = (
+            isinstance(homes, dict)
+            and homes.get("zero_ref_residue") is True
+            and ref_enumerated
+            and isinstance(ref_inventory, list)
+            and isinstance(ref_residue, list)
+            and ref_count == 0
+        )
         mandatory["teardown:zero_ref_residue"] = zero_refs
         if not zero_refs:
             quarantined = homes.get("quarantined_refs") if isinstance(homes, dict) else None
             reasons.append(
                 f"trusted/composed refs still present after teardown: residue={ref_residue} "
-                f"quarantined={quarantined} — quarantine accounts for a leak, it does not "
-                f"make the run clean"
+                f"quarantined={quarantined} inventory={ref_inventory} "
+                f"enumerated={ref_enumerated} unexpected_ref_count={ref_count} — "
+                f"quarantine accounts for a leak, it does not make the run clean"
             )
 
     ok = all(mandatory.values()) if mandatory else True

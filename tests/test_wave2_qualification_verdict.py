@@ -36,6 +36,17 @@ from tests.wave2_script_import import load_wave2_script
 wd = load_wave2_script("wave2_field_dispatch")
 
 
+def _zero_ref_proof() -> dict:
+    return {
+        "ok": True,
+        "zero_ref_residue": True,
+        "ref_residue": [],
+        "ref_inventory": [],
+        "ref_enumeration_executed": True,
+        "unexpected_ref_count": 0,
+    }
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 1 + 4 — the verdict object itself
 # ─────────────────────────────────────────────────────────────────────────────
@@ -186,10 +197,24 @@ def test_teardown_clean_passes():
         "serve_restored": True,
         # SEC-C1 residue proof + the zero-ref-residue proof: a CLEAN teardown
         # must show BOTH. Omitting zero_ref_residue is treated as unproven.
-        "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
+        "homes_swept": _zero_ref_proof(),
     }
     v = wd.qualification_verdict("teardown", out)
     assert v.ok is True
+
+
+def test_teardown_zero_ref_boolean_without_inventory_fails():
+    out = {
+        "torn_down": ["c1", "c2"],
+        "collector": {"stopped": True},
+        "run_secret_shredded": True,
+        "serve_restored": True,
+        "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
+    }
+    v = wd.qualification_verdict("teardown", out)
+    assert v.ok is False
+    assert v.mandatory.get("teardown:zero_ref_residue") is False
+    assert any("enumerated=False" in r for r in v.reasons)
 
 
 def test_teardown_with_home_residue_fails():
@@ -245,7 +270,7 @@ def test_teardown_after_failure_cannot_greenwash():
             "collector": {"stopped": True},
             "run_secret_shredded": True,
             "serve_restored": True,
-            "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
+            "homes_swept": _zero_ref_proof(),
         },
     )
     assert recon.ok is False
@@ -301,7 +326,7 @@ def test_main_returns_0_on_clean_teardown(monkeypatch):
             "collector": {"stopped": True},
             "run_secret_shredded": True,
             "serve_restored": True,
-            "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
+            "homes_swept": _zero_ref_proof(),
         },
     )
     assert rc == 0
@@ -380,7 +405,7 @@ def test_backcompat_wrapper_agrees_with_verdict():
             {
             "run_secret_shredded": True,
             "serve_restored": True,
-            "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
+            "homes_swept": _zero_ref_proof(),
         },
         ),
         ("preflight", {"ready": True}),

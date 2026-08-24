@@ -41,6 +41,17 @@ wcb = importlib.import_module("substrate.execution.attempts.worker_credential_bo
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
+def _zero_ref_proof() -> dict:
+    return {
+        "ok": True,
+        "zero_ref_residue": True,
+        "ref_residue": [],
+        "ref_inventory": [],
+        "ref_enumeration_executed": True,
+        "unexpected_ref_count": 0,
+    }
+
+
 def _decode_encoded_powershell(command: str) -> str:
     marker = "-EncodedCommand "
     assert marker in command
@@ -152,7 +163,7 @@ def test_dispatch_teardown_result_includes_collector_tree(monkeypatch):
     monkeypatch.setattr(dispatch, "stop_runner", lambda runner, sha, run_id: {"stopped": True})
     monkeypatch.setattr(dispatch, "_wait_for_runner_exit", lambda sha, run_id: None)
     monkeypatch.setattr(dispatch, "_remove_container_and_wait", lambda runner, name: None)
-    monkeypatch.setattr(dispatch, "_sweep_run_homes", lambda sha, run_id: {"ok": True, "zero_ref_residue": True})
+    monkeypatch.setattr(dispatch, "_sweep_run_homes", lambda sha, run_id: _zero_ref_proof())
     monkeypatch.setattr(dispatch, "_shred_run_secret", lambda runner, sha: True)
     monkeypatch.setattr(dispatch, "_restore_tailscale_serve", lambda runner: None)
 
@@ -178,6 +189,30 @@ def test_teardown_verdict_fails_when_collector_tree_not_stopped():
     assert verdict.ok is False
     assert verdict.mandatory["teardown:collector_stopped"] is False
     assert any("collector tree not proven stopped" in r for r in verdict.reasons)
+
+
+def test_no_run_teardown_produces_positive_empty_ref_proof(monkeypatch):
+    dispatch = load_wave2_script("wave2_field_dispatch")
+
+    class _Proc:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda *_args, **_kwargs: _Proc())
+    monkeypatch.setattr(dispatch, "_remove_container_and_wait", lambda runner, name: None)
+    monkeypatch.setattr(dispatch, "_shred_run_secret", lambda runner, sha: True)
+    monkeypatch.setattr(dispatch, "_restore_tailscale_serve", lambda runner: None)
+
+    out = dispatch.teardown(dispatch.Runner(dry_run=False), sha="s", run_id="")
+    homes = out["homes_swept"]
+
+    assert homes["zero_ref_residue"] is True
+    assert homes["ref_enumeration_executed"] is True
+    assert homes["ref_inventory"] == []
+    assert homes["ref_residue"] == []
+    assert homes["unexpected_ref_count"] == 0
+    assert homes["quarantined_refs"] == []
 
 
 def test_remote_collector_teardown_missing_manifest_must_prove_zero_residue(monkeypatch):
@@ -547,6 +582,35 @@ def test_mutation_false_success_after_residue(tmp_path, monkeypatch):
     assert res3.ok is False
     res4 = rt.RunSweepResult(run_root="/x")  # clean
     assert res4.ok is True
+
+
+def test_run_sweep_serializes_positive_empty_ref_inventory_for_uncandidate_run(tmp_path):
+    run_root = str(tmp_path / "non-candidate-run")
+    os.makedirs(run_root)
+
+    res = rt.sweep_run(run_root)
+    payload = res.to_dict()
+
+    assert payload["zero_ref_residue"] is True
+    assert payload["ref_enumeration_executed"] is True
+    assert payload["ref_inventory"] == []
+    assert payload["ref_residue"] == []
+    assert payload["unexpected_ref_count"] == 0
+    assert payload["ref_namespaces_checked"]
+
+
+def test_run_sweep_absent_candidate_repo_is_unknown_ref_residue(tmp_path):
+    run_root = str(tmp_path / "candidates" / "wave2" / "abc123" / "targets" / "run-1")
+    os.makedirs(run_root)
+    missing_repo = str(tmp_path / "missing-fixture")
+
+    res = rt.sweep_run(run_root, repo_root=missing_repo, candidate="abc123", run_id="run-1")
+    payload = res.to_dict()
+
+    assert payload["zero_ref_residue"] is False
+    assert payload["ref_enumeration_executed"] is False
+    assert payload["ref_residue"] == [f"repo:{missing_repo}:<absent>"]
+    assert payload["unexpected_ref_count"] == 1
 
 
 def test_mutation_stale_recovery_disabled_would_leave_residue(tmp_path):

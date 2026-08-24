@@ -67,6 +67,17 @@ TASK_C = "wp-integration1"
 TASK_D = "wp-verification"
 
 
+def _zero_ref_proof() -> dict:
+    return {
+        "ok": True,
+        "zero_ref_residue": True,
+        "ref_residue": [],
+        "ref_inventory": [],
+        "ref_enumeration_executed": True,
+        "unexpected_ref_count": 0,
+    }
+
+
 def _git(args: list[str], cwd: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
 
@@ -969,7 +980,7 @@ def test_qualification_gate_fails_on_ref_residue():
         "collector": {"stopped": True},
         "run_secret_shredded": True,
         "serve_restored": True,
-        "homes_swept": {"ok": True, "zero_ref_residue": True, "ref_residue": []},
+        "homes_swept": _zero_ref_proof(),
     }
     v_ok = mod.qualification_verdict("teardown", clean)
     assert v_ok.mandatory.get("teardown:zero_ref_residue") is True

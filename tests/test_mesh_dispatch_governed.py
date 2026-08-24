@@ -338,6 +338,7 @@ def _durable_node_client(tmp_path, node_id: str = "windows-desktop"):
     client._durable_store = DurableRemoteStore(tmp_path)
     client._durable_processes = {}
     client._durable_execution_locks = {}
+    client._durable_request_gates = {}
     client._media_queue = deque(maxlen=4)
     client._media_event = asyncio.Event()
     client._adapters = {}
@@ -589,6 +590,176 @@ def test_durable_node_running_ack_timeout_reads_back_running_before_execution(
     result = client._durable_store.result_for(req.request_id)
     assert result is not None
     assert result["state"] == "SUCCEEDED"
+
+
+def test_durable_same_request_redeliveries_coalesce_before_claim_settles(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = _durable_request()
+    acquire_started = asyncio.Event()
+    release_acquire = asyncio.Event()
+    acquire_calls = 0
+    execute_calls = 0
+
+    async def _acquire(current, *, claim_id, process_tree):
+        nonlocal acquire_calls
+        acquire_calls += 1
+        acquire_started.set()
+        await release_acquire.wait()
+        return {
+            "ok": True,
+            "claim_id": claim_id,
+            "lifecycle_state": "CLAIMED",
+            "process_tree": process_tree,
+        }
+
+    async def _execute(*_args, **_kwargs):
+        nonlocal execute_calls
+        execute_calls += 1
+        return {"success": True, "stdout": "ok", "cleanup": {"process_residue": []}}
+
+    monkeypatch.setattr(client, "_acquire_durable_claim", _acquire)
+    monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
+
+    async def _run() -> None:
+        first = asyncio.create_task(
+            client._handle_durable_command(
+                {"method": "durable_command.request", "params": req.to_dict()}
+            )
+        )
+        await asyncio.wait_for(acquire_started.wait(), timeout=1)
+        duplicates = [
+            asyncio.create_task(
+                client._handle_durable_command(
+                    {"method": "durable_command.request", "params": req.to_dict()}
+                )
+            )
+            for _ in range(8)
+        ]
+        await asyncio.sleep(0)
+        release_acquire.set()
+        await asyncio.gather(first, *duplicates)
+
+    asyncio.run(_run())
+
+    result = client._durable_store.result_for(req.request_id)
+    assert result is not None
+    assert result["state"] == "SUCCEEDED"
+    assert acquire_calls == 1
+    assert execute_calls == 1
+    assert client._durable_request_gates == {}
+
+
+def test_durable_distinct_requests_keep_concurrent_claim_acquisition(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req_a = _durable_request()
+    req_a.request_id = "drc-a"
+    req_a.idempotency_key = "drc-a"
+    req_b = _durable_request()
+    req_b.request_id = "drc-b"
+    req_b.idempotency_key = "drc-b"
+    started: set[str] = set()
+    both_started = asyncio.Event()
+    release_acquire = asyncio.Event()
+    execute_calls: list[str] = []
+
+    async def _acquire(current, *, claim_id, process_tree):
+        started.add(current.request_id)
+        if started == {req_a.request_id, req_b.request_id}:
+            both_started.set()
+        await release_acquire.wait()
+        return {
+            "ok": True,
+            "claim_id": claim_id,
+            "lifecycle_state": "CLAIMED",
+            "process_tree": process_tree,
+        }
+
+    async def _execute(current, **_kwargs):
+        execute_calls.append(current.request_id)
+        return {"success": True, "stdout": current.request_id, "cleanup": {"process_residue": []}}
+
+    monkeypatch.setattr(client, "_acquire_durable_claim", _acquire)
+    monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
+
+    async def _run() -> None:
+        tasks = [
+            asyncio.create_task(
+                client._handle_durable_command(
+                    {"method": "durable_command.request", "params": req_a.to_dict()}
+                )
+            ),
+            asyncio.create_task(
+                client._handle_durable_command(
+                    {"method": "durable_command.request", "params": req_b.to_dict()}
+                )
+            ),
+        ]
+        await asyncio.wait_for(both_started.wait(), timeout=1)
+        release_acquire.set()
+        await asyncio.gather(*tasks)
+
+    asyncio.run(_run())
+
+    assert set(execute_calls) == {req_a.request_id, req_b.request_id}
+    assert client._durable_store.result_for(req_a.request_id)["state"] == "SUCCEEDED"
+    assert client._durable_store.result_for(req_b.request_id)["state"] == "SUCCEEDED"
+    assert client._durable_request_gates == {}
+
+
+def test_durable_cancel_redelivery_updates_store_while_execution_gate_is_held(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path / "store")
+    client._ws = _DurableAckWs(client)
+    req = _durable_request()
+    execute_started = asyncio.Event()
+    release_execute = asyncio.Event()
+    execute_calls = 0
+
+    async def _execute(*_args, **_kwargs):
+        nonlocal execute_calls
+        execute_calls += 1
+        execute_started.set()
+        await release_execute.wait()
+        return {"success": False, "error": "cancelled", "cleanup": {"process_residue": []}}
+
+    monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
+
+    async def _run() -> None:
+        first = asyncio.create_task(
+            client._handle_durable_command(
+                {"method": "durable_command.request", "params": req.to_dict()}
+            )
+        )
+        await asyncio.wait_for(execute_started.wait(), timeout=1)
+        current = client._durable_store.get_request(req.request_id)
+        assert current is not None
+        cancel = current
+        cancel.lifecycle_state = "CANCEL_REQUESTED"
+        cancel.cancellation_requested_at = time.time()
+        cancel.cancellation_deadline_at = cancel.cancellation_requested_at + 30.0
+        cancel_task = asyncio.create_task(
+            client._handle_durable_command(
+                {"method": "durable_command.request", "params": cancel.to_dict()}
+            )
+        )
+        await asyncio.sleep(0)
+        observed = client._durable_store.get_request(req.request_id)
+        assert observed is not None
+        assert observed.lifecycle_state == "CANCEL_REQUESTED"
+        release_execute.set()
+        await asyncio.gather(first, cancel_task)
+
+    asyncio.run(_run())
+
+    assert execute_calls == 1
+    assert client._durable_request_gates == {}
 
 
 def test_durable_node_missing_running_ack_reads_back_running_before_execution(

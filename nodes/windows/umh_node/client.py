@@ -482,6 +482,7 @@ class NodeClient:
         self._durable_store = DurableRemoteStore(default_node_root())
         self._durable_processes: dict[str, subprocess.Popen[str]] = {}
         self._durable_execution_locks: dict[str, asyncio.Lock] = {}
+        self._durable_request_gates: dict[str, dict[str, Any]] = {}
 
         # Media plane: bounded frame queue — stream thread pushes, drain task sends
         self._media_queue: deque[str] = deque(maxlen=_MEDIA_QUEUE_MAX)
@@ -989,6 +990,28 @@ class NodeClient:
         except Exception as exc:  # noqa: BLE001
             logger.error("durable command handler crashed: %s", exc, exc_info=True)
 
+    async def _with_durable_request_gate(
+        self, request_id: str, handler: Callable[[], Any]
+    ) -> None:
+        """Coalesce redeliveries of one durable request without becoming authority."""
+        gates = getattr(self, "_durable_request_gates", None)
+        if gates is None:
+            gates = {}
+            self._durable_request_gates = gates
+        gate = gates.get(request_id)
+        if gate is None:
+            gate = {"lock": asyncio.Lock(), "refs": 0}
+            gates[request_id] = gate
+        gate["refs"] += 1
+        lock = gate["lock"]
+        try:
+            async with lock:
+                await handler()
+        finally:
+            gate["refs"] -= 1
+            if gate["refs"] <= 0 and gates.get(request_id) is gate:
+                gates.pop(request_id, None)
+
     async def _send_durable_event(
         self,
         method: str,
@@ -1030,7 +1053,25 @@ class NodeClient:
         delivered_req = DurableRemoteRequest.from_dict(params if isinstance(params, dict) else {})
         if not delivered_req.request_id or delivered_req.node_id != self._config.node_id:
             return
+        if delivered_req.lifecycle_state == "CANCEL_REQUESTED":
+            if (
+                not delivered_req.cancellation_requested_at
+                or not delivered_req.cancellation_deadline_at
+            ):
+                logger.error(
+                    "durable cancel missing identity for %s; refusing cancellation ack",
+                    delivered_req.request_id,
+                )
+                return
+            self._durable_store.put_request(delivered_req)
+            self._durable_store.update_request(delivered_req, "CANCEL_REQUESTED")
 
+        async def _run() -> None:
+            await self._handle_durable_command_locked(delivered_req)
+
+        await self._with_durable_request_gate(delivered_req.request_id, _run)
+
+    async def _handle_durable_command_locked(self, delivered_req: DurableRemoteRequest) -> None:
         req = self._durable_store.put_request(delivered_req)
         if delivered_req.lifecycle_state == "CANCEL_REQUESTED":
             if (

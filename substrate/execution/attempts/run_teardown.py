@@ -233,6 +233,11 @@ class RunSweepResult:
     #: secret, destroy homes). Qualification is a SEPARATE, stricter question —
     #: see ``zero_ref_residue``.
     ref_residue: list[str] = field(default_factory=list)
+    #: Positive proof that protected-ref enumeration actually ran. Missing proof
+    #: remains UNKNOWN, never zero.
+    ref_inventory: list[str] = field(default_factory=list)
+    ref_namespaces_checked: list[str] = field(default_factory=list)
+    ref_enumeration_executed: bool = False
     #: Refs that could not be deleted and were recorded for recovery instead.
     #: ALWAYS a subset of ``ref_residue``: quarantine preserves evidence and
     #: accounts for a leftover, it NEVER converts one into "clean".
@@ -250,7 +255,7 @@ class RunSweepResult:
         quarantined ref satisfies the first and fails the second — otherwise
         "we wrote down that we leaked it" would read as "we did not leak it".
         """
-        return not self.ref_residue
+        return self.ref_enumeration_executed and not self.ref_residue
 
     @property
     def ok(self) -> bool:
@@ -285,6 +290,10 @@ class RunSweepResult:
             "spool_inflight_residue": self.spool_inflight_residue,
             "unsafe_paths": list(self.unsafe_paths),
             "ref_residue": list(self.ref_residue),
+            "ref_inventory": list(self.ref_inventory),
+            "ref_namespaces_checked": list(self.ref_namespaces_checked),
+            "ref_enumeration_executed": self.ref_enumeration_executed,
+            "unexpected_ref_count": len(self.ref_residue),
             "quarantined_refs": list(self.quarantined_refs),
             "refs_deleted": list(self.refs_deleted),
             "zero_ref_residue": self.zero_ref_residue,
@@ -474,9 +483,24 @@ def _release_run_refs(
     if not (repo_root and candidate and run_id):
         # Genuinely not a candidate-shaped run. NOT an error: this sweep is the
         # C-2 authority for many callers, most of which have no protected refs.
+        result.ref_namespaces_checked = [
+            "refs/umh/verified",
+            "refs/umh/composed",
+            "refs/umh/promoted",
+        ]
+        result.ref_inventory = []
+        result.ref_enumeration_executed = True
         result.steps.append("no repo/candidate/run binding — no protected refs to release")
         return
     if not os.path.isdir(repo_root):
+        result.ref_namespaces_checked = [
+            "refs/umh/verified",
+            "refs/umh/composed",
+            "refs/umh/promoted",
+        ]
+        sentinel = f"repo:{repo_root}:<absent>"
+        result.ref_residue.append(sentinel)
+        result.quarantined_refs.append(sentinel)
         result.steps.append(f"repo {repo_root} absent — no protected refs to release")
         return
 
@@ -496,6 +520,7 @@ def _release_run_refs(
         ("composed", release_composed_refs, list_composed_refs),
         ("promoted", release_promoted_refs, list_promoted_refs),
     ):
+        result.ref_namespaces_checked.append(label)
         try:
             deleted = release_fn(repo=repo_root, candidate=candidate, run_id=run_id)
             result.refs_deleted.extend(deleted)
@@ -517,7 +542,10 @@ def _release_run_refs(
             result.ref_residue.append(sentinel)
             result.quarantined_refs.append(sentinel)
             continue
+        result.ref_enumeration_executed = True
         for ref in survivors:
+            if ref not in result.ref_inventory:
+                result.ref_inventory.append(ref)
             if ref not in result.ref_residue:
                 result.ref_residue.append(ref)
             if ref not in result.quarantined_refs:
