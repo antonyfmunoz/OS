@@ -641,9 +641,33 @@ def _snapshot_tailscale_serve(runner: Runner, run_dir: Path) -> Path:
         # capture the candidate mapping and lose the real restore target.
         return snap
     result = runner.run(["tailscale", "serve", "status", "--json"], timeout=30, capture=True)
-    content = result.stdout if result and result.returncode == 0 else "{}"
+    status = result.stdout if result and result.returncode == 0 else "{}"
+    config_path = run_dir / "tailscale_serve_config.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_result = runner.run(
+        ["tailscale", "serve", "get-config", str(config_path), "--all"],
+        timeout=30,
+        check=False,
+        capture=True,
+    )
+    config = ""
+    if config_result is not None and config_result.returncode == 0 and config_path.exists():
+        config = config_path.read_text(encoding="utf-8")
     snap.parent.mkdir(parents=True, exist_ok=True)
-    snap.write_text(content, encoding="utf-8")
+    snap.write_text(
+        json.dumps(
+            {
+                "snapshot_contract": "tailscale_serve_exact_restore_v2",
+                "status": json.loads(status or "{}"),
+                "config_captured": bool(config.strip()),
+                "config": json.loads(config) if config.strip() else None,
+                "captured_at": datetime.now(timezone.utc).isoformat(),
+            },
+            sort_keys=True,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
     return snap
 
 
@@ -659,33 +683,101 @@ def _load_serve_snapshot_path() -> None:
         _serve_snapshot_path = _serve_snapshot_stable_path()
 
 
-def _restore_tailscale_serve(runner: Runner) -> None:
+def _restore_tailscale_serve(runner: Runner) -> dict[str, Any]:
     """Restore serve config from the snapshot. Idempotent; safe on every exit."""
     global _serve_restored
     if _serve_restored or _serve_snapshot_path is None:
-        return
+        return {
+            "ok": _serve_restored,
+            "already_restored": _serve_restored,
+            "snapshot": str(_serve_snapshot_path) if _serve_snapshot_path else "",
+            "reason": "" if _serve_restored else "serve snapshot unavailable",
+        }
     _serve_restored = True
     # Reset first, then re-apply the snapshot if it was non-empty.
-    runner.run(["tailscale", "serve", "reset"], timeout=30, check=False)
+    reset = runner.run(["tailscale", "serve", "reset"], timeout=30, check=False)
+    if reset is not None and reset.returncode != 0:
+        return {
+            "ok": False,
+            "snapshot": str(_serve_snapshot_path),
+            "reason": "tailscale serve reset failed",
+            "stderr": _SECRET_REDACT_RE.sub("<redacted>", (reset.stderr or "")[-800:]),
+        }
     if runner.dry_run:
         print("[dry-run] would re-apply tailscale serve snapshot if non-empty")
-        return
+        return {"ok": True, "dry_run": True, "snapshot": str(_serve_snapshot_path)}
     try:
         snap = json.loads(_serve_snapshot_path.read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001
-        snap = {}
-    # A non-empty snapshot means serve was previously configured — re-apply the
-    # exact mapping it recorded (best-effort; the common case is the operator's
-    # own :443 → 127.0.0.1:8080 mapping).
-    web = snap.get("Web") if isinstance(snap, dict) else None
-    if web:
-        # Re-point 443 to the operator's real nginx (host 8080) — the standing
-        # production mapping. This is the documented restore target.
-        runner.run(
-            ["tailscale", "serve", "--bg", "--https=443", "http://127.0.0.1:8080"],
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "snapshot": str(_serve_snapshot_path),
+            "reason": f"serve snapshot unreadable: {type(exc).__name__}",
+        }
+    status = snap.get("status") if snap.get("snapshot_contract") else snap
+    if snap.get("config_captured") and isinstance(snap.get("config"), dict):
+        restore_cfg = _serve_snapshot_path.with_name("tailscale_serve_restore_config.json")
+        restore_cfg.write_text(json.dumps(snap["config"], sort_keys=True, indent=2), encoding="utf-8")
+        applied = runner.run(
+            ["tailscale", "serve", "set-config", str(restore_cfg), "--all"],
             timeout=30,
             check=False,
+            capture=True,
         )
+        ok = bool(applied is None or applied.returncode == 0)
+        return {
+            "ok": ok,
+            "snapshot": str(_serve_snapshot_path),
+            "method": "set-config",
+            "config_captured": True,
+            "stderr": "" if ok else _SECRET_REDACT_RE.sub("<redacted>", (applied.stderr or "")[-800:]),
+        }
+    web = status.get("Web") if isinstance(status, dict) else None
+    tcp = status.get("TCP") if isinstance(status, dict) else None
+    if tcp and not web:
+        return {
+            "ok": False,
+            "snapshot": str(_serve_snapshot_path),
+            "reason": "legacy serve snapshot contains TCP handlers without replayable Web config",
+        }
+    if not web:
+        return {"ok": True, "snapshot": str(_serve_snapshot_path), "method": "reset-empty"}
+    restored: list[dict[str, Any]] = []
+    for host_port, entry in sorted(web.items()):
+        handlers = entry.get("Handlers") if isinstance(entry, dict) else None
+        if not isinstance(handlers, dict):
+            return {"ok": False, "snapshot": str(_serve_snapshot_path), "reason": "invalid Web handlers"}
+        try:
+            port = str(host_port).rsplit(":", 1)[1]
+        except IndexError:
+            return {"ok": False, "snapshot": str(_serve_snapshot_path), "reason": "invalid Web host:port"}
+        for path, handler in sorted(handlers.items()):
+            proxy = handler.get("Proxy") if isinstance(handler, dict) else None
+            if not proxy:
+                return {
+                    "ok": False,
+                    "snapshot": str(_serve_snapshot_path),
+                    "reason": f"unsupported serve handler at {host_port}{path}",
+                }
+            cmd = ["tailscale", "serve", "--bg", f"--https={port}"]
+            if path and path != "/":
+                cmd.append(f"--set-path={path}")
+            cmd.append(proxy)
+            applied = runner.run(cmd, timeout=30, check=False, capture=True)
+            if applied is not None and applied.returncode != 0:
+                return {
+                    "ok": False,
+                    "snapshot": str(_serve_snapshot_path),
+                    "reason": f"serve replay failed for {host_port}{path}",
+                    "stderr": _SECRET_REDACT_RE.sub("<redacted>", (applied.stderr or "")[-800:]),
+                }
+            restored.append({"host_port": host_port, "path": path, "proxy": proxy})
+    return {
+        "ok": True,
+        "snapshot": str(_serve_snapshot_path),
+        "method": "legacy-status-replay",
+        "restored": restored,
+    }
 
 
 def _install_crash_handlers(runner: Runner, sha: str = "") -> None:
@@ -800,6 +892,161 @@ def _must(runner: Runner, step: str, result: subprocess.CompletedProcess | None)
         raise SystemExit(f"deploy step '{step}' failed (rc={result.returncode}):\n{err}")
 
 
+_FRONTEND_ARTIFACT_MANIFEST = ".umh-wave2-artifact.json"
+
+
+def _verify_candidate_frontend_artifact(dist_web: Path, sha: str) -> dict[str, Any]:
+    manifest_path = dist_web / _FRONTEND_ARTIFACT_MANIFEST
+    if not dist_web.is_dir():
+        return {"ok": False, "error": "dist-web missing", "dist_web": str(dist_web)}
+    if not manifest_path.is_file():
+        return {"ok": False, "error": "artifact manifest missing", "dist_web": str(dist_web)}
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": f"artifact manifest unreadable: {exc}"}
+    if not isinstance(manifest, dict):
+        return {"ok": False, "error": "artifact manifest is not an object"}
+    if manifest.get("candidate_sha") != sha:
+        return {
+            "ok": False,
+            "error": "artifact candidate SHA mismatch",
+            "candidate_sha": manifest.get("candidate_sha"),
+            "expected_sha": sha,
+        }
+    if manifest.get("source_head") != sha:
+        return {
+            "ok": False,
+            "error": "artifact source HEAD mismatch",
+            "source_head": manifest.get("source_head"),
+            "expected_sha": sha,
+        }
+    if not manifest.get("source_tree"):
+        return {"ok": False, "error": "artifact source tree missing"}
+    index = dist_web / "index.html"
+    if not index.is_file():
+        return {"ok": False, "error": "dist-web index.html missing"}
+    return {
+        "ok": True,
+        "candidate_sha": sha,
+        "manifest": str(manifest_path),
+        "dist_web": str(dist_web),
+        "built_at": manifest.get("built_at"),
+    }
+
+
+def _prepare_candidate_frontend_artifact(
+    runner: Runner, *, sha: str, clerk_key: str
+) -> dict[str, Any]:
+    cockpit = _WORKTREE / "cockpit"
+    dist_web = cockpit / "dist-web"
+    if runner.dry_run:
+        print(f"[dry-run] (cwd={cockpit}) npm ci")
+        print(
+            f"[dry-run] (cwd={cockpit}) "
+            "VITE_CLERK_PUBLISHABLE_KEY=<from fly.toml> npm run build:web"
+        )
+        return {
+            "ok": True,
+            "planned": True,
+            "dist_web": str(dist_web),
+            "candidate_sha": sha,
+        }
+
+    if dist_web.exists():
+        shutil.rmtree(dist_web)
+    head_result = subprocess.run(
+        ["git", "rev-parse", "HEAD"],
+        cwd=str(_WORKTREE),
+        timeout=30,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    _must(runner, "candidate_source_head", head_result)
+    source_head = head_result.stdout.strip()
+    if source_head != sha:
+        raise SystemExit(
+            f"candidate frontend artifact source HEAD {source_head!r} does not match {sha!r}"
+        )
+    tree_result = subprocess.run(
+        ["git", "rev-parse", "HEAD^{tree}"],
+        cwd=str(_WORKTREE),
+        timeout=30,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    _must(runner, "candidate_source_tree", tree_result)
+    source_tree = tree_result.stdout.strip()
+    clean_result = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all", "--", "cockpit"],
+        cwd=str(_WORKTREE),
+        timeout=30,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    _must(runner, "candidate_frontend_source_clean", clean_result)
+    dirty_frontend = clean_result.stdout.strip()
+    if dirty_frontend:
+        raise SystemExit(
+            "candidate frontend source tree is dirty; refusing exact-sha artifact build"
+        )
+    lock_hash = _sha256_file(cockpit / "package-lock.json")
+    stamp = cockpit / "node_modules" / ".wave2-lock-sha"
+    if stamp.exists() and stamp.read_text(encoding="utf-8").strip() == lock_hash:
+        print("[deploy] npm ci skipped — lockfile unchanged since last install")
+    else:
+        install = subprocess.run(
+            ["npm", "ci", "--legacy-peer-deps"],
+            cwd=str(cockpit),
+            timeout=600,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        _must(runner, "npm_ci", install)
+        if (cockpit / "node_modules").is_dir():
+            stamp.write_text(lock_hash, encoding="utf-8")
+
+    build = subprocess.run(
+        ["npm", "run", "build:web"],
+        cwd=str(cockpit),
+        timeout=600,
+        check=False,
+        capture_output=True,
+        text=True,
+        env={**os.environ, "VITE_CLERK_PUBLISHABLE_KEY": clerk_key},
+    )
+    _must(runner, "frontend_build_web", build)
+    if not dist_web.is_dir():
+        raise SystemExit(f"candidate frontend artifact build did not create {dist_web}")
+    if not (dist_web / "index.html").is_file():
+        raise SystemExit("candidate frontend artifact build did not create dist-web/index.html")
+    manifest_path = dist_web / _FRONTEND_ARTIFACT_MANIFEST
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "candidate_sha": sha,
+                "source_head": source_head,
+                "source_tree": source_tree,
+                "source_worktree": str(_WORKTREE),
+                "build_command": "npm run build:web",
+                "built_at": datetime.now(timezone.utc).isoformat(),
+                "artifact_contract": "wave2_exact_candidate_frontend",
+            },
+            sort_keys=True,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    proof = _verify_candidate_frontend_artifact(dist_web, sha)
+    if not proof.get("ok"):
+        raise SystemExit(f"candidate frontend artifact is not exact-sha bound: {proof}")
+    return proof
+
+
 def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     """Build + start the candidate stack and wire Tailscale serve."""
     run_dir = _proof_root()
@@ -845,9 +1092,14 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         ),
     )
 
-    # (3) candidate operator container — SAME image, worktree mounted read-only,
-    # candidate state dir mounted rw, allowlisted env only.
+    # (3) retire any stale candidate containers before preparing new artifacts.
+    # If the frontend build fails, no previous nginx may remain alive serving a
+    # stale dist-web under this exact SHA.
     _remove_container_and_wait(runner, _CANDIDATE_CONTAINER)
+    _remove_container_and_wait(runner, _CANDIDATE_NGINX_CONTAINER)
+
+    # (4) candidate operator container — SAME image, worktree mounted read-only,
+    # candidate state dir mounted rw, allowlisted env only.
     _must(
         runner,
         "docker_run_operator",
@@ -908,46 +1160,13 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         ),
     )
 
-    # (4) build the candidate frontend in the worktree cockpit dir, injecting
-    # the production Clerk publishable key at build time. Runs cwd-scoped, so it
-    # bypasses Runner (which has no cwd); dry-run just echoes the shape.
-    cockpit = _WORKTREE / "cockpit"
-    if runner.dry_run:
-        print(f"[dry-run] (cwd={cockpit}) npm ci")
-        print(
-            f"[dry-run] (cwd={cockpit}) "
-            "VITE_CLERK_PUBLISHABLE_KEY=<from fly.toml> npm run build:web"
-        )
-    else:
-        # --legacy-peer-deps: the repo has a known capacitor peer-dep conflict
-        # (@capacitor/android@8 vs core@7) that only affects the native mobile
-        # target, never the web build. dist-web builds cleanly regardless.
-        #
-        # Skip `npm ci` when the lockfile is unchanged since the last install:
-        # a full ci per redeploy cost ~90s of CPU on a 4-core orchestrator and
-        # drove host load to ~1.6/core during repeated qualification cycles
-        # (CPU Gate Law). The lock hash stamp makes the skip deterministic.
-        lock_hash = _sha256_file(cockpit / "package-lock.json")
-        stamp = cockpit / "node_modules" / ".wave2-lock-sha"
-        if stamp.exists() and stamp.read_text(encoding="utf-8").strip() == lock_hash:
-            print("[deploy] npm ci skipped — lockfile unchanged since last install")
-        else:
-            subprocess.run(
-                ["npm", "ci", "--legacy-peer-deps"], cwd=str(cockpit), timeout=600, check=False
-            )
-            if (cockpit / "node_modules").is_dir():
-                stamp.write_text(lock_hash, encoding="utf-8")
-        subprocess.run(
-            ["npm", "run", "build:web"],
-            cwd=str(cockpit),
-            timeout=600,
-            check=False,
-            env={**os.environ, "VITE_CLERK_PUBLISHABLE_KEY": clerk_key},
-        )
-    dist_web = cockpit / "dist-web"
-    steps["dist_web"] = str(dist_web)
+    # (5) build the candidate frontend and prove the served artifact binds to this SHA.
+    artifact = _prepare_candidate_frontend_artifact(runner, sha=sha, clerk_key=clerk_key)
+    steps["dist_web"] = artifact.get("dist_web")
+    steps["frontend_artifact"] = artifact
+    dist_web = Path(str(artifact.get("dist_web") or (_WORKTREE / "cockpit" / "dist-web")))
 
-    # (5) render nginx.candidate.conf from the template and start nginx:alpine
+    # (6) render nginx.candidate.conf from the template and start nginx:alpine
     conf_out = run_dir / "nginx.candidate.conf"
     template = _WORKTREE / "infra" / "candidate" / "nginx.candidate.conf.template"
     # The upstream MUST be the actual wave2 operator container name (the wave1
@@ -962,7 +1181,6 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         if "${CANDIDATE_UPSTREAM}" in rendered:  # fail closed on unrendered token
             raise RuntimeError("nginx template still has an unrendered ${CANDIDATE_UPSTREAM}")
         conf_out.write_text(rendered, encoding="utf-8")
-    _remove_container_and_wait(runner, _CANDIDATE_NGINX_CONTAINER)
     _must(
         runner,
         "docker_run_nginx",
@@ -1041,6 +1259,9 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
             ),
             "cert_probe": (cert_probe.stdout + cert_probe.stderr).strip()[:200],
         }
+        steps["ready"] = False
+        steps["deploy_ok"] = False
+        steps["failure_reason"] = "candidate HTTPS serve is unavailable"
         return steps
     serve = runner.run(
         [
@@ -1058,15 +1279,16 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         "https_available": True,
     }
 
-    # (7) health checks — WAIT for the operator to finish its cold start
-    # (event registry + goal selector + faster-whisper load take ~15-30s)
-    # before probing, so the deploy report reflects the WARM state instead of
-    # racing the boot and reporting a false-negative 502/connection-reset.
+    # (7) readiness checks — WAIT for the operator to finish required Wave 2
+    # initialization. /health is liveness only; /ready is the semantic gate.
     readiness = _wait_candidate_ready(runner, timeout_s=180.0)
     steps["readiness"] = readiness
     checks = {
         "candidate_api_health": _http_ok(
             runner, f"http://127.0.0.1:{_CANDIDATE_API_HOST_PORT}/health"
+        ),
+        "candidate_api_ready": _http_ok(
+            runner, f"http://127.0.0.1:{_CANDIDATE_API_HOST_PORT}/ready"
         ),
         "origin_root": _http_ok(runner, _ORIGIN, expect_status={200, 401}),
         # /api/umh/health does NOT exist on the operator API (production 502s
@@ -1077,6 +1299,7 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         "origin_api_reachable": _http_ok(
             runner, f"{_ORIGIN}/api/umh/objective-plan", expect_status={200, 401}
         ),
+        "origin_ready": _http_ok(runner, f"{_ORIGIN}/ready", expect_status={200}),
     }
     steps["health"] = checks
 
@@ -1097,10 +1320,13 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         steps["dry_run"] = True
         return steps
     ready = bool(readiness.get("ready")) if isinstance(readiness, dict) else False
-    steps["deploy_ok"] = ready and not failed_checks
+    serve_wired = isinstance(steps.get("serve"), dict) and steps["serve"].get("wired") is True
+    steps["deploy_ok"] = ready and serve_wired and not failed_checks
     if not steps["deploy_ok"]:
         steps["failure_reason"] = (
-            f"readiness={'ok' if ready else 'NOT READY'}; failed_checks={failed_checks or 'none'}"
+            f"readiness={'ok' if ready else 'NOT READY'}; "
+            f"serve={'wired' if serve_wired else 'NOT WIRED'}; "
+            f"failed_checks={failed_checks or 'none'}"
         )
     return steps
 
@@ -1125,21 +1351,20 @@ def _http_ok(runner: Runner, url: str, expect_status: set[int] | None = None) ->
 def _wait_candidate_ready(
     runner: Runner, *, timeout_s: float = 180.0, settle_s: float = 3.0
 ) -> dict[str, Any]:
-    """Block until the candidate answers THROUGH nginx, or the budget expires.
+    """Block until the candidate is semantically ready THROUGH nginx.
 
-    Probes the same origin path the browser uses, so a ready verdict proves the
-    whole chain (nginx -> operator) is warm — not merely that the container
-    process exists. An auth-gated 401 is the ready signal (the API is reachable
-    and enforcing auth); 502/503 means nginx has no live upstream yet.
+    ``/health`` is process liveness. ``/ready`` is the governed Wave 2 readiness
+    contract: required operator wiring is up, while optional warmup may still be
+    WARMING or fail-soft.
     """
     if runner.dry_run:
-        print("[dry-run] wait for candidate readiness via origin API")
+        print("[dry-run] wait for candidate semantic readiness via origin /ready")
         return {"planned": "candidate-ready"}
-    url = f"{_candidate_origin()}/api/umh/objective-plan"
+    url = f"{_candidate_origin()}/ready"
     deadline = time.time() + timeout_s
     last: dict[str, Any] = {}
     while time.time() < deadline:
-        last = _http_ok(runner, url, expect_status={401, 200})
+        last = _http_ok(runner, url, expect_status={200})
         if last.get("ok"):
             # Small settle so in-flight worker warm-up finishes before traffic.
             time.sleep(settle_s)
@@ -1996,7 +2221,7 @@ print(json.dumps({{
                     timeout=60,
                 ),
             )
-            ready = _wait_http_ready(f"http://127.0.0.1:{port}/health", timeout_s=60.0)
+            ready = _wait_http_ready(f"http://127.0.0.1:{port}/ready", timeout_s=60.0)
             summary["ready"] = ready
             if not ready.get("ready"):
                 raise RuntimeError(f"rehearsal container not ready: {ready}")
@@ -4636,7 +4861,12 @@ def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
     homes_swept = _sweep_run_homes(sha, run_id) if run_id else _no_run_ref_proof()
 
     secret_shredded = _shred_run_secret(runner, sha) if sha else True
-    _restore_tailscale_serve(runner)
+    serve_restore_raw = _restore_tailscale_serve(runner)
+    serve_restore = (
+        serve_restore_raw
+        if isinstance(serve_restore_raw, dict)
+        else {"ok": serve_restore_raw is not False, "legacy_stub": True}
+    )
     return {
         "torn_down": [_CANDIDATE_CONTAINER, _CANDIDATE_NGINX_CONTAINER],
         "collector": collector_stopped,
@@ -4644,7 +4874,8 @@ def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
         "runner": stopped,
         "homes_swept": homes_swept,
         "run_secret_shredded": secret_shredded,
-        "serve_restored": True,
+        "serve_restored": bool(serve_restore.get("ok")),
+        "serve_restore": serve_restore,
     }
 
 
@@ -5668,9 +5899,10 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
     all_gating_matched``), so below-threshold is caught here too.
 
     ``teardown`` — the run-scoped dispatch secret MUST be shredded and the serve
-    MUST be restored. ``run_secret_shredded is False`` or ``serve_restored is
-    False`` is a FAILURE. Teardown still runs on the failure path (main() calls
-    it after a failed run), but a failed teardown cannot be reported as success.
+    MUST be positively restored. ``run_secret_shredded is False`` or
+    ``serve_restored is not True`` is a FAILURE. Teardown still runs on the
+    failure path (main() calls it after a failed run), but a failed or unknown
+    teardown cannot be reported as success.
 
     A dry-run result is never graded as a failure (it asserts no side effects).
     """
@@ -5706,6 +5938,27 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
             if all_passed is not True:
                 reasons.append(f"all_passed is {all_passed!r}, not True")
 
+    if command == "deploy-candidate":
+        deploy_ok = out.get("deploy_ok")
+        mandatory["deploy-candidate:deploy_ok"] = deploy_ok is True
+        if deploy_ok is not True:
+            reasons.append(f"deploy_ok is {deploy_ok!r}, not True")
+        serve = out.get("serve")
+        serve_ok = isinstance(serve, dict) and serve.get("wired") is True
+        mandatory["deploy-candidate:serve_wired"] = serve_ok
+        if not serve_ok:
+            reasons.append(f"candidate HTTPS serve not proven wired: {serve}")
+        readiness = out.get("readiness")
+        readiness_ok = isinstance(readiness, dict) and readiness.get("ready") is True
+        mandatory["deploy-candidate:ready"] = readiness_ok
+        if not readiness_ok:
+            reasons.append(f"candidate semantic readiness not proven: {readiness}")
+        artifact = out.get("frontend_artifact")
+        artifact_ok = isinstance(artifact, dict) and artifact.get("ok") is True
+        mandatory["deploy-candidate:frontend_artifact"] = artifact_ok
+        if not artifact_ok:
+            reasons.append(f"candidate frontend artifact not proven exact: {artifact}")
+
     if command == "teardown":
         collector = out.get("collector")
         collector_ok = isinstance(collector, dict) and collector.get("stopped") is True
@@ -5718,9 +5971,9 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
         if shredded is False:
             reasons.append("run secret was NOT shredded — a run secret must never persist")
         serve = out.get("serve_restored")
-        mandatory["teardown:serve_restored"] = serve is not False
-        if serve is False:
-            reasons.append("tailscale serve was NOT restored")
+        mandatory["teardown:serve_restored"] = serve is True
+        if serve is not True:
+            reasons.append(f"tailscale serve restoration not positively proven: {serve!r}")
         # SEC-C1: credential-home residue is a security failure that makes the
         # whole run NOT-QUALIFIED even when execution succeeded (closure bar §5).
         # A teardown that ran the sweep MUST report homes_swept.ok — a missing key

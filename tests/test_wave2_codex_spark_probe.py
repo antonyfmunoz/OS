@@ -263,6 +263,97 @@ def test_probe_returns_structured_timeout_before_outer_transport(tmp_path, monke
     assert result["run_root_exists_after_cleanup"] is False
 
 
+def test_probe_sanitizes_completed_raw_stderr(tmp_path, monkeypatch) -> None:
+    module = _probe_module()
+    identity = ModelExecutorIdentity(
+        provider="codex",
+        model="gpt-5.3-codex-spark",
+        version="codex-cli 0.147.0",
+        adapter="CodexModelExecutor",
+    )
+
+    class FakeExecutor:
+        def readiness(self, *, env=None):
+            return ModelExecutorReadiness(True, identity, authenticated=True)
+
+        def build_invocation(self, packet):
+            return ModelInvocation(
+                argv=["codex", "exec", "--json", "-m", identity.model, "-"],
+                stdin=packet.prompt,
+                cwd=packet.worktree_path,
+            )
+
+        def collect_result(self, packet, completed, *, duration_seconds):
+            return ModelTerminalResult(
+                ok=True,
+                status="succeeded",
+                stdout='{"probe":"ok","content":"UMH Spark production path live."}',
+                stderr=module._sanitize(completed.stderr or ""),
+                exit_code=0,
+                duration_seconds=duration_seconds,
+                retry_class="none",
+                usage={"input_tokens": 1, "output_tokens": 2},
+                identity=identity,
+                execution_identity={
+                    "provider_requested": "codex",
+                    "provider_adapter": "CodexModelExecutor",
+                    "model_requested": identity.model,
+                    "model_selector_source": "explicit_argument",
+                    "executable_version": identity.version,
+                    "explicit_model_argument_present": True,
+                    "user_config_ignored": True,
+                    "invocation_accepted": True,
+                    "terminal_status": "completed",
+                    "output_content_present": True,
+                    "usage_present": True,
+                },
+                proof_binding=packet.proof_binding,
+            )
+
+    FakeExecutor.identity = identity
+
+    home_root = tmp_path / "home"
+    codex_dir = home_root / ".codex"
+    codex_dir.mkdir(parents=True)
+    fake_home = SimpleNamespace(
+        home_path=str(home_root),
+        codex_dir=str(codex_dir),
+        credential_files=[],
+        env_overrides=lambda: {"CODEX_HOME": str(codex_dir)},
+    )
+
+    def completed(*_args, **_kwargs):
+        return subprocess.CompletedProcess(
+            ["codex"],
+            0,
+            stdout='{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":2}}\n',
+            stderr="Authorization: Bearer synthetic-secret-token\nordinary diagnostic\n",
+        )
+
+    monkeypatch.setattr(module, "build_model_executor", lambda: FakeExecutor())
+    monkeypatch.setattr(module, "open_attempt_credential_home", lambda **_kw: fake_home)
+    monkeypatch.setattr(
+        module,
+        "close_attempt_credential_home",
+        lambda _home: __import__("shutil").rmtree(home_root, ignore_errors=True),
+    )
+    monkeypatch.setattr(module, "_run_codex_process_tree", completed)
+
+    result = module.run_probe(
+        sha="sha",
+        worktree=str(tmp_path),
+        model=identity.model,
+        timeout=3,
+        expected_version=identity.version,
+        request_id="probe-completed-secret",
+    )
+
+    assert "synthetic-secret-token" not in result["raw_stderr"]
+    assert "[redacted credential-bearing line]" in result["raw_stderr"]
+    assert "ordinary diagnostic" in result["raw_stderr"]
+    assert result["raw_stderr_sha256"] == module._sha256_text(result["raw_stderr"])
+
+
 def test_probe_returns_structured_readiness_timeout(tmp_path, monkeypatch) -> None:
     module = _probe_module()
     identity = ModelExecutorIdentity(

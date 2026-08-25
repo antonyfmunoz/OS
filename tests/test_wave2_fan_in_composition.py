@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+from copy import deepcopy
 from types import SimpleNamespace
 
 import pytest
@@ -711,6 +712,48 @@ def test_conflicting_proof_for_same_attempt_fails_closed(tmp_path, repo):
         )
 
 
+def test_incomplete_legacy_composition_proof_for_same_attempt_is_not_reused(tmp_path, repo):
+    _base, a, b = _two_lanes(repo)
+    r = compose_predecessors(
+        repo=repo,
+        candidate=CAND,
+        run_id=RUN,
+        task_id=TASK_C,
+        attempt_id="ea-legacy-proof",
+        predecessor_commits={TASK_A: a, TASK_B: b},
+    )
+    att = ExecutionAttempt(
+        attempt_id="ea-legacy-proof",
+        task_id=TASK_C,
+        execution_kind=_K.CONTROL_PLANE_COMPOSITION.value,
+    )
+    full = composition_proof_action(
+        attempt=att,
+        result=r,
+        predecessor_proofs={TASK_A: "proof-a", TASK_B: "proof-b"},
+        run_id=RUN,
+        candidate_sha=CAND,
+    )
+    legacy_shallow = {
+        "attempt_id": att.attempt_id,
+        "task_id": TASK_C,
+        "composed_commit": r.composed_commit,
+        "tree_sha": r.tree_sha,
+        "predecessor_commits": dict(r.predecessor_commits),
+    }
+    path = tmp_path / "proofs-legacy.jsonl"
+    rt = _Runtime(path)
+    rt.create_direct(TASK_C, legacy_shallow, operator="v")
+
+    with pytest.raises(CompositionError, match="DIFFERENT composition"):
+        mint_composition_proof(
+            proof_runtime=_Runtime(path),
+            attempt=att,
+            action=full,
+            verifier_identity="v",
+        )
+
+
 def test_foreign_proof_is_not_accepted_for_this_attempt(tmp_path, repo):
     """Another Attempt's Proof must not satisfy this one."""
     path = tmp_path / "proofs.jsonl"
@@ -728,40 +771,66 @@ def test_foreign_proof_is_not_accepted_for_this_attempt(tmp_path, repo):
 # ══════════════════════════════════════════════════════════════════════════
 # Downstream trusted base
 # ══════════════════════════════════════════════════════════════════════════
-def test_downstream_base_requires_full_authority_chain(repo, tmp_path):
+def _authoritative_downstream_fixture(repo, tmp_path, tag="auth"):
     _base, a, b = _two_lanes(repo)
     r = compose_predecessors(
         repo=repo,
         candidate=CAND,
         run_id=RUN,
         task_id=TASK_C,
-        attempt_id="ea-base",
+        attempt_id=f"ea-{tag}",
         predecessor_commits={TASK_A: a, TASK_B: b},
     )
-    store = _store(tmp_path, "base")
-    path = tmp_path / "proofs.jsonl"
+    store = _store(tmp_path, tag)
+    path = tmp_path / f"proofs-{tag}.jsonl"
     rt = _Runtime(path)
+    pred_a = _succeeded(store, TASK_A, f"ea-a-{tag}", commits=[a])
+    pred_b = _succeeded(store, TASK_B, f"ea-b-{tag}", commits=[b])
+    for task, att, sha in ((TASK_A, pred_a, a), (TASK_B, pred_b, b)):
+        _git(["update-ref", f"refs/umh/verified/{CAND}/{RUN}/{task}/{att.attempt_id}", sha], repo)
     att = ExecutionAttempt(
-        attempt_id="ea-base",
+        attempt_id=f"ea-{tag}",
         task_id=TASK_C,
         execution_kind=_K.CONTROL_PLANE_COMPOSITION.value,
         status=_S.SUCCEEDED.value,
         commits=[r.composed_commit],
+        correlation_id=f"w2-{RUN}",
     )
-    proof = rt.create_direct(TASK_C, {"attempt_id": "ea-base", "task_id": TASK_C}, operator="v")
-    att.proof_id = proof.proof_id
-    store.create_attempt_idempotent(att)
+    action = composition_proof_action(
+        attempt=att,
+        result=r,
+        predecessor_proofs={TASK_A: pred_a.proof_id, TASK_B: pred_b.proof_id},
+        run_id=RUN,
+        candidate_sha=CAND,
+    )
+    return SimpleNamespace(
+        result=r,
+        store=store,
+        proof_path=path,
+        runtime=rt,
+        attempt=att,
+        action=action,
+        predecessor_commits={TASK_A: a, TASK_B: b},
+        predecessor_proofs={TASK_A: pred_a.proof_id, TASK_B: pred_b.proof_id},
+    )
+
+
+def test_downstream_base_requires_full_authority_chain(repo, tmp_path):
+    fixture = _authoritative_downstream_fixture(repo, tmp_path, "base")
+    proof = fixture.runtime.create_direct(TASK_C, fixture.action, operator="v")
+    fixture.attempt.proof_id = proof.proof_id
+    fixture.store.create_attempt_idempotent(fixture.attempt)
 
     assert (
         resolve_downstream_base(
             repo=repo,
             candidate=CAND,
             run_id=RUN,
-            store=store,
-            proof_runtime=_Runtime(path),
+            store=fixture.store,
+            proof_runtime=_Runtime(fixture.proof_path),
             dependency_task_ids=[TASK_C],
         )
-        == r.composed_commit
+        == fixture.result.composed_commit
     )
 
     # A WORKER dependency contributes no composed base (→ default HEAD).
@@ -773,11 +842,50 @@ def test_downstream_base_requires_full_authority_chain(repo, tmp_path):
             candidate=CAND,
             run_id=RUN,
             store=store2,
-            proof_runtime=_Runtime(path),
+            proof_runtime=_Runtime(fixture.proof_path),
             dependency_task_ids=[TASK_C],
         )
         == ""
     )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "pattern"),
+    [
+        ("task_id", "wp-foreign", "task_id"),
+        ("kind", _K.WORKER.value, "kind"),
+        ("composed_commit", "f" * 40, "composed_commit"),
+        ("run_id", "20260101T000000Z-x", "run_id"),
+        ("candidate_sha", "0" * 40, "candidate_sha"),
+        ("composed_ref", "refs/umh/composed/foreign/run/task/attempt", "composed_ref"),
+        ("predecessor_a_commit", "e" * 40, "trusted commit"),
+        ("predecessor_b_proof", "proof-substituted", "Proof ID mismatch"),
+    ],
+)
+def test_downstream_base_rejects_tampered_composition_proof_binding(
+    repo, tmp_path, field, value, pattern
+):
+    fixture = _authoritative_downstream_fixture(repo, tmp_path, f"tamper-{field}")
+    action = deepcopy(fixture.action)
+    if field == "predecessor_a_commit":
+        action["predecessor_commits"][TASK_A] = value
+    elif field == "predecessor_b_proof":
+        action["predecessor_proof_ids"][TASK_B] = value
+    else:
+        action[field] = value
+    proof = fixture.runtime.create_direct(TASK_C, action, operator="v")
+    fixture.attempt.proof_id = proof.proof_id
+    fixture.store.create_attempt_idempotent(fixture.attempt)
+
+    with pytest.raises(CompositionError, match=pattern):
+        resolve_downstream_base(
+            repo=repo,
+            candidate=CAND,
+            run_id=RUN,
+            store=fixture.store,
+            proof_runtime=_Runtime(fixture.proof_path),
+            dependency_task_ids=[TASK_C],
+        )
 
 
 def test_downstream_base_refuses_undurable_proof(repo, tmp_path):
@@ -1235,10 +1343,22 @@ def test_full_a_b_c_d_production_path(repo, tmp_path, monkeypatch):
             packet=packet,
         )
         assert all(c.ok for c in checks), [c.detail for c in checks if not c.ok]
+        predecessor_proofs = {
+            task: str(getattr(a, "proof_id", ""))
+            for task in packet.dependencies
+            for a in store.attempts_for_task(str(task))
+            if str(getattr(a, "status", "")) == _S.SUCCEEDED.value
+        }
         proof = _mint(
             proof_runtime=proofs,
             attempt=verifying,
-            action=_action(attempt=verifying, result=result, predecessor_proofs={}),
+            action=_action(
+                attempt=verifying,
+                result=result,
+                predecessor_proofs=predecessor_proofs,
+                run_id=RUN,
+                candidate_sha=CAND,
+            ),
             verifier_identity="verifier:role-integrator-op",
         )
         return store.transition_cas(

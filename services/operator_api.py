@@ -70,6 +70,42 @@ _voice_warmup_status: dict[str, Any] = {
     "cancel_requested": False,
 }
 _VOICE_WARMUP_SHUTDOWN_DRAIN_SECONDS = 30.0
+_readiness_components: dict[str, dict[str, Any]] = {
+    "operator_api_key": {"required": True, "ready": bool(API_KEY.strip()), "detail": ""},
+    "execution_spine": {"required": True, "ready": False, "detail": "not initialized"},
+    "adapter_sockets": {"required": True, "ready": False, "detail": "not initialized"},
+    "config_store": {"required": True, "ready": False, "detail": "not initialized"},
+    "organism_daemon": {"required": True, "ready": False, "detail": "not initialized"},
+    "organism_port": {"required": True, "ready": False, "detail": "not initialized"},
+    "voice_warmup": {"required": False, "ready": False, "detail": "optional"},
+}
+if not API_KEY.strip():
+    _readiness_components["operator_api_key"]["detail"] = "UMH_OPERATOR_API_KEY is not configured"
+else:
+    _readiness_components["operator_api_key"]["detail"] = "configured"
+
+
+def _set_readiness_component(name: str, *, ready: bool, detail: str = "") -> None:
+    component = _readiness_components.setdefault(
+        name, {"required": False, "ready": False, "detail": ""}
+    )
+    component["ready"] = bool(ready)
+    if detail:
+        component["detail"] = detail
+
+
+def operator_readiness_status() -> dict[str, Any]:
+    components = {name: dict(value) for name, value in _readiness_components.items()}
+    required = {name: value for name, value in components.items() if value.get("required")}
+    missing = [name for name, value in required.items() if value.get("ready") is not True]
+    return {
+        "ready": not missing,
+        "status": "ready" if not missing else "not_ready",
+        "missing_required": missing,
+        "components": components,
+        "voice_warmup": voice_warmup_status(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 def _wire_spine_to_cockpit_ws(daemon) -> None:
@@ -119,6 +155,7 @@ async def _run_voice_warmup(
 
         preload = preload_warm_engine
 
+    _set_readiness_component("voice_warmup", ready=False, detail="warming")
     _voice_warmup_status = {
         "state": "WARMING",
         "started_at": datetime.now(timezone.utc).isoformat(),
@@ -142,6 +179,7 @@ async def _run_voice_warmup(
             logger.info("warm VoiceEngine preload cancellation requested; draining owned work")
             continue
         except Exception as exc:
+            _set_readiness_component("voice_warmup", ready=False, detail="fail_soft")
             _voice_warmup_status = {
                 **_voice_warmup_status,
                 "state": "FAILED",
@@ -152,6 +190,7 @@ async def _run_voice_warmup(
             return
 
     if ok is False:
+        _set_readiness_component("voice_warmup", ready=False, detail="fail_soft")
         _voice_warmup_status = {
             **_voice_warmup_status,
             "state": "FAILED",
@@ -161,6 +200,7 @@ async def _run_voice_warmup(
         logger.warning("warm VoiceEngine preload failed (will lazy-load)")
         return
 
+    _set_readiness_component("voice_warmup", ready=True, detail="ready")
     _voice_warmup_status = {
         **_voice_warmup_status,
         "state": "READY",
@@ -227,8 +267,14 @@ async def lifespan(application):
             "adapter sockets registered: intelligence_wired=%s",
             _call_with_fallback_fn is not None,
         )
+        _set_readiness_component(
+            "adapter_sockets",
+            ready=_call_with_fallback_fn is not None,
+            detail="registered" if _call_with_fallback_fn is not None else "intelligence port unwired",
+        )
     except Exception as exc:
         logger.error("adapter socket registration failed: %s", exc)
+        _set_readiness_component("adapter_sockets", ready=False, detail=type(exc).__name__)
 
     # ── Register config store ─────────────────────────────────────────────
     try:
@@ -238,8 +284,10 @@ async def lifespan(application):
         _cfg = ConfigStore()
         register_config_store(_cfg.get, _cfg.set, _cfg.get_all, _cfg.on_change)
         logger.info("config store registered: ai_name=%s", _cfg.get("ai_name"))
+        _set_readiness_component("config_store", ready=True, detail="registered")
     except Exception as exc:
         logger.warning("config store not registered: %s", exc)
+        _set_readiness_component("config_store", ready=False, detail=type(exc).__name__)
 
     # ── Apply persisted settings overrides + backfill device fields ──────
     try:
@@ -291,15 +339,19 @@ async def lifespan(application):
 
             register_organism_accessor(lambda: _organism_daemon)
             logger.info("organism registered with canonical organism_port (governed path live)")
+            _set_readiness_component("organism_port", ready=True, detail="registered")
         except Exception as exc:  # never block startup on the accessor wiring
             logger.error("failed to register organism accessor: %s", exc)
+            _set_readiness_component("organism_port", ready=False, detail=type(exc).__name__)
         _wire_spine_to_cockpit_ws(_organism_daemon)
         _tick_task = asyncio.create_task(_tick_loop(_organism_daemon, _tick_executor))
         logger.info("organism daemon started with autonomous tick loop (dedicated thread)")
+        _set_readiness_component("organism_daemon", ready=True, detail="started")
     except Exception as exc:
         import traceback
 
         logger.error("organism daemon failed to start: %s\n%s", exc, traceback.format_exc())
+        _set_readiness_component("organism_daemon", ready=False, detail=type(exc).__name__)
 
     # ── Register notification port implementations ──────────────────────
     try:
@@ -416,18 +468,23 @@ try:
     _ctx = try_load_context_from_env()
     _HAS_SPINE = True
     logger.info("ExecutionSpine loaded — chat via spine")
+    _set_readiness_component("execution_spine", ready=True, detail="loaded")
 except Exception as e:
     logger.warning(f"ExecutionSpine not available: {e}")
     _spine = None
     _ctx_builder = None
     _ctx = None
+    _set_readiness_component("execution_spine", ready=False, detail=type(e).__name__)
 
 
 # ─── Auth dependency ───────────────────────────────────────────────────────────
 async def verify_api_key(request: Request) -> None:
     """Check X-API-Key header against configured key."""
-    key = request.headers.get("X-API-Key", "")
-    if key != API_KEY:
+    configured = API_KEY.strip()
+    if not configured:
+        raise HTTPException(status_code=503, detail="Operator API key is not configured")
+    key = request.headers.get("X-API-Key", "").strip()
+    if not key or key != configured:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
@@ -452,6 +509,15 @@ async def health():
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "voice_warmup": voice_warmup_status(),
     }
+
+
+@app.get("/ready")
+async def ready():
+    """Semantic readiness for Wave 2 governed execution."""
+    status = operator_readiness_status()
+    if status["ready"]:
+        return status
+    return JSONResponse(status, status_code=503)
 
 
 # ─── Knowledge endpoints ───────────────────────────────────────────────────────

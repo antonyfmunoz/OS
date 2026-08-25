@@ -189,6 +189,14 @@ def test_teardown_serve_not_restored_fails():
     assert v.mandatory.get("teardown:serve_restored") is False
 
 
+def test_teardown_unknown_serve_restore_fails():
+    out = {"run_secret_shredded": True}
+    v = wd.qualification_verdict("teardown", out)
+    assert v.ok is False
+    assert v.mandatory.get("teardown:serve_restored") is False
+    assert any("serve restoration" in r.lower() for r in v.reasons)
+
+
 def test_teardown_clean_passes():
     out = {
         "torn_down": ["c1", "c2"],

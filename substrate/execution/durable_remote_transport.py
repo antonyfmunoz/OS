@@ -725,6 +725,17 @@ class DurableRemoteStore:
             if req is None:
                 raise KeyError(request_id)
             req = self._maybe_converge_recovery_locked(req)
+            if req.lifecycle_state in TERMINAL_STATES or req.lifecycle_state in RECOVERY_STATES:
+                self._event(
+                    request_id,
+                    "LATE_RUNNING_IGNORED",
+                    {
+                        "state": req.lifecycle_state,
+                        "existing_claim_id": req.claim_id,
+                        "incoming_claim_id": claim_id,
+                    },
+                )
+                return req
             if req.claim_id and req.claim_id != claim_id:
                 req.diagnostics["running_claim_conflict"] = {
                     "existing": req.claim_id,

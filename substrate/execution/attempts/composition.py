@@ -783,7 +783,12 @@ def assert_descends_from_all(
 
 # ── Attempt-bound Proof, exactly one per composition Attempt ─────────────────
 def composition_proof_action(
-    *, attempt: Any, result: CompositionResult, predecessor_proofs: dict[str, str]
+    *,
+    attempt: Any,
+    result: CompositionResult,
+    predecessor_proofs: dict[str, str],
+    run_id: str = "",
+    candidate_sha: str = "",
 ) -> dict[str, Any]:
     """The canonical ``action`` payload of a composition Proof.
 
@@ -793,6 +798,8 @@ def composition_proof_action(
     return {
         "attempt_id": str(getattr(attempt, "attempt_id", "")),
         "task_id": str(getattr(attempt, "task_id", "")),
+        "run_id": str(run_id or getattr(attempt, "run_id", "")),
+        "candidate_sha": str(candidate_sha or getattr(attempt, "candidate_sha", "")),
         "kind": "control_plane_composition",
         "composed_commit": result.composed_commit,
         "composed_ref": result.composed_ref,
@@ -804,12 +811,106 @@ def composition_proof_action(
 
 
 def _composition_identity(action: dict[str, Any]) -> tuple:
-    """The subset of a Proof action that decides "same composition or not"."""
+    """The complete Proof action identity that decides "same composition or not"."""
     return (
+        str(action.get("attempt_id", "")),
+        str(action.get("task_id", "")),
+        str(action.get("run_id", "")),
+        str(action.get("candidate_sha", "")),
+        str(action.get("kind", "")),
         str(action.get("composed_commit", "")),
+        str(action.get("composed_ref", "")),
         str(action.get("tree_sha", "")),
+        str(action.get("merge_base", "")),
         tuple(sorted((action.get("predecessor_commits") or {}).items())),
+        tuple(sorted((action.get("predecessor_proof_ids") or {}).items())),
     )
+
+
+def _validate_downstream_composition_proof(
+    *,
+    repo: str,
+    candidate: str,
+    run_id: str,
+    store: Any,
+    attempt: Any,
+    durable: Any,
+    composed_commit: str,
+) -> None:
+    """Fail closed unless the durable Proof binds the full composed-base authority."""
+    from substrate.execution.attempts.records import (
+        AttemptExecutionKind,
+        ExecutionAttemptStatus,
+    )
+
+    action = getattr(durable, "action", {}) or {}
+    if getattr(durable, "outcome", "") != "success":
+        raise CompositionError(
+            f"Proof {getattr(durable, 'proof_id', '')} outcome is "
+            f"{getattr(durable, 'outcome', '')!r}, not success"
+        )
+    expected_ref = composed_ref(
+        candidate=candidate,
+        run_id=run_id,
+        task_id=str(getattr(attempt, "task_id", "")),
+        attempt_id=str(getattr(attempt, "attempt_id", "")),
+    )
+    expected = {
+        "attempt_id": str(getattr(attempt, "attempt_id", "")),
+        "task_id": str(getattr(attempt, "task_id", "")),
+        "kind": AttemptExecutionKind.CONTROL_PLANE_COMPOSITION.value,
+        "composed_commit": composed_commit,
+        "composed_ref": expected_ref,
+    }
+    expected["run_id"] = run_id
+    expected["candidate_sha"] = candidate
+    mismatches = [
+        key for key, value in expected.items() if str(action.get(key, "")) != str(value)
+    ]
+    if mismatches:
+        raise CompositionError(
+            f"Proof {getattr(durable, 'proof_id', '')} composition binding mismatch: "
+            + ",".join(mismatches)
+        )
+
+    predecessor_commits = action.get("predecessor_commits")
+    predecessor_proofs = action.get("predecessor_proof_ids")
+    if not isinstance(predecessor_commits, dict) or len(predecessor_commits) != REQUIRED_PREDECESSORS:
+        raise CompositionError("composition Proof does not bind the required predecessor commits")
+    if not isinstance(predecessor_proofs, dict) or set(predecessor_proofs) != set(
+        predecessor_commits
+    ):
+        raise CompositionError("composition Proof does not bind predecessor Proof IDs")
+
+    for pred_task, pred_commit in sorted(predecessor_commits.items()):
+        if not _SHA_RE.match(str(pred_commit)):
+            raise CompositionError(f"predecessor {pred_task} commit is not a 40-hex sha")
+        succeeded = [
+            a
+            for a in store.attempts_for_task(str(pred_task))
+            if str(getattr(a, "status", "")) == ExecutionAttemptStatus.SUCCEEDED.value
+        ]
+        if len(succeeded) != 1:
+            raise CompositionError(
+                f"predecessor {pred_task} has {len(succeeded)} SUCCEEDED attempts — "
+                "cannot bind composition Proof"
+            )
+        if str(getattr(succeeded[0], "proof_id", "")) != str(predecessor_proofs[pred_task]):
+            raise CompositionError(
+                f"predecessor {pred_task} Proof ID mismatch in composition Proof"
+            )
+        trusted = resolve_trusted_commit(
+            repo=repo,
+            candidate=candidate,
+            run_id=run_id,
+            task_id=str(pred_task),
+            attempt_id=str(getattr(succeeded[0], "attempt_id", "")),
+        )
+        if trusted != pred_commit:
+            raise CompositionError(
+                f"predecessor {pred_task} trusted commit {trusted[:12] if trusted else '<missing>'} "
+                f"does not match Proof commit {str(pred_commit)[:12]}"
+            )
 
 
 def existing_composition_proof(
@@ -943,12 +1044,6 @@ def resolve_downstream_base(
                 f"composition attempt {attempt.attempt_id} names Proof {proof_id} which is "
                 f"not durably persisted — refusing to hand an unproven base downstream"
             )
-        bound = str((getattr(durable, "action", {}) or {}).get("attempt_id", ""))
-        if bound != attempt.attempt_id:
-            raise CompositionError(
-                f"Proof {proof_id} is bound to attempt {bound!r}, not "
-                f"{attempt.attempt_id!r} — refusing a foreign Proof as base authority"
-            )
 
         commit = resolve_composed_commit(
             repo=repo,
@@ -969,6 +1064,15 @@ def resolve_downstream_base(
                 f"{recorded[0][:12]} but its composed ref pins {commit[:12]} — refusing an "
                 f"ambiguous downstream base"
             )
+        _validate_downstream_composition_proof(
+            repo=repo,
+            candidate=candidate,
+            run_id=run_id,
+            store=store,
+            attempt=attempt,
+            durable=durable,
+            composed_commit=commit,
+        )
         return commit
 
     return ""

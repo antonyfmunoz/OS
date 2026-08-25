@@ -474,8 +474,8 @@ def run_probe(
                 raw_stderr = "subprocess skipped by CPU gate or unavailable"
             mark("collect_timeout_result_end", duration_seconds=duration)
         else:
-            raw_stdout = completed.stdout or ""
-            raw_stderr = completed.stderr or ""
+            raw_stdout = _sanitize(completed.stdout or "")
+            raw_stderr = _sanitize(completed.stderr or "")
             mark("collect_result_start", returncode=completed.returncode)
             result = executor.collect_result(packet, completed, duration_seconds=duration)
             mark("collect_result_end", duration_seconds=duration, ok=result.ok)

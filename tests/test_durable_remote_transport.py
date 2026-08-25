@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 
 from substrate.execution.durable_remote_transport import (
@@ -101,6 +103,78 @@ def test_running_claim_conflict_requires_bounded_reconciliation(tmp_path) -> Non
     assert conflicted.lifecycle_state == "RECONCILIATION_REQUIRED"
     assert conflicted.diagnostics["running_claim_conflict"]["existing"] == "claim-1"
     assert conflicted.reconciliation_deadline_at > conflicted.reconciliation_requested_at
+
+
+def test_late_running_after_succeeded_is_ignored_even_for_foreign_claim(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.mark_running(req.request_id, claim_id="claim-1", process_tree={"root_pid": 22})
+    store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "done"},
+        cleanup={"process_residue": []},
+    )
+
+    late = store.mark_running(req.request_id, claim_id="foreign-claim")
+
+    assert late.lifecycle_state == "SUCCEEDED"
+    assert late.claim_id == "claim-1"
+    assert "running_claim_conflict" not in late.diagnostics
+    events = [
+        json.loads(line)["event"]
+        for line in store.events_path.read_text(encoding="utf-8").splitlines()
+        if json.loads(line)["request_id"] == req.request_id
+    ]
+    assert events[-1] == "LATE_RUNNING_IGNORED"
+
+
+def test_late_running_after_failed_cancelled_or_recovery_terminal_does_not_regress(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+
+    failed = store.put_request(_request(idempotency_key="failed"))
+    store.mark_claimed(failed.request_id, claim_id="claim-failed")
+    store.mark_running(failed.request_id, claim_id="claim-failed")
+    store.publish_result(
+        failed.request_id,
+        claim_id="claim-failed",
+        state="FAILED",
+        result={"success": False, "error": "boom"},
+        cleanup={"process_residue": []},
+    )
+    assert store.mark_running(failed.request_id, claim_id="late").lifecycle_state == "FAILED"
+
+    cancelled = store.put_request(_request(idempotency_key="cancelled"))
+    store.mark_claimed(cancelled.request_id, claim_id="claim-cancelled")
+    current = store.request_cancel(cancelled.request_id)
+    store.publish_result(
+        cancelled.request_id,
+        claim_id="claim-cancelled",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={
+            "process_residue": [],
+            **current.cancellation_identity(claim_id="claim-cancelled"),
+        },
+    )
+    assert (
+        store.mark_running(cancelled.request_id, claim_id="late").lifecycle_state
+        == "CANCELLED"
+    )
+
+    recovery = store.put_request(_request(idempotency_key="recovery"))
+    store.mark_claimed(recovery.request_id, claim_id="claim-1")
+    assert store.mark_claimed(recovery.request_id, claim_id="claim-2").lifecycle_state == (
+        "RECONCILIATION_REQUIRED"
+    )
+    assert (
+        store.mark_running(recovery.request_id, claim_id="claim-2").lifecycle_state
+        == "RECONCILIATION_REQUIRED"
+    )
 
 
 def test_success_after_cancel_request_wins_before_cancel_ack(tmp_path) -> None:

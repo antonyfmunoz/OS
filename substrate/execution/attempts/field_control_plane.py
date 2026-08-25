@@ -972,7 +972,11 @@ class FieldControlPlaneDriver:
                 if str(getattr(a, "status", "")) == "succeeded"
             }
             action = composition_proof_action(
-                attempt=attempt_v, result=result, predecessor_proofs=predecessor_proofs
+                attempt=attempt_v,
+                result=result,
+                predecessor_proofs=predecessor_proofs,
+                run_id=run_id,
+                candidate_sha=candidate,
             )
             try:
                 proof = mint_composition_proof(
