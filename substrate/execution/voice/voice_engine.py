@@ -17,14 +17,14 @@ optimised for real-time voice channel interaction.
 """
 
 import os
-import subprocess
 import tempfile
+import threading
 import wave
 from collections import deque
 from datetime import datetime
 from pathlib import Path
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
+from substrate.execution.cpu_gate import gated_subprocess_run
 
 # ─── Speech classification constants ──────────────────────────────────────────
 
@@ -55,6 +55,7 @@ class IntelligentVoiceProcessor:
         self._silero_model = None
         self._utils = None
         self._faster_whisper = None
+        self._faster_whisper_lock = threading.Lock()
         self._ve = voice_engine          # ref back to VoiceEngine for transcribe fallback
         self.context_window: deque = deque(maxlen=10)
         self.last_speech_time: datetime | None = None
@@ -82,20 +83,26 @@ class IntelligentVoiceProcessor:
             print(f'[Voice] Silero load failed: {e}')
             return False
 
-    def load_faster_whisper(self, model_size: str = 'base') -> bool:
+    def load_faster_whisper(self, model_size: str = 'base', *, local_files_only: bool = False) -> bool:
         """Load faster-whisper model (CTranslate2 — no torch required)."""
-        try:
-            from faster_whisper import WhisperModel
-            self._faster_whisper = WhisperModel(
-                model_size,
-                device='cpu',
-                compute_type='int8',
-            )
-            print(f'[Voice] faster-whisper {model_size} loaded')
+        if self._faster_whisper is not None:
             return True
-        except Exception as e:
-            print(f'[Voice] faster-whisper failed: {e}')
-            return False
+        with self._faster_whisper_lock:
+            if self._faster_whisper is not None:
+                return True
+            try:
+                from faster_whisper import WhisperModel
+                self._faster_whisper = WhisperModel(
+                    model_size,
+                    device='cpu',
+                    compute_type='int8',
+                    local_files_only=local_files_only,
+                )
+                print(f'[Voice] faster-whisper {model_size} loaded')
+                return True
+            except Exception as e:
+                print(f'[Voice] faster-whisper failed: {e}')
+                return False
 
     # ─── Speech detection ─────────────────────────────────────────────────────
 
@@ -111,8 +118,8 @@ class IntelligentVoiceProcessor:
             return 0.5  # fallback: assume speech
 
         try:
-            import torch
             import numpy as np
+            import torch
             audio_int   = np.frombuffer(audio_chunk, dtype=np.int16)
             audio_float = audio_int.astype(np.float32) / 32768.0
             tensor      = torch.FloatTensor(audio_float)

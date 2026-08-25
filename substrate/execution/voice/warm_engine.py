@@ -42,7 +42,7 @@ def get_warm_engine() -> VoiceEngine:
     return _engine_singleton
 
 
-def preload_warm_engine() -> None:
+def preload_warm_engine() -> bool:
     """Eagerly construct the warm engine and load its STT model.
 
     Called at operator_api startup so the STT model is resident before the first
@@ -60,12 +60,17 @@ def preload_warm_engine() -> None:
         proc = getattr(engine, "intelligent", None)
         fw = getattr(proc, "load_faster_whisper", None)
         if callable(fw):
-            fw()
+            if not fw(local_files_only=True):
+                logger.warning("warm VoiceEngine preload failed (will lazy-load)")
+                return False
             logger.info("warm VoiceEngine preloaded (faster-whisper resident)")
+            return True
         else:  # pragma: no cover — engine shape changed
             logger.warning("warm VoiceEngine: no faster-whisper loader found")
+            return False
     except Exception as e:  # best-effort — never block startup
         logger.warning("warm VoiceEngine preload failed (will lazy-load): %s", e)
+        return False
 
 
 def reset_warm_engine_for_tests() -> None:

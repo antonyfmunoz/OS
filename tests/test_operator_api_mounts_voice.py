@@ -28,6 +28,8 @@ def test_operator_api_mounts_voice_router() -> None:
 def test_operator_api_preloads_warm_engine() -> None:
     src = _OPERATOR_API.read_text(encoding="utf-8")
     assert "preload_warm_engine" in src
+    assert "_voice_warmup_task = asyncio.create_task(_run_voice_warmup(_api_executor))" in src
+    assert "await asyncio.get_running_loop().run_in_executor(_api_executor, preload_warm_engine)" not in src
 
 
 def test_voice_ws_path_unique() -> None:

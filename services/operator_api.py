@@ -57,8 +57,19 @@ logging.basicConfig(level=logging.INFO)
 _loop_registry = None
 _organism_daemon = None
 _tick_task = None
+_voice_warmup_task: asyncio.Task | None = None
 _tick_executor: concurrent.futures.ThreadPoolExecutor | None = None
 _api_executor: concurrent.futures.ThreadPoolExecutor | None = None
+_voice_warmup_status: dict[str, Any] = {
+    "state": "NOT_STARTED",
+    "started_at": None,
+    "ended_at": None,
+    "error": None,
+    "shutdown_waiting": False,
+    "shutdown_slow": False,
+    "cancel_requested": False,
+}
+_VOICE_WARMUP_SHUTDOWN_DRAIN_SECONDS = 30.0
 
 
 def _wire_spine_to_cockpit_ws(daemon) -> None:
@@ -93,9 +104,101 @@ async def _tick_loop(daemon, executor: concurrent.futures.ThreadPoolExecutor) ->
         await asyncio.sleep(interval)
 
 
+def voice_warmup_status() -> dict[str, Any]:
+    return dict(_voice_warmup_status)
+
+
+async def _run_voice_warmup(
+    executor: concurrent.futures.ThreadPoolExecutor,
+    preload_fn=None,
+) -> None:
+    global _voice_warmup_status
+    preload = preload_fn
+    if preload is None:
+        from substrate.execution.voice.warm_engine import preload_warm_engine
+
+        preload = preload_warm_engine
+
+    _voice_warmup_status = {
+        "state": "WARMING",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "ended_at": None,
+        "error": None,
+        "shutdown_waiting": False,
+        "shutdown_slow": False,
+        "cancel_requested": False,
+    }
+    work = asyncio.get_running_loop().run_in_executor(executor, preload)
+    while True:
+        try:
+            ok = await asyncio.shield(work)
+            break
+        except asyncio.CancelledError:
+            _voice_warmup_status = {
+                **_voice_warmup_status,
+                "cancel_requested": True,
+                "shutdown_waiting": True,
+            }
+            logger.info("warm VoiceEngine preload cancellation requested; draining owned work")
+            continue
+        except Exception as exc:
+            _voice_warmup_status = {
+                **_voice_warmup_status,
+                "state": "FAILED",
+                "ended_at": datetime.now(timezone.utc).isoformat(),
+                "error": str(exc),
+            }
+            logger.warning("warm VoiceEngine preload failed (will lazy-load): %s", exc)
+            return
+
+    if ok is False:
+        _voice_warmup_status = {
+            **_voice_warmup_status,
+            "state": "FAILED",
+            "ended_at": datetime.now(timezone.utc).isoformat(),
+            "error": "preload_warm_engine returned false",
+        }
+        logger.warning("warm VoiceEngine preload failed (will lazy-load)")
+        return
+
+    _voice_warmup_status = {
+        **_voice_warmup_status,
+        "state": "READY",
+        "ended_at": datetime.now(timezone.utc).isoformat(),
+    }
+    logger.info("warm VoiceEngine preloaded for governed voice WS")
+
+
+async def _drain_voice_warmup_task_for_shutdown() -> None:
+    global _voice_warmup_task
+    task = _voice_warmup_task
+    if task is None:
+        return
+    if not task.done():
+        _voice_warmup_status["shutdown_waiting"] = True
+        logger.info("waiting for warm VoiceEngine preload to finish before shutdown")
+        done, _pending = await asyncio.wait(
+            {task},
+            timeout=_VOICE_WARMUP_SHUTDOWN_DRAIN_SECONDS,
+        )
+        if not done:
+            _voice_warmup_status.update(
+                {
+                    "shutdown_slow": True,
+                },
+            )
+            logger.warning("warm VoiceEngine preload exceeded shutdown drain observation budget")
+    try:
+        await task
+    except Exception as exc:
+        logger.warning("warm VoiceEngine preload task ended during shutdown: %s", exc)
+    finally:
+        _voice_warmup_task = None
+
+
 @asynccontextmanager
 async def lifespan(application):
-    global _loop_registry, _organism_daemon, _tick_task, _tick_executor, _api_executor
+    global _loop_registry, _organism_daemon, _tick_task, _voice_warmup_task, _tick_executor, _api_executor
 
     # ── Thread pool isolation: tick gets its own thread, API gets 4 ───────
     _tick_executor = concurrent.futures.ThreadPoolExecutor(
@@ -198,19 +301,6 @@ async def lifespan(application):
 
         logger.error("organism daemon failed to start: %s\n%s", exc, traceback.format_exc())
 
-    # ── Preload the warm VoiceEngine (GAP A) ─────────────────────────────────
-    # The governed voice WS builds VoiceSession(engine=get_warm_engine()); preload
-    # the SAME instance now so the WhisperModel is resident before the first voice
-    # turn (no cold-start latency). Off-thread + best-effort — never blocks
-    # startup. FREE+LOCAL: this is local faster-whisper, no cloud STT.
-    try:
-        from substrate.execution.voice.warm_engine import preload_warm_engine
-
-        await asyncio.get_running_loop().run_in_executor(_api_executor, preload_warm_engine)
-        logger.info("warm VoiceEngine preloaded for governed voice WS")
-    except Exception as exc:
-        logger.warning("warm VoiceEngine preload skipped (will lazy-load): %s", exc)
-
     # ── Register notification port implementations ──────────────────────
     try:
         from substrate.sockets.notification import (
@@ -226,7 +316,17 @@ async def lifespan(application):
     except Exception as exc:
         logger.warning("notification port registration failed: %s", exc)
 
+    # ── Preload the warm VoiceEngine (GAP A) ─────────────────────────────────
+    # The governed voice WS builds VoiceSession(engine=get_warm_engine()); warm
+    # the SAME instance off the startup critical path. This best-effort task is
+    # lifecycle-owned so cold model downloads cannot block /health, and shutdown
+    # still drains/consumes the work cleanly.
+    if _api_executor is not None:
+        _voice_warmup_task = asyncio.create_task(_run_voice_warmup(_api_executor))
+
     yield
+
+    await _drain_voice_warmup_task_for_shutdown()
 
     if _tick_task is not None:
         _tick_task.cancel()
@@ -347,7 +447,11 @@ async def health():
             {"status": "degraded", "detail": "event loop blocked"},
             status_code=503,
         )
-    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "voice_warmup": voice_warmup_status(),
+    }
 
 
 # ─── Knowledge endpoints ───────────────────────────────────────────────────────
