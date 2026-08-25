@@ -103,6 +103,64 @@ def test_verdict_rejects_payload_digest_mismatch():
     assert "payload_digest mismatch" in check.reason
 
 
+def test_verdict_rejects_request_identity_mismatch():
+    token = sign_verdict(
+        verdict_id="v1",
+        node_id="node-a",
+        capability="terminal.create",
+        risk_class="reversible_write",
+        request_id="req-1",
+        correlation_id="corr-1",
+        effect_class="CONSEQUENTIAL_WRITE",
+        payload_digest=canonical_payload_digest({"argv": ["echo", "ok"]}),
+        idempotency_key="idem-1",
+        secret=_SECRET,
+    )
+    check = verify_verdict(
+        token,
+        expected_node_id="node-a",
+        expected_capability="terminal.create",
+        expected_request_id="req-2",
+        expected_correlation_id="corr-1",
+        expected_effect_class="CONSEQUENTIAL_WRITE",
+        expected_payload_digest=canonical_payload_digest({"argv": ["echo", "ok"]}),
+        expected_idempotency_key="idem-1",
+        secret=_SECRET,
+    )
+    assert check.valid is False
+    assert "request_id mismatch" in check.reason
+
+
+def test_verdict_rejects_candidate_sha_mismatch():
+    token = sign_verdict(
+        verdict_id="v1",
+        node_id="node-a",
+        capability="terminal.create",
+        risk_class="reversible_write",
+        request_id="req-1",
+        correlation_id="corr-1",
+        candidate_sha="a" * 40,
+        effect_class="CONSEQUENTIAL_WRITE",
+        payload_digest=canonical_payload_digest({"argv": ["echo", "ok"]}),
+        idempotency_key="idem-1",
+        secret=_SECRET,
+    )
+    check = verify_verdict(
+        token,
+        expected_node_id="node-a",
+        expected_capability="terminal.create",
+        expected_request_id="req-1",
+        expected_correlation_id="corr-1",
+        expected_candidate_sha="b" * 40,
+        expected_effect_class="CONSEQUENTIAL_WRITE",
+        expected_payload_digest=canonical_payload_digest({"argv": ["echo", "ok"]}),
+        expected_idempotency_key="idem-1",
+        secret=_SECRET,
+    )
+    assert check.valid is False
+    assert "candidate_sha mismatch" in check.reason
+
+
 def test_verdict_rejects_node_mismatch():
     token = sign_verdict(
         verdict_id="v1",
