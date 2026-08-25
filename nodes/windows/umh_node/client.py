@@ -256,19 +256,32 @@ def _durable_owned_process_tree_pids(root_pid: int) -> list[int]:
             + (f": {stderr}" if stderr else "")
         )
     result = subprocess.run(
-        ["ps", "-o", "pid=", "-g", str(root_pid)],
+        ["ps", "-eo", "pid=,ppid="],
         capture_output=True,
         text=True,
         timeout=2,
     )
     if result.returncode == 0:
-        pids = []
+        children_by_parent: dict[int, list[int]] = {}
         for line in (result.stdout or "").splitlines():
+            parts = line.split()
+            if len(parts) < 2:
+                continue
             try:
-                pids.append(int(line.strip()))
+                pid = int(parts[0])
+                ppid = int(parts[1])
             except ValueError:
                 continue
-        return sorted(set(pids)) or [root_pid]
+            children_by_parent.setdefault(ppid, []).append(pid)
+        owned = {root_pid}
+        pending = [root_pid]
+        while pending:
+            parent = pending.pop()
+            for child in children_by_parent.get(parent, []):
+                if child not in owned:
+                    owned.add(child)
+                    pending.append(child)
+        return sorted(owned)
     stderr = (result.stderr or result.stdout or "").strip()
     raise RuntimeError(
         f"process tree enumeration failed rc={result.returncode}"

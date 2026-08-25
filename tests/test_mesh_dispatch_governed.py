@@ -4374,6 +4374,24 @@ def test_durable_process_tree_enumeration_nonzero_is_not_clean(monkeypatch):
         client_mod._durable_owned_process_tree_pids(1234)
 
 
+def test_durable_process_tree_enumeration_uses_posix_parent_map(monkeypatch):
+    from nodes.windows.umh_node import client as client_mod
+
+    monkeypatch.setattr(client_mod.sys, "platform", "linux")
+    monkeypatch.setattr(
+        client_mod.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=["ps"],
+            returncode=0,
+            stdout="1234 1\n2345 1234\n3456 2345\n4567 1\n",
+            stderr="",
+        ),
+    )
+
+    assert client_mod._durable_owned_process_tree_pids(1234) == [1234, 2345, 3456]
+
+
 def test_durable_shell_timeout_captures_phase_tail_and_cleans_descendant(tmp_path):
     child = tmp_path / "pipe_holder.py"
     child.write_text(
