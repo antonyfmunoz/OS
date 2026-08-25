@@ -121,10 +121,9 @@ async def _dispatch_remote(
 ) -> dict[str, Any]:
     """Dispatch a broadcast capability to a remote mesh node via the mesh relay.
 
-    Authenticates to the relay with the bearer secret and, for write-class
-    broadcast operations (everything except read-only health), attaches a
-    signed governance verdict bound to node+capability so the relay and node
-    validate before executing. Fail-closed on missing secrets.
+    Authenticates to the relay for read-only broadcast observations. Write-class
+    broadcast operations must use DurableRemote; this sync helper has no
+    canonical replay/trajectory authority and therefore rejects them.
     """
     import os
     from uuid import uuid4
@@ -132,41 +131,28 @@ async def _dispatch_remote(
     import aiohttp
 
     from substrate.execution.mesh_verdict import (
+        READ_ONLY_EFFECT,
         canonical_payload_digest,
-        get_verdict_secret,
         is_write_class,
-        sign_verdict,
     )
 
     full_cap = f"broadcast.{capability}"
     risk_class = "read_only" if capability in ("health", "status") else "reversible_write"
+    if is_write_class(risk_class):
+        raise HTTPException(
+            status_code=409,
+            detail="remote consequential broadcast operations must use DurableRemote",
+        )
 
     relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
     if not relay_secret:
         raise HTTPException(status_code=503, detail="mesh relay secret unset (fail-closed)")
     req_headers = {"Authorization": f"Bearer {relay_secret}"}
 
-    verdict_token = ""
     request_id = f"sync-{uuid4().hex}"
     correlation_id = f"cockpit-broadcast:{capability}:{request_id}"
-    effect_class = "CONSEQUENTIAL_WRITE" if is_write_class(risk_class) else "READ_ONLY"
+    effect_class = READ_ONLY_EFFECT
     payload_digest = canonical_payload_digest(params)
-    if is_write_class(risk_class):
-        if not get_verdict_secret():
-            raise HTTPException(status_code=503, detail="mesh verdict secret unset (fail-closed)")
-        verdict_token = sign_verdict(
-            verdict_id=uuid4().hex,
-            node_id=node_id,
-            capability=full_cap,
-            risk_class=risk_class,
-            request_id=request_id,
-            correlation_id=correlation_id,
-            candidate_sha=os.environ.get("UMH_SOURCE_SHA", "").strip(),
-            effect_class=effect_class,
-            payload_digest=payload_digest,
-            idempotency_key=request_id,
-            ttl_seconds=timeout + 30,
-        )
 
     relay_url = f"http://127.0.0.1:{_MESH_RELAY_PORT}/dispatch"
     payload = {
@@ -180,7 +166,7 @@ async def _dispatch_remote(
         "capability": full_cap,
         "params": params,
         "risk_class": risk_class,
-        "verdict_token": verdict_token,
+        "verdict_token": "",
         "timeout": timeout,
     }
 

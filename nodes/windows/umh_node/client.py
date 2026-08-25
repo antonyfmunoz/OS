@@ -1002,46 +1002,61 @@ class NodeClient:
         payload_digest: str = "",
         idempotency_key: str = "",
         cap_params: dict[str, Any] | None = None,
+        allow_consequential_write: bool = False,
     ) -> tuple[bool, str]:
-        """Validate a governance verdict token before executing a capability.
+        """Validate sync effect or DurableRemote verdict before adapter execution.
 
-        Read-only capabilities do not require a verdict. Write-class ones do:
-        the token must be signed with the shared mesh verdict secret and bound
-        to this node_id and this capability. Fail-closed — any failure to
-        verify rejects execution.
-
-        The verdict signer/verifier is the single canonical module shared with
-        the orchestrator (substrate.execution.mesh_verdict).
+        Synchronous capability.execute may only run explicit READ_ONLY work.
+        Write-class capability execution is allowed only when the caller is the
+        DurableRemote execution path, which has already proven canonical
+        request authority and passes allow_consequential_write=True.
         """
         try:
             from substrate.execution.mesh_verdict import (
+                CONSEQUENTIAL_WRITE_EFFECT,
                 canonical_payload_digest,
                 get_verdict_secret,
+                READ_ONLY_EFFECT,
+                normalize_effect_class,
+                sync_effect_allows_execution,
                 verify_verdict,
             )
         except Exception as exc:  # pragma: no cover - defensive import guard
-            # If the shared verifier cannot be imported, we cannot validate a
-            # verdict — fail closed for anything that is not explicitly
-            # read-only, allow read-only.
-            if not self._effective_write_class(cap_name, risk_class):
-                return True, "read-only (verifier unavailable)"
-            return False, f"verdict verifier unavailable: {exc}"
+            return False, f"sync effect classifier unavailable: {exc}"
 
         # A caller must NOT be able to skip the verdict by lying that a
         # write-class capability is read_only. The node classifies write-class
         # from the wire risk_class OR the capability's own configured max risk —
         # whichever is stricter (fail-closed against downgrade attacks).
         if not self._effective_write_class(cap_name, risk_class):
-            return True, "read-only capability, no verdict required"
+            if allow_consequential_write:
+                return True, "durable read-only capability"
+            normalized_effect = normalize_effect_class(effect_class)
+            if not normalized_effect:
+                return False, "sync capability requires explicit known effect_class"
+            if normalized_effect != READ_ONLY_EFFECT:
+                return False, "sync capability execution is restricted to READ_ONLY"
+            if not request_id or not correlation_id or not idempotency_key:
+                return False, "sync capability requires exact operation binding"
+            expected_digest = canonical_payload_digest(cap_params or {})
+            if not payload_digest or payload_digest != expected_digest:
+                return False, "payload digest mismatch"
+            if not sync_effect_allows_execution(normalized_effect, risk_class):
+                return False, "sync capability execution is restricted to READ_ONLY"
+            return True, "read-only sync capability, no verdict required"
+
+        normalized_effect = normalize_effect_class(effect_class)
+        if normalized_effect != CONSEQUENTIAL_WRITE_EFFECT:
+            return False, "write-class capability requires CONSEQUENTIAL_WRITE effect binding"
+        if not allow_consequential_write:
+            return False, "write-class capability must use DurableRemote, not sync mesh"
 
         if not get_verdict_secret():
             return False, "no mesh verdict secret configured on node (fail-closed)"
         if not verdict_token:
             return False, "write-class capability requires a governance verdict"
-        if not request_id or not correlation_id or not effect_class or not idempotency_key:
+        if not request_id or not correlation_id or not idempotency_key:
             return False, "write-class capability requires exact operation binding"
-        if effect_class != "CONSEQUENTIAL_WRITE":
-            return False, "write-class capability requires CONSEQUENTIAL_WRITE effect binding"
         expected_digest = canonical_payload_digest(cap_params or {})
         if not payload_digest or payload_digest != expected_digest:
             return False, "payload digest mismatch"
@@ -1054,7 +1069,7 @@ class NodeClient:
             expected_request_id=request_id,
             expected_correlation_id=correlation_id,
             expected_candidate_sha=candidate_sha,
-            expected_effect_class=effect_class,
+            expected_effect_class=normalized_effect,
             expected_payload_digest=expected_digest,
             expected_idempotency_key=idempotency_key,
         )
@@ -2729,6 +2744,7 @@ class NodeClient:
             else "",
             idempotency_key=req.idempotency_key,
             cap_params=cap_params,
+            allow_consequential_write=True,
         )
         if not verdict_ok:
             return {"success": False, "error": f"node verdict rejected: {verdict_reason}"}

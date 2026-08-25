@@ -384,10 +384,22 @@ async def _remote_terminal_dispatch(
 
     # Read-only path: no verdict, no governance actuation record required.
     if operation in _READ_ONLY_TERMINAL_OPS:
+        from uuid import uuid4
+
+        from substrate.execution.mesh_verdict import READ_ONLY_EFFECT, canonical_payload_digest
+
+        request_id = f"sync-{uuid4().hex}"
+        payload_params = dict(params)
         payload = {
+            "request_id": request_id,
+            "correlation_id": f"cockpit-terminal:{operation}:{request_id}",
+            "candidate_sha": os.environ.get("UMH_SOURCE_SHA", "").strip(),
+            "effect_class": READ_ONLY_EFFECT,
+            "idempotency_key": request_id,
+            "payload_digest": canonical_payload_digest(payload_params),
             "node_id": node_id,
             "capability": capability,
-            "params": params,
+            "params": payload_params,
             "risk_class": "read_only",
             "timeout": timeout,
         }
@@ -400,7 +412,8 @@ async def _remote_terminal_dispatch(
             return {"ok": False, "error": result.get("error", "dispatch failed")}
         return {"ok": True, **result.get("result_data", {})}
 
-    # Write-class path: governed mutation → signed verdict → dispatch.
+    # Write-class path: fail closed; consequential remote actuation must enter
+    # DurableRemote explicitly.
     return await _governed_remote_dispatch(node_id, operation, capability, params, timeout)
 
 
@@ -411,116 +424,15 @@ async def _governed_remote_dispatch(
     params: dict[str, Any],
     timeout: int,
 ) -> dict[str, Any]:
-    """Run a write-class remote actuation through the governed spine.
-
-    The dispatch itself (the network call to the relay) is performed by the
-    governed mutation's execute_fn — so it runs ONLY if governance authorizes
-    it. Inside execute_fn we mint a verdict token bound to node+capability,
-    forward it in the payload, and require the relay/node to validate it.
-    """
-    from uuid import uuid4
-
-    from substrate.execution.mesh_verdict import (
-        canonical_payload_digest,
-        get_verdict_secret,
-        sign_verdict,
-    )
-
-    mutation_name = _TERMINAL_OP_MUTATION.get(operation, "remote_node_exec")
-
-    # Container to smuggle the dispatch result out of the sync execute_fn.
-    holder: dict[str, Any] = {"result": None, "error": None}
-    # aiohttp is async; the governed spine's execute_fn is sync. Bridge by
-    # capturing the running loop and driving the coroutine to completion.
-    import asyncio
-
-    loop = asyncio.get_event_loop()
-
-    def _do_dispatch() -> tuple[str, bool]:
-        if not get_verdict_secret():
-            holder["error"] = "no mesh verdict secret configured (fail-closed)"
-            return holder["error"], False
-
-        verdict_id = uuid4().hex
-        request_id = f"sync-{uuid4().hex}"
-        correlation_id = f"cockpit-terminal:{operation}:{request_id}"
-        payload_digest = canonical_payload_digest(params)
-        try:
-            verdict_token = sign_verdict(
-                verdict_id=verdict_id,
-                node_id=node_id,
-                capability=capability,
-                risk_class="reversible_write",
-                request_id=request_id,
-                correlation_id=correlation_id,
-                candidate_sha=os.environ.get("UMH_SOURCE_SHA", "").strip(),
-                effect_class="CONSEQUENTIAL_WRITE",
-                payload_digest=payload_digest,
-                idempotency_key=request_id,
-                ttl_seconds=timeout + 30,
-            )
-        except ValueError as exc:
-            holder["error"] = str(exc)
-            return str(exc), False
-
-        payload = {
-            "request_id": request_id,
-            "correlation_id": correlation_id,
-            "candidate_sha": os.environ.get("UMH_SOURCE_SHA", "").strip(),
-            "effect_class": "CONSEQUENTIAL_WRITE",
-            "idempotency_key": request_id,
-            "payload_digest": payload_digest,
-            "node_id": node_id,
-            "capability": capability,
-            "params": params,
-            "risk_class": "reversible_write",
-            "verdict_token": verdict_token,
-            "timeout": timeout,
-        }
-
-        fut = asyncio.run_coroutine_threadsafe(_post_to_relay(payload, timeout), loop)
-        try:
-            result = fut.result(timeout=timeout + 15)
-        except Exception as exc:
-            holder["error"] = f"Node unreachable: {exc}"
-            return holder["error"], False
-
-        holder["result"] = result
-        ok = bool(result.get("ok"))
-        if ok:
-            return f"remote {capability} on {node_id} executed (verdict {verdict_id})", True
-        return (
-            f"remote {capability} on {node_id} failed: {result.get('error', 'dispatch failed')}",
-            False,
-        )
-
-    # Run the governed mutation off the event loop thread. Its execute_fn
-    # drives the relay coroutine back on the loop via run_coroutine_threadsafe,
-    # so the mutation itself must NOT block the loop (that would deadlock).
-    resp = await loop.run_in_executor(
-        None,
-        lambda: governed_mutation(
-            mutation_name=mutation_name,
-            intent=f"remote terminal {operation} on {node_id}",
-            execute_fn=_do_dispatch,
-            source="cockpit",
-            metadata={"node_id": node_id, "capability": capability},
-        ),
-    )
-
-    if not resp.success:
-        reason = (
-            holder.get("error")
-            or resp.rejected_reason
-            or resp.output
-            or "governed dispatch rejected"
-        )
-        return {"ok": False, "error": reason, "governed": resp.to_http_dict()}
-
-    result = holder.get("result") or {}
-    if not result.get("ok"):
-        return {"ok": False, "error": result.get("error", "dispatch failed")}
-    return {"ok": True, **result.get("result_data", {})}
+    """Reject write-class remote actuation on the synchronous mesh path."""
+    return {
+        "ok": False,
+        "status": "durable_remote_required",
+        "error": "remote consequential operations must use DurableRemote, not sync mesh",
+        "node_id": node_id,
+        "operation": operation,
+        "capability": capability,
+    }
 
 
 async def _remote_terminal_create(request: Request) -> dict[str, Any]:

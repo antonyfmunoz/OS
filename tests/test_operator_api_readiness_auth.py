@@ -88,6 +88,78 @@ def test_operator_api_import_initializes_frontend_artifact_as_required() -> None
     assert component["ready"] is False
 
 
+def test_operator_api_import_initializes_cockpit_api_as_required() -> None:
+    env = dict(os.environ)
+    env["UMH_OPERATOR_API_KEY"] = "secret"
+    env["PYTHONPATH"] = str(ROOT)
+    script = (
+        "import json; "
+        "import services.operator_api as op; "
+        "status = op.operator_readiness_status(); "
+        "print(json.dumps(status['components']['cockpit_api'], sort_keys=True))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=str(ROOT),
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    component = json.loads(result.stdout)
+    assert component["required"] is True
+    assert component["ready"] is True
+    assert component["detail"] == "mounted"
+
+
+def test_operator_api_cockpit_mount_failure_blocks_ready_but_not_health() -> None:
+    env = dict(os.environ)
+    env["UMH_OPERATOR_API_KEY"] = "secret"
+    env["PYTHONPATH"] = str(ROOT)
+    script = """
+import asyncio
+import builtins
+import json
+
+real_import = builtins.__import__
+
+def guarded_import(name, globals=None, locals=None, fromlist=(), level=0):
+    if name == "transports.api.cockpit":
+        raise RuntimeError("forced cockpit import failure")
+    return real_import(name, globals, locals, fromlist, level)
+
+builtins.__import__ = guarded_import
+import services.operator_api as op
+
+health = asyncio.run(op.health())
+ready = asyncio.run(op.ready())
+component = op.operator_readiness_status()["components"]["cockpit_api"]
+print(json.dumps({
+    "health_status": health["status"],
+    "ready_status_code": getattr(ready, "status_code", 200),
+    "component": component,
+}, sort_keys=True))
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=str(ROOT),
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    payload = json.loads(result.stdout)
+    assert payload["health_status"] == "ok"
+    assert payload["ready_status_code"] == 503
+    assert payload["component"]["required"] is True
+    assert payload["component"]["ready"] is False
+    assert payload["component"]["detail"] == "RuntimeError"
+
+
 def test_operator_api_pins_umh_root_before_substrate_import(tmp_path) -> None:
     foreign = tmp_path / "foreign"
     (foreign / "substrate" / "execution").mkdir(parents=True)
@@ -265,6 +337,7 @@ def test_ready_distinguishes_required_startup_from_optional_voice_warmup(monkeyp
         "config_store": {"required": True, "ready": True, "detail": "registered"},
         "organism_daemon": {"required": True, "ready": True, "detail": "started"},
         "organism_port": {"required": True, "ready": True, "detail": "registered"},
+        "cockpit_api": {"required": True, "ready": True, "detail": "mounted"},
         "cockpit_frontend_artifact": {
             "required": True,
             "ready": True,
@@ -296,6 +369,7 @@ def test_ready_requires_exact_frontend_artifact(monkeypatch) -> None:
         "config_store": {"required": True, "ready": True, "detail": "registered"},
         "organism_daemon": {"required": True, "ready": True, "detail": "started"},
         "organism_port": {"required": True, "ready": True, "detail": "registered"},
+        "cockpit_api": {"required": True, "ready": True, "detail": "mounted"},
         "cockpit_frontend_artifact": {
             "required": True,
             "ready": False,

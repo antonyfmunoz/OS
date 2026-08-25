@@ -1880,18 +1880,18 @@ class NodeMeshServer:
     async def _http_dispatch(self, body: dict[str, Any]) -> dict[str, Any]:
         """Dispatch a capability.execute to a connected node via WS and wait for response.
 
-        This is NOT an ungoverned path. Every write-class capability MUST carry
-        a signed governance verdict token (minted upstream by the governed
-        mutation that authorized the dispatch). The relay verifies the verdict
-        server-side (defense in depth) AND forwards it to the node, which
-        validates it independently before executing. A write-class dispatch with
-        a missing or invalid verdict is rejected here (fail-closed).
+        Synchronous mesh is restricted to explicit READ_ONLY observations.
+        Consequential writes must enter DurableRemote so canonical request
+        trajectory/idempotency owns replay, redelivery, and authority proof.
+        Unknown effect classes fail closed.
         """
         from uuid import uuid4
 
         from substrate.execution.mesh_verdict import (
+            READ_ONLY_EFFECT,
             canonical_payload_digest,
-            is_write_class,
+            normalize_effect_class,
+            sync_effect_allows_execution,
             verify_verdict,
         )
 
@@ -1920,38 +1920,38 @@ class NodeMeshServer:
         if not node_id or not capability:
             return {"ok": False, "error": "node_id and capability required"}
 
-        # Fail-closed verdict enforcement for write-class capabilities.
-        if is_write_class(risk_class):
-            if not request_id or not correlation_id or not effect_class or not idempotency_key:
-                return {
-                    "ok": False,
-                    "error": "write-class dispatch requires request, correlation, effect and idempotency binding",
-                    "status": "operation_binding_required",
-                }
-            if effect_class != "CONSEQUENTIAL_WRITE":
-                return {
-                    "ok": False,
-                    "error": "write-class dispatch requires CONSEQUENTIAL_WRITE effect binding",
-                    "status": "effect_class_mismatch",
-                }
-            if supplied_payload_digest != expected_payload_digest:
-                return {
-                    "ok": False,
-                    "error": "payload digest mismatch",
-                    "status": "payload_digest_mismatch",
-                }
-            if not verdict_token:
-                logger.error(
-                    "mesh dispatch rejected: write-class capability %s for node %s "
-                    "carries no verdict token",
-                    capability,
-                    node_id,
-                )
-                return {
-                    "ok": False,
-                    "error": "governance verdict required for write-class capability",
-                    "status": "verdict_required",
-                }
+        normalized_effect = normalize_effect_class(effect_class)
+        if not normalized_effect:
+            return {
+                "ok": False,
+                "error": "sync dispatch requires explicit known effect_class",
+                "status": "effect_class_required",
+            }
+        if not request_id or not correlation_id or not idempotency_key:
+            return {
+                "ok": False,
+                "error": "sync dispatch requires request, correlation and idempotency binding",
+                "status": "operation_binding_required",
+            }
+        if supplied_payload_digest != expected_payload_digest:
+            return {
+                "ok": False,
+                "error": "payload digest mismatch",
+                "status": "payload_digest_mismatch",
+            }
+        if not sync_effect_allows_execution(normalized_effect, risk_class):
+            return {
+                "ok": False,
+                "error": "consequential or unknown-effect operations must use DurableRemote",
+                "status": "sync_write_denied",
+            }
+        if normalized_effect != READ_ONLY_EFFECT:
+            return {
+                "ok": False,
+                "error": "sync dispatch is restricted to READ_ONLY effect_class",
+                "status": "effect_class_mismatch",
+            }
+        if verdict_token:
             check = verify_verdict(
                 verdict_token,
                 expected_node_id=node_id,
@@ -1960,8 +1960,8 @@ class NodeMeshServer:
                 expected_request_id=request_id,
                 expected_correlation_id=correlation_id,
                 expected_candidate_sha=candidate_sha,
-                expected_effect_class=effect_class,
-                expected_payload_digest=expected_payload_digest,
+                expected_effect_class=normalized_effect,
+                expected_payload_digest=expected_payload_digest if supplied_payload_digest else "",
                 expected_idempotency_key=idempotency_key,
             )
             if not check.valid:
@@ -1992,7 +1992,7 @@ class NodeMeshServer:
                     "request_id": req_id,
                     "correlation_id": correlation_id,
                     "candidate_sha": candidate_sha,
-                    "effect_class": effect_class,
+                    "effect_class": normalized_effect,
                     "idempotency_key": idempotency_key,
                     "payload_digest": expected_payload_digest,
                     "capability_name": capability,

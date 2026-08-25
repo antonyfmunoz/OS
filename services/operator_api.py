@@ -80,6 +80,7 @@ _readiness_components: dict[str, dict[str, Any]] = {
     "config_store": {"required": True, "ready": False, "detail": "not initialized"},
     "organism_daemon": {"required": True, "ready": False, "detail": "not initialized"},
     "organism_port": {"required": True, "ready": False, "detail": "not initialized"},
+    "cockpit_api": {"required": True, "ready": False, "detail": "not mounted"},
     "cockpit_frontend_artifact": {
         "required": True,
         "ready": False,
@@ -971,8 +972,10 @@ try:
 
     app.include_router(cockpit_router)
     app.include_router(cockpit_ws_router)
+    _set_readiness_component("cockpit_api", ready=True, detail="mounted")
     logger.info("cockpit router mounted at /api/umh/")
 except Exception as e:
+    _set_readiness_component("cockpit_api", ready=False, detail=type(e).__name__)
     logger.warning(f"cockpit router not available: {e}")
 
 # ─── Governed voice router (the ONE voice ingress: /api/umh/voice/ws) ──────────

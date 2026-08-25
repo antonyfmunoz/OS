@@ -10,9 +10,10 @@ a verdict and authenticates to the relay. The transport layer MAY register a
 richer dispatcher (e.g. one that also records a governed mutation). There is NO
 ungoverned dispatch path.
 
-Fail-closed contract: the built-in dispatcher requires UMH_MESH_VERDICT_SECRET
-(to mint the verdict for write-class capabilities) and UMH_MESH_RELAY_SECRET (to
-authenticate to the relay). Missing either → not-ok result, no network call.
+Fail-closed contract: the built-in dispatcher only sends explicitly read-only
+operations through synchronous mesh. Consequential writes must enter
+DurableRemote. Read-only sync dispatch requires UMH_MESH_RELAY_SECRET to
+authenticate to the relay. Missing relay auth → not-ok result, no network call.
 
 This module imports only stdlib + substrate.execution.mesh_verdict — never
 transports — so dependency direction is preserved.
@@ -60,18 +61,22 @@ def _default_governed_dispatch(
 ) -> dict[str, Any]:
     """Built-in governed dispatcher: sign a verdict, authenticate to the relay.
 
-    Fail-closed: requires UMH_MESH_VERDICT_SECRET (to mint the verdict for
-    write-class capabilities) and UMH_MESH_RELAY_SECRET (to authenticate to the
-    relay). Missing either → not-ok result, no network call. The signed verdict
-    travels in the payload so the relay and the node both validate it before
-    execution.
+    Fail-closed: synchronous mesh only admits explicitly read-only operations.
+    Consequential writes must enter DurableRemote so canonical request
+    trajectory/idempotency owns redelivery and replay.
     """
     from substrate.execution.mesh_verdict import (
+        READ_ONLY_EFFECT,
         canonical_payload_digest,
-        get_verdict_secret,
         is_write_class,
-        sign_verdict,
     )
+
+    if is_write_class(risk_class):
+        return {
+            "ok": False,
+            "error": "consequential writes must use DurableRemote, not sync mesh",
+            "status": "durable_remote_required",
+        }
 
     relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
     if not relay_secret:
@@ -81,31 +86,10 @@ def _default_governed_dispatch(
             "status": "relay_secret_unset",
         }
 
-    verdict_token = ""
     request_id = f"sync-{uuid4().hex}"
     correlation_id = f"mesh-dispatch-port:{request_id}"
-    effect_class = "CONSEQUENTIAL_WRITE" if is_write_class(risk_class) else "READ_ONLY"
+    effect_class = READ_ONLY_EFFECT
     payload_digest = canonical_payload_digest(params)
-    if is_write_class(risk_class):
-        if not get_verdict_secret():
-            return {
-                "ok": False,
-                "error": "mesh verdict secret unset (fail-closed)",
-                "status": "verdict_secret_unset",
-            }
-        verdict_token = sign_verdict(
-            verdict_id=uuid4().hex,
-            node_id=node_id,
-            capability=capability,
-            risk_class=risk_class,
-            request_id=request_id,
-            correlation_id=correlation_id,
-            candidate_sha=os.environ.get("UMH_SOURCE_SHA", "").strip(),
-            effect_class=effect_class,
-            payload_digest=payload_digest,
-            idempotency_key=request_id,
-            ttl_seconds=int(timeout) + 30,
-        )
 
     relay_host = os.environ.get("UMH_MESH_RELAY_HOST", "localhost")
     relay_port = int(os.environ.get("UMH_MESH_HTTP_PORT", "8095"))
@@ -121,7 +105,7 @@ def _default_governed_dispatch(
             "capability": capability,
             "params": params,
             "risk_class": risk_class,
-            "verdict_token": verdict_token,
+            "verdict_token": "",
             "timeout": timeout,
         }
     ).encode()
@@ -154,8 +138,8 @@ def mesh_dispatch(
     """Dispatch a capability to a mesh node through the governed path.
 
     Uses a registered dispatcher when present, otherwise the built-in governed
-    default. Both paths sign a verdict for write-class capabilities and
-    authenticate to the relay — there is no ungoverned dispatch here.
+    default. The built-in path is read-only only; consequential writes must use
+    DurableRemote rather than synchronous mesh.
     """
     fn = _mesh_dispatch_fn or _default_governed_dispatch
     return fn(

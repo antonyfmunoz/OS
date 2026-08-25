@@ -7,12 +7,10 @@ After execution, assembles a proof package for operator review.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import time
 from typing import Any
-from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -88,117 +86,29 @@ async def dispatch_plan_to_node(
         description = task.description if hasattr(task, "description") else str(task)
         task_id = task.task_id if hasattr(task, "task_id") else ""
 
-        prompt = _build_claude_prompt(description, plan)
-        argv = ["claude", "-p", prompt, "--output-format", "json"]
+        _build_claude_prompt(description, plan)
 
         try:
-            from substrate.execution.mesh_verdict import (
-                canonical_payload_digest,
-                get_verdict_secret,
-                is_write_class,
-                sign_verdict,
-            )
-
-            req_headers = {}
-            if _MESH_RELAY_SECRET:
-                req_headers["Authorization"] = f"Bearer {_MESH_RELAY_SECRET}"
             logger.info(
-                "dispatch task %s sending to %s (timeout=%d)",
+                "dispatch task %s refused for sync mesh write path %s (timeout=%d)",
                 task_id,
                 _MESH_RELAY_URL,
                 timeout_per_task,
             )
-            timeouts = httpx.Timeout(timeout_per_task + 10, connect=10.0)
-
-            # Shell is write-class — mint a signed verdict bound to node+capability
-            # so the relay and node can validate before executing (fail-closed).
-            if not get_verdict_secret():
-                failed += 1
-                logger.error(
-                    "dispatch task %s aborted: no mesh verdict secret (fail-closed)", task_id
-                )
-                results.append(
-                    {
-                        "task_id": task_id,
-                        "description": description[:120],
-                        "status": "error",
-                        "error": "no mesh verdict secret configured (fail-closed)",
-                    }
-                )
-                continue
-            params = {"argv": argv, "cwd": cwd}
-            request_id = f"sync-{uuid4().hex}"
-            correlation_id = f"engineering-plan:{getattr(plan, 'plan_id', '')}:{task_id}"
-            effect_class = (
-                "CONSEQUENTIAL_WRITE" if is_write_class("reversible_write") else "READ_ONLY"
-            )
-            payload_digest = canonical_payload_digest(params)
-            verdict_token = sign_verdict(
-                verdict_id=uuid4().hex,
-                node_id=node_id,
-                capability="shell",
-                risk_class="reversible_write",
-                request_id=request_id,
-                correlation_id=correlation_id,
-                candidate_sha=os.environ.get("UMH_SOURCE_SHA", "").strip(),
-                effect_class=effect_class,
-                payload_digest=payload_digest,
-                idempotency_key=request_id,
-                ttl_seconds=timeout_per_task + 30,
-            )
-            payload = {
-                "request_id": request_id,
-                "correlation_id": correlation_id,
-                "candidate_sha": os.environ.get("UMH_SOURCE_SHA", "").strip(),
-                "effect_class": effect_class,
-                "idempotency_key": request_id,
-                "payload_digest": payload_digest,
-                "node_id": node_id,
-                "capability": "shell",
-                "params": params,
-                "risk_class": "reversible_write",
-                "verdict_token": verdict_token,
-                "timeout": timeout_per_task,
-            }
-            data = None
-            async with httpx.AsyncClient(timeout=timeouts) as client:
-                resp = await client.post(_MESH_RELAY_URL, headers=req_headers, json=payload)
-                logger.info(
-                    "dispatch task %s got HTTP %d, %d bytes",
-                    task_id,
-                    resp.status_code,
-                    len(resp.content),
-                )
-                data = resp.json()
-
-            logger.info(
-                "dispatch task %s response: ok=%s latency=%s",
+            failed += 1
+            logger.error(
+                "dispatch task %s rejected: consequential shell execution must use DurableRemote",
                 task_id,
-                data.get("ok"),
-                data.get("latency_ms"),
             )
-            if data.get("ok"):
-                dispatched += 1
-                results.append(
-                    {
-                        "task_id": task_id,
-                        "description": description[:120],
-                        "status": "executed",
-                        "result": data.get("result_data", {}),
-                        "latency_ms": data.get("latency_ms"),
-                    }
-                )
-            else:
-                failed += 1
-                logger.warning("dispatch task %s not ok: %s", task_id, json.dumps(data)[:500])
-                results.append(
-                    {
-                        "task_id": task_id,
-                        "description": description[:120],
-                        "status": "failed",
-                        "error": data.get("error", "unknown"),
-                    }
-                )
+            results.append(
+                {
+                    "task_id": task_id,
+                    "description": description[:120],
+                    "status": "error",
+                    "error": "consequential writes must use DurableRemote, not sync mesh",
+                }
+            )
+            continue
 
         except Exception as exc:
             failed += 1

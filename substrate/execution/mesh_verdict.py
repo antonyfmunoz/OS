@@ -42,6 +42,9 @@ _VERDICT_SECRET_ENV = "UMH_MESH_VERDICT_SECRET"
 # an unknown / unrecognized risk class is treated as write-class, never as
 # read-only).
 _READ_ONLY_CLASSES = frozenset({"read_only", "readonly", "read"})
+READ_ONLY_EFFECT = "READ_ONLY"
+CONSEQUENTIAL_WRITE_EFFECT = "CONSEQUENTIAL_WRITE"
+_EFFECT_CLASSES = frozenset({READ_ONLY_EFFECT, CONSEQUENTIAL_WRITE_EFFECT})
 
 
 def get_verdict_secret() -> str:
@@ -61,6 +64,22 @@ def is_write_class(risk_class: str | None) -> bool:
     if not risk_class:
         return True
     return risk_class.strip().lower() not in _READ_ONLY_CLASSES
+
+
+def normalize_effect_class(effect_class: str | None) -> str:
+    """Normalize a sync mesh effect class.
+
+    Unknown / blank effects remain unknown and must fail closed at sync
+    execution boundaries. Only READ_ONLY is allowed through synchronous
+    capability.execute; consequential writes belong to DurableRemote.
+    """
+    normalized = str(effect_class or "").strip().upper()
+    return normalized if normalized in _EFFECT_CLASSES else ""
+
+
+def sync_effect_allows_execution(effect_class: str | None, risk_class: str | None) -> bool:
+    """True only for explicitly read-only synchronous mesh execution."""
+    return normalize_effect_class(effect_class) == READ_ONLY_EFFECT and not is_write_class(risk_class)
 
 
 @dataclass(frozen=True)

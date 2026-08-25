@@ -29,6 +29,9 @@ class SimState:
     mesh_alive: bool = True
     store_alive: bool = True
     pending_ack: bool = False
+    sync_effect_class: str = "UNKNOWN"
+    sync_side_effects: int = 0
+    sync_observations: int = 0
     log: list[str] = field(default_factory=list)
 
     def record(self, event: str) -> None:
@@ -45,6 +48,37 @@ class SimState:
             assert self.executed == 0, self.log
         if self.lifecycle in TERMINAL:
             assert self.lifecycle != "RUNNING", self.log
+        assert self.sync_side_effects == 0, self.log
+        if self.sync_effect_class == "UNKNOWN":
+            assert self.sync_observations == 0, self.log
+
+
+def sync_mesh_receive(state: SimState, effect_class: str, *, retry: bool = False) -> None:
+    state.sync_effect_class = effect_class
+    state.record(f"sync_mesh:{effect_class}{':retry' if retry else ''}")
+    if effect_class == "READ_ONLY":
+        state.sync_observations += 1
+    elif effect_class in {"CONSEQUENTIAL_WRITE", "UNKNOWN"}:
+        state.fail_closed = True
+    else:
+        state.sync_effect_class = "UNKNOWN"
+        state.fail_closed = True
+    state.assert_invariants()
+
+
+def verify_operation_bound_verdict(
+    state: SimState,
+    *,
+    request_id_matches: bool = True,
+    payload_matches: bool = True,
+    candidate_matches: bool = True,
+) -> bool:
+    state.record("verdict_check")
+    ok = request_id_matches and payload_matches and candidate_matches
+    if not ok:
+        state.fail_closed = True
+    state.assert_invariants()
+    return ok
 
 
 def deliver(state: SimState, *, duplicate: bool = False) -> None:
@@ -239,6 +273,38 @@ def _terminal_late_foreign_running(state: SimState) -> None:
     foreign_running(state)
 
 
+def _duplicate_consequential_sync_denied(state: SimState) -> None:
+    sync_mesh_receive(state, "CONSEQUENTIAL_WRITE")
+    sync_mesh_receive(state, "CONSEQUENTIAL_WRITE", retry=True)
+
+
+def _consequential_write_durable_remote_duplicate_delivery(state: SimState) -> None:
+    deliver(state)
+    deliver(state, duplicate=True)
+    claim_write(state)
+    canonical_read(state)
+    announce_running_and_execute(state)
+    deliver(state, duplicate=True)
+    terminal(state)
+
+
+def _read_only_sync_retry_observation(state: SimState) -> None:
+    sync_mesh_receive(state, "READ_ONLY")
+    sync_mesh_receive(state, "READ_ONLY", retry=True)
+
+
+def _unknown_sync_effect_fails_closed(state: SimState) -> None:
+    sync_mesh_receive(state, "UNKNOWN")
+
+
+def _stale_operation_bound_verdict_rejected(state: SimState) -> None:
+    assert not verify_operation_bound_verdict(state, request_id_matches=False)
+
+
+def _altered_payload_verdict_rejected(state: SimState) -> None:
+    assert not verify_operation_bound_verdict(state, payload_matches=False)
+
+
 SCENARIOS: dict[str, Scenario] = {
     "normal_success": _normal_success,
     "ambiguous_claimed_success": _ambiguous_claimed_success,
@@ -250,6 +316,12 @@ SCENARIOS: dict[str, Scenario] = {
     "delayed_beast_to_vps_return_path": _delayed_return_path,
     "cancellation_during_acquisition": _cancel_during_acquisition,
     "terminal_late_foreign_running": _terminal_late_foreign_running,
+    "sync_duplicate_consequential_denied": _duplicate_consequential_sync_denied,
+    "sync_consequential_routes_to_durable_remote": _consequential_write_durable_remote_duplicate_delivery,
+    "sync_read_only_retry_observation": _read_only_sync_retry_observation,
+    "sync_unknown_effect_fails_closed": _unknown_sync_effect_fails_closed,
+    "sync_stale_verdict_rejected": _stale_operation_bound_verdict_rejected,
+    "sync_payload_substitution_rejected": _altered_payload_verdict_rejected,
 }
 
 
@@ -257,7 +329,7 @@ def run_scenario(name: str) -> SimState:
     state = SimState(scenario=name)
     SCENARIOS[name](state)
     state.assert_invariants()
-    if name != "fallback_unavailable":
+    if name != "fallback_unavailable" and not name.startswith("sync_"):
         assert state.lifecycle in {"RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}, state.log
     return state
 
@@ -269,6 +341,8 @@ def run_all_scenarios() -> dict[str, dict[str, object]]:
         results[name] = {
             "lifecycle": state.lifecycle,
             "executed": state.executed,
+            "sync_side_effects": state.sync_side_effects,
+            "sync_observations": state.sync_observations,
             "fail_closed": state.fail_closed,
             "log": list(state.log),
         }
