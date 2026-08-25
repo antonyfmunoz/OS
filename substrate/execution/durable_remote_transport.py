@@ -736,6 +736,9 @@ class DurableRemoteStore:
                     },
                 )
                 return req
+            if not req.claim_id:
+                req.diagnostics["running_without_claim"] = {"incoming": claim_id}
+                return self._enter_reconciliation(req, reason="running_without_claim")
             if req.claim_id and req.claim_id != claim_id:
                 req.diagnostics["running_claim_conflict"] = {
                     "existing": req.claim_id,
@@ -960,14 +963,11 @@ class DurableRemoteStore:
                     cleanup=cleanup,
                     reason="terminal_cancel_cleanup_conflict",
                 )
-                req.cleanup = cleanup
                 req.diagnostics["terminal_cancel_cleanup_conflict"] = cleanup.get(
                     "process_residue"
                 )
-                return self._enter_reconciliation(
-                    req,
-                    reason="terminal_cancel_cleanup_conflict",
-                )
+                self._update_request_locked(req, "LATE_RESULT_REJECTED")
+                return req
             if (
                 existing
                 and existing.get("state") == state

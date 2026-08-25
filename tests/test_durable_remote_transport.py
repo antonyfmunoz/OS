@@ -105,6 +105,18 @@ def test_running_claim_conflict_requires_bounded_reconciliation(tmp_path) -> Non
     assert conflicted.reconciliation_deadline_at > conflicted.reconciliation_requested_at
 
 
+def test_running_without_prior_claim_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+
+    rejected = store.mark_running(req.request_id, claim_id="claim-1")
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert not rejected.claim_id
+    assert rejected.diagnostics["running_without_claim"] == {"incoming": "claim-1"}
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
 def test_late_running_after_succeeded_is_ignored_even_for_foreign_claim(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
@@ -381,6 +393,7 @@ def test_update_request_cannot_regress_recovery_state(tmp_path) -> None:
 def test_update_request_cannot_regress_active_state_or_drop_claim(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
     running = store.mark_running(req.request_id, claim_id="claim-1", process_tree={"pid": 11})
     stale = DurableRemoteRequest.from_dict(running.to_dict())
     stale.lifecycle_state = "QUEUED"
@@ -1010,7 +1023,7 @@ def test_fail_unresolved_request_terminalizes_and_records_evidence(tmp_path) -> 
     assert result["state"] == "FAILED"
 
 
-def test_terminal_replay_with_cleanup_conflict_does_not_get_dropped(tmp_path) -> None:
+def test_terminal_replay_with_cleanup_conflict_preserves_terminal_lifecycle(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
     store.mark_claimed(req.request_id, claim_id="claim-1")
@@ -1037,12 +1050,12 @@ def test_terminal_replay_with_cleanup_conflict_does_not_get_dropped(tmp_path) ->
         cleanup={"process_residue": [{"pid": 999, "state": "still_alive"}]},
     )
 
-    assert conflict.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert conflict.lifecycle_state == "CANCELLED"
     assert conflict.diagnostics["terminal_cancel_cleanup_conflict"][0]["state"] == "still_alive"
-    assert conflict.cleanup["process_residue"][0]["pid"] == 999
+    assert conflict.cleanup["process_residue"] == []
     observed = store.get_request(req.request_id)
     assert observed is not None
-    assert observed.lifecycle_state == "RECONCILIATION_REQUIRED"
-    assert observed.cleanup["process_residue"][0]["pid"] == 999
+    assert observed.lifecycle_state == "CANCELLED"
+    assert observed.cleanup["process_residue"] == []
     rejected = list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
     assert rejected

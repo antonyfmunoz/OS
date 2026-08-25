@@ -611,35 +611,43 @@ _serve_snapshot_path: Path | None = None
 _serve_restored = False
 
 
-def _serve_snapshot_stable_path() -> Path:
+def _serve_snapshot_stable_path(sha: str = "") -> Path:
     """Deterministic snapshot location, recoverable across CLI invocations.
 
     deploy-candidate, smoke, run, and teardown are SEPARATE process
     invocations. The production-serve snapshot deploy-candidate takes must be
-    found again by a later teardown (or a crash handler) so production serve is
-    restored exactly once, at the end. A per-process global cannot survive a
-    process boundary, so the canonical snapshot lives at a fixed path.
+    found again by a later teardown (or a crash handler) for the SAME candidate
+    SHA so production serve is restored exactly once. A per-process global
+    cannot survive a process boundary, so the canonical snapshot lives in the
+    candidate's runtime state when the SHA is known.
     """
+    if sha:
+        return _state_dir(sha).parent / "tailscale_serve_snapshot.json"
     return _proof_root() / "tailscale_serve_snapshot.json"
 
 
-def _snapshot_tailscale_serve(runner: Runner, run_dir: Path) -> Path:
+def _snapshot_tailscale_serve(runner: Runner, run_dir: Path, *, sha: str = "") -> Path:
     """Snapshot current `tailscale serve status --json` to the stable path.
 
-    Only writes a NEW snapshot when one does not already exist for this run —
-    so re-running deploy-candidate (which by then sees the CANDIDATE serve, not
-    production) never clobbers the original production snapshot.
+    Only preserves an existing snapshot while it is still active. Once teardown
+    positively records restoration, the next deploy for the same SHA captures a
+    fresh pre-run Serve state instead of replaying stale historical routing.
     """
     global _serve_snapshot_path
-    snap = _serve_snapshot_stable_path()
+    snap = _serve_snapshot_stable_path(sha)
     _serve_snapshot_path = snap
     if runner.dry_run:
         print(f"[dry-run] would snapshot tailscale serve → {snap}")
         return snap
     if snap.exists():
-        # Preserve the first (production) snapshot; a redeploy would otherwise
-        # capture the candidate mapping and lose the real restore target.
-        return snap
+        try:
+            existing = json.loads(snap.read_text(encoding="utf-8"))
+        except Exception:
+            existing = {}
+        if not isinstance(existing, dict) or not existing.get("restore_completed_at"):
+            # Preserve the active pre-candidate snapshot; a redeploy would otherwise
+            # capture the candidate mapping and lose the real restore target.
+            return snap
     result = runner.run(["tailscale", "serve", "status", "--json"], timeout=30, capture=True)
     status = result.stdout if result and result.returncode == 0 else "{}"
     config_path = run_dir / "tailscale_serve_config.json"
@@ -657,7 +665,9 @@ def _snapshot_tailscale_serve(runner: Runner, run_dir: Path) -> Path:
     snap.write_text(
         json.dumps(
             {
-                "snapshot_contract": "tailscale_serve_exact_restore_v2",
+                "snapshot_contract": "tailscale_serve_exact_restore_v3",
+                "candidate_sha": sha,
+                "deployment_id": _run_id_default(),
                 "status": json.loads(status or "{}"),
                 "config_captured": bool(config.strip()),
                 "config": json.loads(config) if config.strip() else None,
@@ -671,7 +681,7 @@ def _snapshot_tailscale_serve(runner: Runner, run_dir: Path) -> Path:
     return snap
 
 
-def _load_serve_snapshot_path() -> None:
+def _load_serve_snapshot_path(sha: str = "") -> None:
     """Point the module global at the on-disk snapshot from a prior deploy.
 
     Called by consuming commands (smoke/run/teardown) so their crash handlers
@@ -679,8 +689,27 @@ def _load_serve_snapshot_path() -> None:
     THIS process never took it.
     """
     global _serve_snapshot_path
-    if _serve_snapshot_path is None and _serve_snapshot_stable_path().exists():
-        _serve_snapshot_path = _serve_snapshot_stable_path()
+    path = _serve_snapshot_stable_path(sha)
+    if _serve_snapshot_path is None and path.exists():
+        _serve_snapshot_path = path
+
+
+def _mark_serve_snapshot_restored(path: Path) -> None:
+    try:
+        snap = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(snap, dict):
+            snap["restore_completed_at"] = datetime.now(timezone.utc).isoformat()
+            path.write_text(json.dumps(snap, sort_keys=True, indent=2), encoding="utf-8")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[warn] could not mark tailscale serve snapshot restored: {exc}")
+
+
+def _serve_restore_success(result: dict[str, Any]) -> dict[str, Any]:
+    global _serve_restored
+    _serve_restored = True
+    if _serve_snapshot_path is not None and not result.get("dry_run"):
+        _mark_serve_snapshot_restored(_serve_snapshot_path)
+    return result
 
 
 def _restore_tailscale_serve(runner: Runner) -> dict[str, Any]:
@@ -693,7 +722,6 @@ def _restore_tailscale_serve(runner: Runner) -> dict[str, Any]:
             "snapshot": str(_serve_snapshot_path) if _serve_snapshot_path else "",
             "reason": "" if _serve_restored else "serve snapshot unavailable",
         }
-    _serve_restored = True
     # Reset first, then re-apply the snapshot if it was non-empty.
     reset = runner.run(["tailscale", "serve", "reset"], timeout=30, check=False)
     if reset is not None and reset.returncode != 0:
@@ -705,7 +733,9 @@ def _restore_tailscale_serve(runner: Runner) -> dict[str, Any]:
         }
     if runner.dry_run:
         print("[dry-run] would re-apply tailscale serve snapshot if non-empty")
-        return {"ok": True, "dry_run": True, "snapshot": str(_serve_snapshot_path)}
+        return _serve_restore_success(
+            {"ok": True, "dry_run": True, "snapshot": str(_serve_snapshot_path)}
+        )
     try:
         snap = json.loads(_serve_snapshot_path.read_text(encoding="utf-8"))
     except Exception as exc:  # noqa: BLE001
@@ -725,13 +755,14 @@ def _restore_tailscale_serve(runner: Runner) -> dict[str, Any]:
             capture=True,
         )
         ok = bool(applied is None or applied.returncode == 0)
-        return {
+        out = {
             "ok": ok,
             "snapshot": str(_serve_snapshot_path),
             "method": "set-config",
             "config_captured": True,
             "stderr": "" if ok else _SECRET_REDACT_RE.sub("<redacted>", (applied.stderr or "")[-800:]),
         }
+        return _serve_restore_success(out) if ok else out
     web = status.get("Web") if isinstance(status, dict) else None
     tcp = status.get("TCP") if isinstance(status, dict) else None
     if tcp and not web:
@@ -741,7 +772,9 @@ def _restore_tailscale_serve(runner: Runner) -> dict[str, Any]:
             "reason": "legacy serve snapshot contains TCP handlers without replayable Web config",
         }
     if not web:
-        return {"ok": True, "snapshot": str(_serve_snapshot_path), "method": "reset-empty"}
+        return _serve_restore_success(
+            {"ok": True, "snapshot": str(_serve_snapshot_path), "method": "reset-empty"}
+        )
     restored: list[dict[str, Any]] = []
     for host_port, entry in sorted(web.items()):
         handlers = entry.get("Handlers") if isinstance(entry, dict) else None
@@ -772,12 +805,14 @@ def _restore_tailscale_serve(runner: Runner) -> dict[str, Any]:
                     "stderr": _SECRET_REDACT_RE.sub("<redacted>", (applied.stderr or "")[-800:]),
                 }
             restored.append({"host_port": host_port, "path": path, "proxy": proxy})
-    return {
-        "ok": True,
-        "snapshot": str(_serve_snapshot_path),
-        "method": "legacy-status-replay",
-        "restored": restored,
-    }
+    return _serve_restore_success(
+        {
+            "ok": True,
+            "snapshot": str(_serve_snapshot_path),
+            "method": "legacy-status-replay",
+            "restored": restored,
+        }
+    )
 
 
 def _install_crash_handlers(runner: Runner, sha: str = "") -> None:
@@ -1216,7 +1251,7 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     # probe first and record a clear owner-action verdict rather than blocking.
     # There is no automatic plaintext fallback for the Session-1 run because
     # Clerk requires HTTPS.
-    _snapshot_tailscale_serve(runner, run_dir)
+    _snapshot_tailscale_serve(runner, run_dir, sha=sha)
     _install_crash_handlers(runner)
     # Probe cert issuance WITHOUT dropping key material into the source tree:
     # `tailscale cert` writes <host>.crt/<host>.key to CWD by default (a
@@ -5762,12 +5797,12 @@ def main(argv: list[str] | None = None) -> int:
         out = start_runner(runner, sha, run_id, args.max_iterations)
     elif args.cmd == "smoke":
         _ensure_mesh_secrets()
-        _load_serve_snapshot_path()
+        _load_serve_snapshot_path(sha)
         _install_crash_handlers(runner, sha)
         out = run_passes(runner, sha=sha, scenario="smoke", passes=1)
     elif args.cmd == "run":
         _ensure_mesh_secrets()
-        _load_serve_snapshot_path()
+        _load_serve_snapshot_path(sha)
         _install_crash_handlers(runner, sha)
         out = run_passes(runner, sha=sha, scenario=args.scenario, passes=args.passes)
     elif args.cmd == "write-scenario-map":
@@ -5786,7 +5821,7 @@ def main(argv: list[str] | None = None) -> int:
     elif args.cmd == "reconcile":
         out = reconcile(runner, sha)
     elif args.cmd == "teardown":
-        _load_serve_snapshot_path()
+        _load_serve_snapshot_path(sha)
         out = teardown(runner, sha=sha, run_id=args.run_id)
     else:  # pragma: no cover — argparse enforces
         parser.error(f"unknown command {args.cmd}")

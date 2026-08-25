@@ -972,6 +972,11 @@ def test_durable_cancelled_running_trajectory_terminates_owned_process(
     )
     try:
         process_tree = {"node_pid": 123, "claimed_at": time.time(), "root_pid": proc.pid}
+        client._durable_store.mark_claimed(
+            req.request_id,
+            claim_id=claim_id,
+            process_tree={"node_pid": 123, "claimed_at": process_tree["claimed_at"]},
+        )
         running = client._durable_store.mark_running(
             req.request_id,
             claim_id=claim_id,
@@ -4052,6 +4057,7 @@ def test_durable_shell_drains_large_stdout_and_stderr_while_running(tmp_path):
             risk_class="read_only",
         )
     )
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
 
     result = asyncio.run(
         client._execute_shell_for_durable(
@@ -4109,6 +4115,7 @@ def test_durable_shell_timeout_captures_phase_tail_and_cleans_descendant(tmp_pat
             risk_class="read_only",
         )
     )
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
 
     result = asyncio.run(
         client._execute_shell_for_durable(

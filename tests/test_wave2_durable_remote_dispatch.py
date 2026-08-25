@@ -310,6 +310,11 @@ def test_deploy_candidate_retires_stale_nginx_before_frontend_build_failure(
 def test_tailscale_serve_restore_uses_exact_declarative_snapshot(monkeypatch, tmp_path) -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
     monkeypatch.setattr(dispatch, "_proof_root", lambda: tmp_path / "proof")
+    monkeypatch.setattr(
+        dispatch,
+        "_state_dir",
+        lambda sha: tmp_path / "candidates" / sha / "state" / "umh",
+    )
     dispatch._serve_snapshot_path = None
     dispatch._serve_restored = False
     calls: list[list[str]] = []
@@ -341,14 +346,103 @@ def test_tailscale_serve_restore_uses_exact_declarative_snapshot(monkeypatch, tm
             return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     runner = Runner()
-    snap = dispatch._snapshot_tailscale_serve(runner, tmp_path / "proof")
+    sha = "e" * 40
+    snap = dispatch._snapshot_tailscale_serve(runner, tmp_path / "proof", sha=sha)
     out = dispatch._restore_tailscale_serve(runner)
 
     assert out["ok"] is True
     assert out["method"] == "set-config"
-    assert json.loads(snap.read_text(encoding="utf-8"))["config"] == expected_config
+    snapshot = json.loads(snap.read_text(encoding="utf-8"))
+    assert snap == tmp_path / "candidates" / sha / "state" / "tailscale_serve_snapshot.json"
+    assert snapshot["candidate_sha"] == sha
+    assert snapshot["config"] == expected_config
+    assert snapshot["restore_completed_at"]
     assert ["tailscale", "serve", "set-config", str(snap.with_name("tailscale_serve_restore_config.json")), "--all"] in calls
     assert ["tailscale", "serve", "--bg", "--https=443", "http://127.0.0.1:8080"] not in calls
+
+
+def test_tailscale_serve_snapshot_refreshes_after_successful_restore(
+    monkeypatch,
+    tmp_path,
+) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    monkeypatch.setattr(
+        dispatch,
+        "_state_dir",
+        lambda sha: tmp_path / "candidates" / sha / "state" / "umh",
+    )
+    dispatch._serve_snapshot_path = None
+    dispatch._serve_restored = False
+    sha = "f" * 40
+    configs = [
+        {"Web": {"old.example:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8080"}}}}},
+        {"Web": {"new.example:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:9090"}}}}},
+    ]
+    get_config_count = 0
+
+    class Runner:
+        dry_run = False
+
+        def run(self, cmd, **_kwargs):
+            nonlocal get_config_count
+            if cmd[:4] == ["tailscale", "serve", "status", "--json"]:
+                return SimpleNamespace(returncode=0, stdout=json.dumps(configs[get_config_count]), stderr="")
+            if cmd[:3] == ["tailscale", "serve", "get-config"]:
+                Path(cmd[3]).write_text(json.dumps(configs[get_config_count]), encoding="utf-8")
+                get_config_count += 1
+                return SimpleNamespace(returncode=0, stdout="", stderr="")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    snap = dispatch._snapshot_tailscale_serve(Runner(), tmp_path / "proof", sha=sha)
+    assert json.loads(snap.read_text(encoding="utf-8"))["config"] == configs[0]
+    assert dispatch._restore_tailscale_serve(Runner())["ok"] is True
+
+    dispatch._serve_restored = False
+    refreshed = dispatch._snapshot_tailscale_serve(Runner(), tmp_path / "proof", sha=sha)
+
+    assert refreshed == snap
+    snapshot = json.loads(refreshed.read_text(encoding="utf-8"))
+    assert snapshot["config"] == configs[1]
+    assert "restore_completed_at" not in snapshot
+
+
+def test_tailscale_serve_restore_failure_does_not_mark_restored(tmp_path) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    dispatch._serve_restored = False
+    snapshot = tmp_path / "tailscale_serve_snapshot.json"
+    restore_config = {"Web": {"host:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8080"}}}}}
+    snapshot.write_text(
+        json.dumps(
+            {
+                "snapshot_contract": "tailscale_serve_exact_restore_v3",
+                "config_captured": True,
+                "config": restore_config,
+            }
+        ),
+        encoding="utf-8",
+    )
+    dispatch._serve_snapshot_path = snapshot
+    set_config_attempts = 0
+
+    class Runner:
+        dry_run = False
+
+        def run(self, cmd, **_kwargs):
+            nonlocal set_config_attempts
+            if cmd[:3] == ["tailscale", "serve", "set-config"]:
+                set_config_attempts += 1
+                if set_config_attempts == 1:
+                    return SimpleNamespace(returncode=1, stdout="", stderr="temporary failure")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    first = dispatch._restore_tailscale_serve(Runner())
+    assert first["ok"] is False
+    assert dispatch._serve_restored is False
+
+    second = dispatch._restore_tailscale_serve(Runner())
+    assert second["ok"] is True
+    assert second["method"] == "set-config"
+    assert dispatch._serve_restored is True
 
 
 def test_tailscale_serve_restore_replays_legacy_status_without_hardcoded_target(

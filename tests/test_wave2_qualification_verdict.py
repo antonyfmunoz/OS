@@ -297,7 +297,7 @@ def _run_main(monkeypatch, cmd, out, *, extra_argv=None):
     # Stub every side-effecting helper a given command touches.
     monkeypatch.setattr(wd, "reconcile", lambda runner, sha: out)
     monkeypatch.setattr(wd, "teardown", lambda runner, sha="", run_id="": out)
-    monkeypatch.setattr(wd, "_load_serve_snapshot_path", lambda: None)
+    monkeypatch.setattr(wd, "_load_serve_snapshot_path", lambda sha="": None)
     argv = [cmd] + (extra_argv or [])
     return wd.main(argv)
 
