@@ -386,82 +386,99 @@ def _canonical_claim_ack(client, payload):
 
 
 def test_mesh_pump_suppresses_same_request_redelivery_before_claim_progress(tmp_path):
-    from substrate.execution.durable_remote_transport import DurableRemoteStore
-    from substrate.execution.executor import WorkPacketExecutor
-    from transports.node_mesh.config import MeshConfig
-    from transports.node_mesh.registry import ConnectedNode, NodeCapability
-    from transports.node_mesh.server import NodeMeshServer
-    from substrate.sockets.capability_socket import CapabilitySocket
-    from substrate.sockets.outcome_socket import OutcomeSocket
-    from substrate.sockets.signal_socket import SignalSocket
-    from substrate.sockets.view_socket import ViewSocket
+    env = dict(os.environ)
+    env["PYTHONPATH"] = _REPO_ROOT
+    script = r"""
+import asyncio
+import json
+import sys
+import time
 
-    class Ws:
-        def __init__(self) -> None:
-            self.sent: list[dict[str, object]] = []
+from substrate.execution.durable_remote_transport import DurableRemoteStore, make_request
+from substrate.execution.executor import WorkPacketExecutor
+from substrate.sockets.capability_socket import CapabilitySocket
+from substrate.sockets.outcome_socket import OutcomeSocket
+from substrate.sockets.signal_socket import SignalSocket
+from substrate.sockets.view_socket import ViewSocket
+from transports.node_mesh.config import MeshConfig
+from transports.node_mesh.server import NodeMeshServer
 
-        async def send(self, raw: str) -> None:
-            self.sent.append(json.loads(raw))
+store_path = sys.argv[1]
 
-    server = NodeMeshServer(
-        config=MeshConfig(),
-        executor=WorkPacketExecutor(),
-        signal_socket=SignalSocket(),
-        capability_socket=CapabilitySocket(),
-        outcome_socket=OutcomeSocket(),
-        view_socket=ViewSocket(),
-    )
-    server._durable_store = DurableRemoteStore(tmp_path)
-    ws = Ws()
-    connection_id = "conn-1"
-    node_id = "windows-desktop"
-    server._registry.add(
-        ConnectedNode(
-            node_id=node_id,
-            hostname="win",
-            os="windows",
-            os_version="11",
-            capabilities=[
-                NodeCapability(
-                    name="shell",
-                    category="compute",
-                    risk_class="read_only",
-                    max_risk_class="reversible_write",
-                )
-            ],
-            daemon_version="unit",
-            tailscale_ip="100.64.0.1",
-            ws=ws,
-            connection_id=connection_id,
-        )
-    )
-    req = _durable_request(
-        params={
-            "command": "echo ok",
-            "timeout": 5,
-            "budgets": {"claim_acquisition_timeout_s": 8.0},
-        }
-    )
-    server._durable_store.put_request(req)
+class Ws:
+    def __init__(self) -> None:
+        self.sent = []
 
-    async def _run() -> None:
-        await server._pump_durable_requests(node_id, ws, connection_id)
-        current = server._durable_store.get_request(req.request_id)
-        assert current is not None
-        current.delivered_at = time.time() - 3.0
-        server._durable_store._update_request_locked(current, "TEST_REDELIVERY_ELIGIBLE")
-        await server._pump_durable_requests(node_id, ws, connection_id)
+    async def send(self, raw: str) -> None:
+        self.sent.append(json.loads(raw))
 
-    asyncio.run(_run())
+class Registry:
+    @staticmethod
+    def owns(_node_id: str, _connection_id: str) -> bool:
+        return True
 
-    assert len(ws.sent) == 1
-    assert ws.sent[0]["method"] == "durable_command.request"
+server = NodeMeshServer(
+    config=MeshConfig(),
+    executor=WorkPacketExecutor(),
+    signal_socket=SignalSocket(),
+    capability_socket=CapabilitySocket(),
+    outcome_socket=OutcomeSocket(),
+    view_socket=ViewSocket(),
+)
+server._durable_store = DurableRemoteStore(store_path)
+server._registry = Registry()
+ws = Ws()
+node_id = "windows-desktop"
+connection_id = "conn-1"
+req = make_request(
+    correlation_id="unit-durable",
+    candidate_sha="abc123",
+    node_id=node_id,
+    operation_type="transport_unit",
+    capability="shell",
+    params={
+        "command": "echo ok",
+        "timeout": 5,
+        "budgets": {"claim_acquisition_timeout_s": 8.0},
+    },
+    risk_class="read_only",
+    ttl_seconds=60,
+)
+server._durable_store.put_request(req)
+
+async def main() -> dict[str, object]:
+    await server._pump_durable_requests(node_id, ws, connection_id)
     current = server._durable_store.get_request(req.request_id)
     assert current is not None
-    assert current.delivery_attempts == 1
+    current.delivered_at = time.time() - 3.0
+    server._durable_store._update_request_locked(current, "TEST_REDELIVERY_ELIGIBLE")
+    await server._pump_durable_requests(node_id, ws, connection_id)
+    current = server._durable_store.get_request(req.request_id)
+    assert current is not None
     transport = current.diagnostics.get("transport_control", {})
-    events = [event.get("event") for event in transport.get("events", [])]
-    assert "delivery_suppressed" in events
+    return {
+        "sent": ws.sent,
+        "delivery_attempts": current.delivery_attempts,
+        "events": [event.get("event") for event in transport.get("events", [])],
+    }
+
+print(json.dumps(asyncio.run(main()), sort_keys=True))
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(tmp_path)],
+        cwd=_REPO_ROOT,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+    payload = json.loads(result.stdout)
+
+    assert len(payload["sent"]) == 1
+    assert payload["sent"][0]["method"] == "durable_command.request"
+    assert payload["delivery_attempts"] == 1
+    assert "delivery_suppressed" in payload["events"]
 
 
 def test_node_rejects_write_class_without_verdict(monkeypatch):
