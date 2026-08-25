@@ -572,6 +572,227 @@ def test_live_binary_liveness_pumps_durable_requests(tmp_path):
     assert r.get("immediate_duplicate") is None
 
 
+class _CaptureWs:
+    def __init__(self) -> None:
+        self.sent: list[str] = []
+
+    async def send(self, payload: str) -> None:
+        self.sent.append(payload)
+
+
+def _durable_request(request_id: str, correlation_id: str):
+    req = make_request(
+        correlation_id=correlation_id,
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname", "budgets": {"claim_acquisition_timeout_s": 30}},
+        ttl_seconds=60,
+    )
+    req.request_id = request_id
+    req.idempotency_key = request_id
+    return req
+
+
+async def _pump_suppression_preserves_distinct_delivery(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req1 = _durable_request("drc-aaa", "redelivery-one")
+    req2 = _durable_request("drc-bbb", "redelivery-two")
+    s._durable_store.put_request(req1)
+    s._durable_store.put_request(req2)
+    ws = _CaptureWs()
+
+    await s._pump_durable_requests("n1", ws)  # sends req1
+    delivered_req1 = s._durable_store.get_request(req1.request_id)
+    assert delivered_req1 is not None
+    delivered_req1.delivered_at = 0.0
+    s._durable_store.update_request(delivered_req1)
+
+    await s._pump_durable_requests("n1", ws)  # suppresses req1, sends req2
+
+    sent_ids = [
+        json.loads(payload)["params"]["request_id"]
+        for payload in ws.sent
+        if json.loads(payload).get("method") == "durable_command.request"
+    ]
+    stored_req1 = s._durable_store.get_request(req1.request_id)
+    stored_req2 = s._durable_store.get_request(req2.request_id)
+    assert stored_req1 is not None
+    assert stored_req2 is not None
+    return {
+        "sent_ids": sent_ids,
+        "req1_delivery_attempts": stored_req1.delivery_attempts,
+        "req2_delivery_attempts": stored_req2.delivery_attempts,
+        "req1_transport_events": stored_req1.diagnostics.get("transport_control", {}).get(
+            "events", []
+        ),
+    }
+
+
+def test_durable_pump_suppresses_same_request_without_serializing_distinct_requests(tmp_path):
+    result = asyncio.run(_pump_suppression_preserves_distinct_delivery(tmp_path))
+    assert result["sent_ids"] == ["drc-aaa", "drc-bbb"]
+    assert result["req1_delivery_attempts"] == 1
+    assert result["req2_delivery_attempts"] == 1
+    assert any(event["event"] == "delivery_suppressed" for event in result["req1_transport_events"])
+
+
+async def _pump_suppression_expires_boundedly(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = _durable_request("drc-aaa", "redelivery-expiry")
+    s._durable_store.put_request(req)
+    ws = _CaptureWs()
+
+    await s._pump_durable_requests("n1", ws)
+    s._durable_delivery_inflight[req.request_id]["suppress_until"] = 0.0
+    delivered_req = s._durable_store.get_request(req.request_id)
+    assert delivered_req is not None
+    delivered_req.delivered_at = 0.0
+    s._durable_store.update_request(delivered_req)
+    await s._pump_durable_requests("n1", ws)
+
+    stored = s._durable_store.get_request(req.request_id)
+    assert stored is not None
+    return {
+        "delivery_attempts": stored.delivery_attempts,
+        "sent_count": len(ws.sent),
+        "inflight": req.request_id in s._durable_delivery_inflight,
+    }
+
+
+def test_durable_delivery_suppression_expires_without_permanent_starvation(tmp_path):
+    result = asyncio.run(_pump_suppression_expires_boundedly(tmp_path))
+    assert result["delivery_attempts"] == 2
+    assert result["sent_count"] == 2
+    assert result["inflight"] is True
+
+
+async def _durable_claim_progress_clears_inflight_and_records_timing(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = _durable_request("drc-aaa", "claim-progress")
+    s._durable_store.put_request(req)
+    ws = _CaptureWs()
+    await s._pump_durable_requests("n1", ws)
+
+    await s._handle_durable_claimed(
+        "n1",
+        {
+            "request_id": req.request_id,
+            "claim_id": "claim-1",
+            "state": "CLAIMED",
+            "process_tree": {"node_pid": 123, "claimed_at": 10.0},
+        },
+        99,
+        ws,  # type: ignore[arg-type]
+    )
+    stored = s._durable_store.get_request(req.request_id)
+    assert stored is not None
+    events = stored.diagnostics.get("transport_control", {}).get("events", [])
+    return {
+        "accepted": json.loads(ws.sent[-1])["result"]["accepted"],
+        "inflight_present": req.request_id in s._durable_delivery_inflight,
+        "events": [event["event"] for event in events],
+    }
+
+
+def test_durable_claim_progress_clears_transport_inflight_with_positive_evidence(tmp_path):
+    result = asyncio.run(_durable_claim_progress_clears_inflight_and_records_timing(tmp_path))
+    assert result["accepted"] is True
+    assert result["inflight_present"] is False
+    assert "durable_control_frame_received" in result["events"]
+    assert "canonical_write_started" in result["events"]
+    assert "canonical_write_completed" in result["events"]
+    assert "ack_sent" in result["events"]
+
+
+async def _heartbeat_does_not_await_slow_durable_pump() -> dict:
+    s = _server()
+    s._registry.add(_node())
+    ws = _CaptureWs()
+    pump_started = asyncio.Event()
+    release_pump = asyncio.Event()
+
+    async def slow_pump(node_id: str, ws_arg, connection_id: str = "") -> None:
+        pump_started.set()
+        await release_pump.wait()
+
+    s._pump_durable_requests = slow_pump  # type: ignore[method-assign]
+    start = time.monotonic()
+    await s._handle_heartbeat("n1", {"metrics": {}}, 7, ws)  # type: ignore[arg-type]
+    elapsed = time.monotonic() - start
+    await asyncio.sleep(0)
+    pump_was_scheduled = pump_started.is_set()
+    release_pump.set()
+    await asyncio.sleep(0)
+    return {
+        "elapsed": elapsed,
+        "pump_was_scheduled": pump_was_scheduled,
+        "heartbeat_ack": json.loads(ws.sent[0])["result"]["ack"],
+    }
+
+
+def test_heartbeat_receive_path_schedules_pump_without_waiting_for_it():
+    result = asyncio.run(_heartbeat_does_not_await_slow_durable_pump())
+    assert result["heartbeat_ack"] is True
+    assert result["elapsed"] < 0.5
+    assert result["pump_was_scheduled"] is True
+
+
+async def _durable_claim_handler_progresses_while_pump_is_busy(tmp_path) -> dict:
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    req = _durable_request("drc-aaa", "claim-under-pump-pressure")
+    s._durable_store.put_request(req)
+    ws = _CaptureWs()
+    pump_started = asyncio.Event()
+    release_pump = asyncio.Event()
+
+    async def slow_pump(node_id: str, ws_arg, connection_id: str = "") -> None:
+        pump_started.set()
+        await release_pump.wait()
+
+    s._pump_durable_requests = slow_pump  # type: ignore[method-assign]
+    s._schedule_durable_pump("n1", ws, "", reason="test_pressure")
+    await asyncio.wait_for(pump_started.wait(), timeout=1)
+
+    start = time.monotonic()
+    await s._handle_durable_claimed(
+        "n1",
+        {
+            "request_id": req.request_id,
+            "claim_id": "claim-1",
+            "state": "CLAIMED",
+            "process_tree": {"node_pid": 123, "claimed_at": 10.0},
+        },
+        88,
+        ws,  # type: ignore[arg-type]
+    )
+    elapsed = time.monotonic() - start
+    release_pump.set()
+    await asyncio.sleep(0)
+
+    stored = s._durable_store.get_request(req.request_id)
+    assert stored is not None
+    return {
+        "elapsed": elapsed,
+        "state": stored.lifecycle_state,
+        "claim_id": stored.claim_id,
+        "accepted": json.loads(ws.sent[-1])["result"]["accepted"],
+    }
+
+
+def test_inbound_durable_claim_progresses_while_outbound_pump_is_busy(tmp_path):
+    result = asyncio.run(_durable_claim_handler_progresses_while_pump_is_busy(tmp_path))
+    assert result["elapsed"] < 0.5
+    assert result["state"] == "CLAIMED"
+    assert result["claim_id"] == "claim-1"
+    assert result["accepted"] is True
+
+
 async def _claim_conflict_ack_reports_rejection(tmp_path) -> dict:
     s = _server()
     s._durable_store = DurableRemoteStore(tmp_path)
@@ -587,14 +808,7 @@ async def _claim_conflict_ack_reports_rejection(tmp_path) -> dict:
     s._durable_store.put_request(req)
     s._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
 
-    class Ws:
-        def __init__(self) -> None:
-            self.sent: list[str] = []
-
-        async def send(self, payload: str) -> None:
-            self.sent.append(payload)
-
-    ws = Ws()
+    ws = _CaptureWs()
     await s._handle_durable_claimed(
         "n1",
         {"request_id": req.request_id, "claim_id": "claim-2", "state": "CLAIMED"},
@@ -624,14 +838,7 @@ async def _claim_ack_reports_canonical_identity(tmp_path) -> dict:
     )
     s._durable_store.put_request(req)
 
-    class Ws:
-        def __init__(self) -> None:
-            self.sent: list[str] = []
-
-        async def send(self, payload: str) -> None:
-            self.sent.append(payload)
-
-    ws = Ws()
+    ws = _CaptureWs()
     await s._handle_durable_claimed(
         "n1",
         {"request_id": req.request_id, "claim_id": "claim-1", "state": "CLAIMED"},

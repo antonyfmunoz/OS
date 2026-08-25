@@ -334,6 +334,42 @@ class DurableRemoteStore:
                 return
             self._update_request_locked(request, event)
 
+    def record_transport_diagnostic(
+        self,
+        request_id: str,
+        event: str,
+        payload: dict[str, Any] | None = None,
+        *,
+        max_events: int = 40,
+    ) -> DurableRemoteRequest | None:
+        """Record bounded transport-coordination provenance.
+
+        These diagnostics are evidence only. They do not advance lifecycle and
+        they never establish claim or execution authority.
+        """
+        with self._request_lock(request_id):
+            req = self._get_request_raw(request_id)
+            if req is None:
+                return None
+            transport = req.diagnostics.setdefault("transport_control", {})
+            if not isinstance(transport, dict):
+                transport = {}
+                req.diagnostics["transport_control"] = transport
+            events = transport.setdefault("events", [])
+            if not isinstance(events, list):
+                events = []
+                transport["events"] = events
+            entry = {"event": event, "ts": now_s()}
+            if payload:
+                entry.update(payload)
+            events.append(entry)
+            if len(events) > max_events:
+                del events[: len(events) - max_events]
+            transport["last_event"] = event
+            transport["last_event_at"] = entry["ts"]
+            self._update_request_locked(req, "")
+            return req
+
     def _update_request_locked(
         self,
         request: DurableRemoteRequest,
