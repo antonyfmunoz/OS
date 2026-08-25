@@ -63,6 +63,77 @@ def test_operator_api_missing_key_import_initializes_not_ready() -> None:
     assert "not configured" in component["detail"]
 
 
+def test_operator_api_pins_umh_root_before_substrate_import(tmp_path) -> None:
+    foreign = tmp_path / "foreign"
+    (foreign / "substrate" / "execution").mkdir(parents=True)
+    (foreign / "substrate" / "__init__.py").write_text("", encoding="utf-8")
+    (foreign / "substrate" / "execution" / "__init__.py").write_text("", encoding="utf-8")
+    (foreign / "substrate" / "execution" / "cpu_gate.py").write_text(
+        "def gated_subprocess_run(*args, **kwargs):\n"
+        "    raise RuntimeError('foreign substrate imported')\n",
+        encoding="utf-8",
+    )
+    env = dict(os.environ)
+    env["UMH_ROOT"] = str(ROOT)
+    env["UMH_OPERATOR_API_KEY"] = "secret"
+    env["PYTHONPATH"] = os.pathsep.join([str(foreign), str(ROOT)])
+    script = (
+        "import json, services.operator_api as op; "
+        "print(json.dumps({'file': op.gated_subprocess_run.__code__.co_filename}))"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=str(tmp_path),
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    payload = json.loads(result.stdout)
+    assert payload["file"].startswith(str(ROOT))
+    assert "/foreign/" not in payload["file"]
+    assert "foreign substrate imported" not in result.stderr
+
+
+def test_operator_api_refuses_to_mount_stale_cockpit_dist(tmp_path) -> None:
+    dist = tmp_path / "cockpit" / "dist-web"
+    (dist / "assets").mkdir(parents=True)
+    (dist / "assets" / "main.js").write_text("console.log('stale')\n", encoding="utf-8")
+    (dist / "assets" / "main.css").write_text("body{}\n", encoding="utf-8")
+    (dist / "index.html").write_text(
+        """
+        <script type="module" src="/assets/main.js"></script>
+        <link rel="stylesheet" href="/assets/main.css">
+        """,
+        encoding="utf-8",
+    )
+    env = dict(os.environ)
+    env["UMH_ROOT"] = str(tmp_path)
+    env["UMH_SOURCE_SHA"] = "a" * 40
+    env["UMH_OPERATOR_API_KEY"] = "secret"
+    env["PYTHONPATH"] = str(ROOT)
+    script = (
+        "import json, services.operator_api as op; "
+        "print(json.dumps({'mounted': any(getattr(r, 'name', '') == 'cockpit' for r in op.app.routes)}))"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=str(ROOT),
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    payload = json.loads(result.stdout)
+    assert payload["mounted"] is False
+
+
 def test_operator_api_auth_rejects_empty_wrong_and_accepts_exact_key(monkeypatch) -> None:
     monkeypatch.setattr(operator_api, "API_KEY", "secret-token")
 

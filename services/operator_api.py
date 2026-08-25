@@ -1,19 +1,26 @@
 #!/usr/bin/env python3
-# ruff: noqa: E402
+# ruff: noqa: E402, I001
 """UMH Operator Workstation API — FastAPI backend for the operator UI."""
 
 import faulthandler
 import os
 import signal
 import sys
+from pathlib import Path
 
 faulthandler.enable()
 faulthandler.register(signal.SIGUSR1, all_threads=True)
 
+UMH_ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS")).resolve()
+_umh_root_s = str(UMH_ROOT)
+if not sys.path or sys.path[0] != _umh_root_s:
+    try:
+        sys.path.remove(_umh_root_s)
+    except ValueError:
+        pass
+    sys.path.insert(0, _umh_root_s)
+
 from substrate.execution.cpu_gate import gated_subprocess_run
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
-
 
 import asyncio
 import concurrent.futures
@@ -23,7 +30,6 @@ import subprocess
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 import uvicorn
@@ -39,9 +45,6 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-
-UMH_ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
-sys.path.insert(0, str(UMH_ROOT))
 
 from substrate.state.runtime_paths import runtime_state_dir, runtime_state_path  # noqa: E402
 from transports.api.governed import governed_mutation  # noqa: E402
@@ -986,7 +989,29 @@ except Exception as e:
 # ─── Static files (cockpit build) ─────────────────────────────────────────────
 cockpit_dist = UMH_ROOT / "cockpit" / "dist-web"
 if cockpit_dist.exists():
-    app.mount("/", StaticFiles(directory=str(cockpit_dist), html=True), name="cockpit")
+    try:
+        from transports.api.cockpit_core_routes import (  # noqa: E402
+            _cockpit_frontend_asset_info,
+            _current_source_sha,
+        )
+
+        frontend_proof = _cockpit_frontend_asset_info(
+            UMH_ROOT,
+            expected_sha=_current_source_sha(UMH_ROOT),
+        )
+    except Exception as exc:  # noqa: BLE001
+        frontend_proof = {
+            "frontend_assets_ok": False,
+            "frontend_artifact_ok": False,
+            "frontend_artifact_errors": [f"artifact proof failed: {type(exc).__name__}"],
+        }
+    if (
+        frontend_proof.get("frontend_assets_ok") is True
+        and frontend_proof.get("frontend_artifact_ok") is True
+    ):
+        app.mount("/", StaticFiles(directory=str(cockpit_dist), html=True), name="cockpit")
+    else:
+        logger.error("cockpit static mount refused: %s", frontend_proof)
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":

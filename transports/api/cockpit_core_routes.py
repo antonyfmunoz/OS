@@ -14,6 +14,7 @@ import hmac as _hmac
 import json
 import logging
 import os
+import re
 import time
 from datetime import datetime, timezone
 from html.parser import HTMLParser
@@ -37,6 +38,8 @@ SKILLS_DIR = _ROOT / "skills"
 AGENTS_DIR = _ROOT / "agents"
 _DOCKER_SOCK = "/var/run/docker.sock"
 _DEVICE_REGISTRY_PATH = _ROOT / "infra" / "device_registry.json"
+_FRONTEND_ARTIFACT_MANIFEST = ".umh-wave2-artifact.json"
+_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 # ── Module state set by configure() ──────────────────────────────────────────
 
@@ -91,12 +94,86 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _cockpit_frontend_asset_info(root: Path | None = None) -> dict[str, Any]:
+def _current_source_sha(root: Path | None = None) -> str:
+    base = root or _ROOT
+    for key in ("UMH_SOURCE_SHA", "SOURCE_SHA", "UMH_RELEASE_SHA", "UMH_CANDIDATE_SHA"):
+        value = os.getenv(key, "").strip()
+        if _SHA_RE.match(value):
+            return value
+    source_file = base / "SOURCE_SHA"
+    try:
+        value = source_file.read_text(encoding="ascii").strip()
+        if _SHA_RE.match(value):
+            return value
+    except OSError:
+        pass
+    try:
+        result = gated_subprocess_run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            cwd=str(base),
+        )
+    except Exception:
+        return ""
+    value = (result.stdout if result is not None and result.returncode == 0 else "").strip()
+    return value if _SHA_RE.match(value) else ""
+
+
+def _cockpit_frontend_artifact_proof(dist_web: Path, expected_sha: str) -> dict[str, Any]:
+    manifest_path = dist_web / _FRONTEND_ARTIFACT_MANIFEST
+    proof: dict[str, Any] = {
+        "frontend_artifact_ok": False,
+        "frontend_artifact_manifest": str(manifest_path),
+        "frontend_artifact_errors": [],
+        "expected_sha": expected_sha,
+    }
+    errors: list[str] = proof["frontend_artifact_errors"]
+    if not expected_sha:
+        errors.append("expected source SHA unavailable")
+        return proof
+    if not manifest_path.is_file():
+        errors.append("artifact manifest missing")
+        return proof
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"artifact manifest unreadable: {type(exc).__name__}")
+        return proof
+    if not isinstance(manifest, dict):
+        errors.append("artifact manifest is not an object")
+        return proof
+    proof["artifact_candidate_sha"] = manifest.get("candidate_sha")
+    proof["artifact_source_head"] = manifest.get("source_head")
+    proof["artifact_source_tree"] = manifest.get("source_tree")
+    if manifest.get("candidate_sha") != expected_sha:
+        errors.append("artifact candidate SHA mismatch")
+    if manifest.get("source_head") != expected_sha:
+        errors.append("artifact source HEAD mismatch")
+    if not manifest.get("source_tree"):
+        errors.append("artifact source tree missing")
+    proof["frontend_artifact_ok"] = not errors
+    return proof
+
+
+def _cockpit_frontend_asset_info(
+    root: Path | None = None, *, expected_sha: str | None = None
+) -> dict[str, Any]:
     base = root or _ROOT
     dist_web = base / "cockpit" / "dist-web"
     index_html = dist_web / "index.html"
     if not index_html.is_file():
-        return {"frontend_assets_ok": False, "frontend_asset_errors": ["index.html missing"]}
+        proof = (
+            _cockpit_frontend_artifact_proof(dist_web, expected_sha)
+            if expected_sha is not None
+            else {}
+        )
+        return {
+            **proof,
+            "frontend_assets_ok": False,
+            "frontend_asset_errors": ["index.html missing"],
+        }
     parser = _CockpitAssetParser()
     parser.feed(index_html.read_text(encoding="utf-8"))
     assets: dict[str, str] = {}
@@ -117,9 +194,16 @@ def _cockpit_frontend_asset_info(root: Path | None = None) -> dict[str, Any]:
         assets[f"{key}_asset"] = names[0]
         assets[f"{key}_hash"] = names[0]
         assets[f"{key}_sha256"] = _sha256_file(asset_path)
+    proof = (
+        _cockpit_frontend_artifact_proof(dist_web, expected_sha)
+        if expected_sha is not None
+        else {}
+    )
+    artifact_ok = proof.get("frontend_artifact_ok", True)
     return {
+        **proof,
         **assets,
-        "frontend_assets_ok": not errors,
+        "frontend_assets_ok": not errors and artifact_ok is True,
         "frontend_asset_errors": errors,
     }
 
@@ -286,6 +370,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 info["commit_sha"] = sha.stdout.strip()
         except Exception:
             pass
+        if not info.get("commit_sha"):
+            source_sha = _current_source_sha(_ROOT)
+            if source_sha:
+                info["commit_sha"] = source_sha
         try:
             ts = gated_subprocess_run(
                 ["git", "log", "-1", "--format=%cI"],
@@ -298,7 +386,12 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 info["commit_time"] = ts.stdout.strip()
         except Exception:
             pass
-        info.update(_cockpit_frontend_asset_info(_ROOT))
+        info.update(
+            _cockpit_frontend_asset_info(
+                _ROOT,
+                expected_sha=str(info.get("commit_sha", "")),
+            )
+        )
         return info
 
     _BUILD_INFO = _compute_build_info()
