@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import os
+import subprocess
+import sys
 from copy import deepcopy
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -9,6 +14,8 @@ from fastapi import HTTPException
 from fastapi.responses import JSONResponse
 
 import services.operator_api as operator_api
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _request(key: str | None) -> SimpleNamespace:
@@ -28,6 +35,32 @@ def test_operator_api_auth_missing_or_empty_key_fails_closed(monkeypatch) -> Non
 
     assert missing.value.status_code == 503
     assert empty.value.status_code == 503
+
+
+def test_operator_api_missing_key_import_initializes_not_ready() -> None:
+    env = dict(os.environ)
+    env["UMH_OPERATOR_API_KEY"] = ""
+    env["PYTHONPATH"] = str(ROOT)
+    script = (
+        "import json; "
+        "import services.operator_api as op; "
+        "status = op.operator_readiness_status(); "
+        "print(json.dumps(status['components']['operator_api_key'], sort_keys=True))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=str(ROOT),
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    component = json.loads(result.stdout)
+    assert component["required"] is True
+    assert component["ready"] is False
+    assert "not configured" in component["detail"]
 
 
 def test_operator_api_auth_rejects_empty_wrong_and_accepts_exact_key(monkeypatch) -> None:
@@ -66,4 +99,3 @@ def test_ready_distinguishes_required_startup_from_optional_voice_warmup(monkeyp
     not_ready = asyncio.run(operator_api.ready())
     assert isinstance(not_ready, JSONResponse)
     assert not_ready.status_code == 503
-
