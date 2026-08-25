@@ -388,7 +388,8 @@ def test_tailscale_serve_snapshot_refreshes_after_successful_restore(
         def run(self, cmd, **_kwargs):
             nonlocal get_config_count
             if cmd[:4] == ["tailscale", "serve", "status", "--json"]:
-                return SimpleNamespace(returncode=0, stdout=json.dumps(configs[get_config_count]), stderr="")
+                index = 0 if get_config_count > 0 else get_config_count
+                return SimpleNamespace(returncode=0, stdout=json.dumps(configs[index]), stderr="")
             if cmd[:3] == ["tailscale", "serve", "get-config"]:
                 if Path(cmd[3]).name == "tailscale_serve_live_after_restore.json":
                     Path(cmd[3]).write_text(json.dumps(configs[0]), encoding="utf-8")
@@ -511,6 +512,12 @@ def test_tailscale_serve_restore_rejects_wrong_sha_before_reset(tmp_path) -> Non
 
         def run(self, cmd, **_kwargs):
             calls.append(cmd)
+            if cmd[:4] == ["tailscale", "serve", "status", "--json"]:
+                return SimpleNamespace(
+                    returncode=0,
+                    stdout=snapshot.read_text(encoding="utf-8"),
+                    stderr="",
+                )
             return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     out = dispatch._restore_tailscale_serve(Runner(), sha="b" * 40)
@@ -550,12 +557,20 @@ def test_tailscale_serve_restore_replays_legacy_status_without_hardcoded_target(
 
         def run(self, cmd, **_kwargs):
             calls.append(cmd)
+            if cmd[:4] == ["tailscale", "serve", "status", "--json"]:
+                return SimpleNamespace(
+                    returncode=0,
+                    stdout=snapshot.read_text(encoding="utf-8"),
+                    stderr="",
+                )
             return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     out = dispatch._restore_tailscale_serve(Runner())
 
     assert out["ok"] is True
     assert out["method"] == "legacy-status-replay"
+    assert out["readback_proof"]["ok"] is True
+    assert out["readback_proof"]["status_matches_snapshot"] is True
     assert [
         "tailscale",
         "serve",
@@ -565,6 +580,102 @@ def test_tailscale_serve_restore_replays_legacy_status_without_hardcoded_target(
         "http://127.0.0.1:9090/custom",
     ] in calls
     assert ["tailscale", "serve", "--bg", "--https=443", "http://127.0.0.1:8080"] not in calls
+
+
+def test_tailscale_serve_reset_empty_requires_empty_status_readback(tmp_path) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    dispatch._serve_restored = False
+    snapshot = tmp_path / "tailscale_serve_snapshot.json"
+    snapshot.write_text(
+        json.dumps(
+            {
+                "snapshot_contract": "tailscale_serve_exact_restore_v3",
+                "candidate_sha": "a" * 40,
+                "config_captured": False,
+                "config": None,
+                "status": {},
+            }
+        ),
+        encoding="utf-8",
+    )
+    dispatch._serve_snapshot_path = snapshot
+
+    class Runner:
+        dry_run = False
+
+        def run(self, cmd, **_kwargs):
+            if cmd[:4] == ["tailscale", "serve", "status", "--json"]:
+                return SimpleNamespace(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {"Web": {"host:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:9999"}}}}}
+                    ),
+                    stderr="",
+                )
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    out = dispatch._restore_tailscale_serve(Runner(), sha="a" * 40)
+
+    assert out["ok"] is False
+    assert out["method"] == "reset-empty"
+    assert out["readback_proof"]["status_matches_snapshot"] is False
+    assert dispatch._serve_restored is False
+
+
+def test_tailscale_serve_readback_unlinks_stale_config_file(tmp_path) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    snapshot = tmp_path / "tailscale_serve_snapshot.json"
+    expected = {"Web": {"host:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8080"}}}}}
+    stale = snapshot.with_name("tailscale_serve_live_after_restore.json")
+    stale.write_text(json.dumps(expected), encoding="utf-8")
+
+    class Runner:
+        dry_run = False
+
+        def run(self, cmd, **_kwargs):
+            assert not stale.exists()
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    proof = dispatch._verify_tailscale_serve_restored_config(
+        Runner(),
+        snapshot=snapshot,
+        expected_config=expected,
+    )
+
+    assert proof["ok"] is False
+    assert proof["reason"] == "tailscale serve restore readback missing"
+
+
+def test_tailscale_serve_legacy_replay_requires_status_readback_match(tmp_path) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    dispatch._serve_restored = False
+    snapshot = tmp_path / "tailscale_serve_snapshot.json"
+    expected = {
+        "Web": {"host:8443": {"Handlers": {"/custom": {"Proxy": "http://127.0.0.1:9090/custom"}}}}
+    }
+    snapshot.write_text(json.dumps(expected), encoding="utf-8")
+    dispatch._serve_snapshot_path = snapshot
+
+    class Runner:
+        dry_run = False
+
+        def run(self, cmd, **_kwargs):
+            if cmd[:4] == ["tailscale", "serve", "status", "--json"]:
+                return SimpleNamespace(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {"Web": {"host:8443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8080"}}}}}
+                    ),
+                    stderr="",
+                )
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    out = dispatch._restore_tailscale_serve(Runner())
+
+    assert out["ok"] is False
+    assert out["method"] == "legacy-status-replay"
+    assert out["readback_proof"]["status_matches_snapshot"] is False
+    assert dispatch._serve_restored is False
 
 
 def test_candidate_readiness_wait_uses_semantic_ready_endpoint(monkeypatch) -> None:

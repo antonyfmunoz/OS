@@ -375,13 +375,31 @@ def _durable_post_exit_process_cleanup(
         return cleanup
     cleanup["post_exit_process_check_ok"] = True
     candidates = sorted({pid for pid in [*last_tree_pids, *observed] if pid != proc.pid})
-    alive = _durable_alive_pids(candidates)
+    try:
+        alive = _durable_alive_pids(candidates)
+    except Exception as exc:  # noqa: BLE001
+        cleanup["post_exit_process_check_ok"] = False
+        cleanup["post_exit_alive_scan_error"] = f"{type(exc).__name__}: {exc}"
+        cleanup["process_residue"] = [{"state": "post_exit_alive_scan_unverified"}]
+        return cleanup
     if not alive:
         return cleanup
     cleanup["forced"] = True
     cleanup["process_residue_detected_after_exit"] = True
-    cleanup["force_stdout"] = "\n".join(_durable_force_exact_pids(alive))
-    remaining = _durable_alive_pids(alive)
+    try:
+        cleanup["force_stdout"] = "\n".join(_durable_force_exact_pids(alive))
+    except Exception as exc:  # noqa: BLE001
+        cleanup["post_exit_process_check_ok"] = False
+        cleanup["force_cleanup_error"] = f"{type(exc).__name__}: {exc}"
+        cleanup["process_residue"] = [{"pid": pid, "state": "cleanup_unverified"} for pid in alive]
+        return cleanup
+    try:
+        remaining = _durable_alive_pids(alive)
+    except Exception as exc:  # noqa: BLE001
+        cleanup["post_exit_process_check_ok"] = False
+        cleanup["post_exit_remaining_scan_error"] = f"{type(exc).__name__}: {exc}"
+        cleanup["process_residue"] = [{"pid": pid, "state": "remaining_scan_unverified"} for pid in alive]
+        return cleanup
     cleanup["process_residue"] = [{"pid": pid, "state": "still_alive"} for pid in remaining]
     return cleanup
 
@@ -2950,7 +2968,22 @@ class NodeClient:
                 **captured,
             }
         except Exception as exc:  # noqa: BLE001
-            return {"success": False, "error": f"{type(exc).__name__}: {exc}"}
+            cleanup: dict[str, Any] = {"process_residue": []}
+            if proc is not None:
+                if proc.poll() is None:
+                    cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+                else:
+                    cleanup = _durable_post_exit_process_cleanup(
+                        proc,
+                        last_tree_pids or [proc.pid],
+                    )
+                if cleanup.get("post_exit_process_check_ok") is not True:
+                    cleanup.setdefault("process_residue", [{"state": "durable_shell_cleanup_unverified"}])
+            return {
+                "success": False,
+                "error": f"{type(exc).__name__}: {exc}",
+                "cleanup": cleanup,
+            }
         finally:
             self._durable_processes.pop(req.request_id, None)
 

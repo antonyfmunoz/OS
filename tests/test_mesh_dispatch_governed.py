@@ -4290,6 +4290,74 @@ def test_durable_shell_normal_exit_fails_closed_when_residue_check_errors(
     ]
 
 
+def test_durable_shell_normal_exit_fails_closed_when_alive_scan_errors(
+    tmp_path, monkeypatch
+):
+    from nodes.windows.umh_node import client as client_mod
+
+    client = _durable_node_client(tmp_path / "store")
+    req = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    class _Proc:
+        pid = 9191
+        returncode = 0
+
+        def poll(self):
+            return 0
+
+    class _Collector:
+        @property
+        def has_readers(self):
+            return True
+
+        def snapshot(self, *, join_timeout):
+            return {
+                "stdout": "ok",
+                "stderr": "",
+                "output_capture": {"timed_out": False, "concurrent_drain": True},
+            }
+
+    async def _running_ack(*_args, **_kwargs):
+        client._durable_store.mark_running(
+            req.request_id,
+            claim_id="claim-1",
+            process_tree={"node_pid": 1},
+        )
+        return {"ok": True}
+
+    async def _send_event(*_args, **_kwargs):
+        return {"ok": True}
+
+    def _alive_raises(_pids):
+        raise RuntimeError("alive scan failed")
+
+    monkeypatch.setattr(client_mod.subprocess, "Popen", lambda *_args, **_kwargs: _Proc())
+    monkeypatch.setattr(client_mod, "_DurablePipeCollector", lambda _proc: _Collector())
+    monkeypatch.setattr(client_mod, "_durable_owned_process_tree_pids", lambda _pid: [9191, 9292])
+    monkeypatch.setattr(client_mod, "_durable_alive_pids", _alive_raises)
+    monkeypatch.setattr(client, "_announce_durable_running", _running_ack)
+    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+
+    result = asyncio.run(
+        client._execute_shell_for_durable(
+            req,
+            cap_name="shell",
+            cap_params={"command": "echo ok"},
+            claim_id="claim-1",
+            process_tree={"node_pid": 1},
+            timeout=5.0,
+        )
+    )
+
+    assert result["success"] is False
+    assert result["error"] == "durable success process residue unproven"
+    assert result["cleanup"]["post_exit_process_check_ok"] is False
+    assert result["cleanup"]["process_residue"] == [
+        {"state": "post_exit_alive_scan_unverified"}
+    ]
+
+
 def test_durable_shell_timeout_captures_phase_tail_and_cleans_descendant(tmp_path):
     child = tmp_path / "pipe_holder.py"
     child.write_text(

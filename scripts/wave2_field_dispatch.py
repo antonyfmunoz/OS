@@ -723,6 +723,10 @@ def _verify_tailscale_serve_restored_config(
     expected_config: dict[str, Any],
 ) -> dict[str, Any]:
     live_path = snapshot.with_name("tailscale_serve_live_after_restore.json")
+    try:
+        live_path.unlink()
+    except FileNotFoundError:
+        pass
     readback = runner.run(
         ["tailscale", "serve", "get-config", str(live_path), "--all"],
         timeout=30,
@@ -753,6 +757,52 @@ def _verify_tailscale_serve_restored_config(
         "live_config_sha256": live_digest,
         "config_matches_snapshot": live_config == expected_config,
         "reason": "" if live_config == expected_config else "tailscale serve restore readback mismatch",
+    }
+
+
+def _serve_status_projection(status: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "TCP": status.get("TCP") or {},
+        "Web": status.get("Web") or {},
+    }
+
+
+def _verify_tailscale_serve_restored_status(
+    runner: Runner,
+    *,
+    snapshot: Path,
+    expected_status: dict[str, Any],
+) -> dict[str, Any]:
+    readback = runner.run(
+        ["tailscale", "serve", "status", "--json"],
+        timeout=30,
+        check=False,
+        capture=True,
+    )
+    if readback is not None and readback.returncode != 0:
+        return {
+            "ok": False,
+            "reason": "tailscale serve status readback failed",
+            "stderr": _SECRET_REDACT_RE.sub("<redacted>", (readback.stderr or "")[-800:]),
+        }
+    try:
+        live_status = json.loads((readback.stdout if readback is not None else "") or "{}")
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "reason": f"tailscale serve status readback unreadable: {type(exc).__name__}",
+        }
+    expected = _serve_status_projection(expected_status)
+    live = _serve_status_projection(live_status if isinstance(live_status, dict) else {})
+    expected_digest = hashlib.sha256(_canonical_json(expected).encode("utf-8")).hexdigest()
+    live_digest = hashlib.sha256(_canonical_json(live).encode("utf-8")).hexdigest()
+    return {
+        "ok": live == expected,
+        "snapshot": str(snapshot),
+        "expected_status_sha256": expected_digest,
+        "live_status_sha256": live_digest,
+        "status_matches_snapshot": live == expected,
+        "reason": "" if live == expected else "tailscale serve status readback mismatch",
     }
 
 
@@ -837,9 +887,15 @@ def _restore_tailscale_serve(runner: Runner, *, sha: str = "") -> dict[str, Any]
             "reason": "legacy serve snapshot contains TCP handlers without replayable Web config",
         }
     if not web:
-        return _serve_restore_success(
-            {"ok": True, "snapshot": str(_serve_snapshot_path), "method": "reset-empty"}
+        out = {"ok": True, "snapshot": str(_serve_snapshot_path), "method": "reset-empty"}
+        proof = _verify_tailscale_serve_restored_status(
+            runner,
+            snapshot=_serve_snapshot_path,
+            expected_status={"TCP": {}, "Web": {}},
         )
+        out["readback_proof"] = proof
+        out["ok"] = proof.get("ok") is True
+        return _serve_restore_success(out) if out["ok"] else out
     restored: list[dict[str, Any]] = []
     for host_port, entry in sorted(web.items()):
         handlers = entry.get("Handlers") if isinstance(entry, dict) else None
@@ -870,14 +926,20 @@ def _restore_tailscale_serve(runner: Runner, *, sha: str = "") -> dict[str, Any]
                     "stderr": _SECRET_REDACT_RE.sub("<redacted>", (applied.stderr or "")[-800:]),
                 }
             restored.append({"host_port": host_port, "path": path, "proxy": proxy})
-    return _serve_restore_success(
-        {
-            "ok": True,
-            "snapshot": str(_serve_snapshot_path),
-            "method": "legacy-status-replay",
-            "restored": restored,
-        }
+    out = {
+        "ok": True,
+        "snapshot": str(_serve_snapshot_path),
+        "method": "legacy-status-replay",
+        "restored": restored,
+    }
+    proof = _verify_tailscale_serve_restored_status(
+        runner,
+        snapshot=_serve_snapshot_path,
+        expected_status=status if isinstance(status, dict) else {},
     )
+    out["readback_proof"] = proof
+    out["ok"] = proof.get("ok") is True
+    return _serve_restore_success(out) if out["ok"] else out
 
 
 def _install_crash_handlers(runner: Runner, sha: str = "") -> None:
