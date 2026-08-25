@@ -4358,6 +4358,22 @@ def test_durable_shell_normal_exit_fails_closed_when_alive_scan_errors(
     ]
 
 
+def test_durable_process_tree_enumeration_nonzero_is_not_clean(monkeypatch):
+    from nodes.windows.umh_node import client as client_mod
+
+    monkeypatch.setattr(client_mod.sys, "platform", "linux")
+    monkeypatch.setattr(
+        client_mod.subprocess,
+        "run",
+        lambda *_args, **_kwargs: subprocess.CompletedProcess(
+            args=["ps"], returncode=1, stdout="", stderr="ps failed"
+        ),
+    )
+
+    with pytest.raises(RuntimeError, match="process tree enumeration failed rc=1"):
+        client_mod._durable_owned_process_tree_pids(1234)
+
+
 def test_durable_shell_timeout_captures_phase_tail_and_cleans_descendant(tmp_path):
     child = tmp_path / "pipe_holder.py"
     child.write_text(

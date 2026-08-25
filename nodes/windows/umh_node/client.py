@@ -250,7 +250,11 @@ def _durable_owned_process_tree_pids(root_pid: int) -> list[int]:
                 except ValueError:
                     continue
             return sorted(set(pids)) or [root_pid]
-        return [root_pid]
+        stderr = (result.stderr or result.stdout or "").strip()
+        raise RuntimeError(
+            f"process tree enumeration failed rc={result.returncode}"
+            + (f": {stderr}" if stderr else "")
+        )
     result = subprocess.run(
         ["ps", "-o", "pid=", "-g", str(root_pid)],
         capture_output=True,
@@ -265,7 +269,11 @@ def _durable_owned_process_tree_pids(root_pid: int) -> list[int]:
             except ValueError:
                 continue
         return sorted(set(pids)) or [root_pid]
-    return [root_pid]
+    stderr = (result.stderr or result.stdout or "").strip()
+    raise RuntimeError(
+        f"process tree enumeration failed rc={result.returncode}"
+        + (f": {stderr}" if stderr else "")
+    )
 
 
 def _durable_alive_pids(pids: list[int]) -> list[int]:
