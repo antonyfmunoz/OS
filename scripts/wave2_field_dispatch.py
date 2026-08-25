@@ -48,6 +48,7 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -1557,6 +1558,17 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
         ),
         "origin_ready": _http_ok(runner, f"{_ORIGIN}/ready", expect_status={200}),
     }
+    served_artifact = _served_candidate_frontend_artifact_proof(
+        runner,
+        origin=_ORIGIN,
+        local_artifact=artifact,
+    )
+    steps["served_frontend_artifact"] = served_artifact
+    checks["origin_frontend_served_artifact"] = {
+        "ok": served_artifact.get("ok") is True,
+        "origin": served_artifact.get("origin"),
+        "errors": served_artifact.get("errors", []),
+    }
     steps["health"] = checks
 
     # READINESS CONTROLS THE VERDICT (finding SEC-C3). Readiness used to be
@@ -1602,6 +1614,108 @@ def _http_ok(runner: Runner, url: str, expect_status: set[int] | None = None) ->
     except Exception as exc:  # noqa: BLE001
         return {"ok": False, "error": str(exc)[:200], "url": url}
     return {"ok": status in ok_set, "status": status, "url": url}
+
+
+def _http_body(runner: Runner, url: str) -> dict[str, Any]:
+    """Fetch decoded HTTP entity bytes with stable identity semantics."""
+    if runner.dry_run:
+        print(f"[dry-run] curl -sS -H 'Accept-Encoding: identity' {url}")
+        return {"planned": url}
+    try:
+        req = urllib.request.Request(
+            url,
+            method="GET",
+            headers={"Accept-Encoding": "identity"},
+        )
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            body = resp.read()
+            return {
+                "ok": resp.status == 200,
+                "status": resp.status,
+                "url": url,
+                "sha256": hashlib.sha256(body).hexdigest(),
+                "body": body,
+            }
+    except urllib.error.HTTPError as exc:
+        return {"ok": False, "status": exc.code, "url": url}
+    except Exception as exc:  # noqa: BLE001
+        return {"ok": False, "error": str(exc)[:200], "url": url}
+
+
+def _served_candidate_frontend_artifact_proof(
+    runner: Runner,
+    *,
+    origin: str,
+    local_artifact: dict[str, Any],
+) -> dict[str, Any]:
+    """Prove candidate origin serves the exact frontend artifact bytes.
+
+    The comparison uses decoded response entity bytes (`Accept-Encoding:
+    identity`) rather than unstable transfer encoding bytes.
+    """
+    proof: dict[str, Any] = {
+        "ok": False,
+        "origin": origin.rstrip("/"),
+        "index_url": urllib.parse.urljoin(origin.rstrip("/") + "/", "index.html"),
+        "served_index_sha256": "",
+        "expected_index_sha256": local_artifact.get("index_sha256", ""),
+        "served_assets": {},
+        "expected_assets": local_artifact.get("assets", {}),
+        "errors": [],
+    }
+    errors: list[str] = proof["errors"]
+    if not local_artifact.get("ok"):
+        errors.append("local artifact proof is not ok")
+        return proof
+    index_fetch = _http_body(runner, str(proof["index_url"]))
+    proof["index_status"] = index_fetch.get("status")
+    if runner.dry_run:
+        proof["planned"] = True
+        return proof
+    if not index_fetch.get("ok"):
+        errors.append("served index fetch failed")
+        proof["index_error"] = index_fetch.get("error")
+        return proof
+    proof["served_index_sha256"] = index_fetch.get("sha256", "")
+    if proof["served_index_sha256"] != proof["expected_index_sha256"]:
+        errors.append("served index hash mismatch")
+    parser = _FrontendAssetParser()
+    try:
+        parser.feed(index_fetch.get("body", b"").decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"served index parse failed: {type(exc).__name__}")
+        proof["ok"] = False
+        return proof
+    expected_assets = local_artifact.get("assets", {})
+    served_assets: dict[str, dict[str, Any]] = {}
+    for key, refs, suffix in (
+        ("js", parser.module_scripts, ".js"),
+        ("css", parser.stylesheets, ".css"),
+    ):
+        expected = expected_assets.get(key) if isinstance(expected_assets, dict) else None
+        expected_name = expected.get("name", "") if isinstance(expected, dict) else ""
+        expected_sha = expected.get("sha256", "") if isinstance(expected, dict) else ""
+        names = [_frontend_asset_name_from_ref(ref, suffix) for ref in refs]
+        names = [name for name in names if name]
+        if names != [expected_name]:
+            errors.append(f"served {key} asset reference mismatch")
+            continue
+        asset_url = urllib.parse.urljoin(origin.rstrip("/") + "/", f"assets/{expected_name}")
+        asset_fetch = _http_body(runner, asset_url)
+        actual_sha = str(asset_fetch.get("sha256", ""))
+        served_assets[key] = {
+            "name": expected_name,
+            "url": asset_url,
+            "status": asset_fetch.get("status"),
+            "sha256": actual_sha,
+        }
+        if not asset_fetch.get("ok"):
+            errors.append(f"served {key} asset fetch failed")
+        elif actual_sha != expected_sha:
+            errors.append(f"served {key} asset hash mismatch")
+    proof["served_assets"] = served_assets
+    proof["ok"] = not errors
+    return proof
 
 
 def _wait_candidate_ready(
@@ -2739,20 +2853,21 @@ def _durable_remote_shell(
 ) -> dict[str, Any]:
     """Submit a request-bound shell command through durable remote transport."""
     _ensure_mesh_secrets()
-    from substrate.execution.durable_remote_transport import DurableRemoteStore, make_request
-    from substrate.execution.mesh_verdict import get_verdict_secret, sign_verdict
+    from substrate.execution.durable_remote_transport import (
+        DurableRemoteStore,
+        make_request,
+        sha256_json,
+    )
+    from substrate.execution.mesh_verdict import (
+        canonical_payload_digest,
+        get_verdict_secret,
+        sign_verdict,
+    )
 
     if not get_verdict_secret():
         return {"ok": False, "error": "mesh verdict secret unset", "raw_status": "verdict_secret_unset"}
 
     store = DurableRemoteStore()
-    verdict = sign_verdict(
-        verdict_id=uuid4().hex,
-        node_id=_MESH_NODE_ID,
-        capability="shell",
-        risk_class="reversible_write",
-        ttl_seconds=max(command_timeout, dispatch_timeout) + 60,
-    )
     queue_delivery_timeout_s = max(float(dispatch_timeout), 1.0)
     execution_timeout_s = max(float(command_timeout), 1.0)
     cancellation_delivery_timeout_s = 30.0
@@ -2780,22 +2895,48 @@ def _durable_remote_shell(
         "reconciliation_timeout_s": reconciliation_timeout_s,
         "caller_wait_timeout_s": caller_wait_timeout_s,
     }
+    executable_params = {
+        "command": command if argv is None else "",
+        "argv": argv or [],
+        "cwd": cwd,
+        "timeout": command_timeout,
+        "budgets": budgets,
+    }
     request = make_request(
         correlation_id=correlation_id,
         candidate_sha=candidate_sha or _candidate_sha(""),
         node_id=_MESH_NODE_ID,
         operation_type=operation_type,
         capability="shell",
-        params={
-            "command": command if argv is None else "",
-            "argv": argv or [],
-            "cwd": cwd,
-            "timeout": command_timeout,
-            "budgets": budgets,
-            "governance_verdict_id": verdict,
-        },
+        params=dict(executable_params),
         risk_class="reversible_write",
         ttl_seconds=int(caller_wait_timeout_s + 60),
+    )
+    verdict_payload_digest = canonical_payload_digest(executable_params)
+    verdict = sign_verdict(
+        verdict_id=uuid4().hex,
+        node_id=_MESH_NODE_ID,
+        capability="shell",
+        risk_class="reversible_write",
+        request_id=request.request_id,
+        correlation_id=request.correlation_id,
+        candidate_sha=request.candidate_sha,
+        effect_class="CONSEQUENTIAL_WRITE",
+        payload_digest=verdict_payload_digest,
+        idempotency_key=request.idempotency_key,
+        ttl_seconds=max(command_timeout, dispatch_timeout) + 60,
+    )
+    request.params["governance_verdict_id"] = verdict
+    request.diagnostics["verdict_payload_digest"] = verdict_payload_digest
+    request.payload_digest = sha256_json(
+        {
+            "operation_type": request.operation_type,
+            "capability": request.capability,
+            "params": request.params,
+            "candidate_sha": request.candidate_sha,
+            "correlation_id": request.correlation_id,
+            "authority_id": request.authority_id,
+        }
     )
     store.put_request(request)
     terminal_states = {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"}
@@ -6218,6 +6359,15 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
         mandatory["deploy-candidate:frontend_artifact"] = artifact_ok
         if not artifact_ok:
             reasons.append(f"candidate frontend artifact not proven exact: {artifact}")
+        served_artifact = out.get("served_frontend_artifact")
+        served_artifact_ok = (
+            isinstance(served_artifact, dict) and served_artifact.get("ok") is True
+        )
+        mandatory["deploy-candidate:served_frontend_artifact"] = served_artifact_ok
+        if not served_artifact_ok:
+            reasons.append(
+                f"candidate served frontend artifact not proven exact: {served_artifact}"
+            )
 
     if command == "teardown":
         collector = out.get("collector")

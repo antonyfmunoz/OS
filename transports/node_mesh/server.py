@@ -1889,12 +1889,23 @@ class NodeMeshServer:
         """
         from uuid import uuid4
 
-        from substrate.execution.mesh_verdict import is_write_class, verify_verdict
+        from substrate.execution.mesh_verdict import (
+            canonical_payload_digest,
+            is_write_class,
+            verify_verdict,
+        )
 
+        request_id = str(body.get("request_id", "")).strip()
+        correlation_id = str(body.get("correlation_id", "")).strip()
+        candidate_sha = str(body.get("candidate_sha", "")).strip()
+        effect_class = str(body.get("effect_class", "")).strip()
+        idempotency_key = str(body.get("idempotency_key", "")).strip()
         node_id = body.get("node_id", "")
         capability = body.get("capability", "")
         params = body.get("params", {})
         risk_class = body.get("risk_class", "")
+        expected_payload_digest = canonical_payload_digest(params)
+        supplied_payload_digest = str(body.get("payload_digest", "")).strip()
         verdict_token = body.get("verdict_token", "") or body.get("governance_verdict_id", "")
         _MAX_DISPATCH_TIMEOUT = 600
         raw_timeout = body.get("timeout", 15)
@@ -1911,6 +1922,24 @@ class NodeMeshServer:
 
         # Fail-closed verdict enforcement for write-class capabilities.
         if is_write_class(risk_class):
+            if not request_id or not correlation_id or not effect_class or not idempotency_key:
+                return {
+                    "ok": False,
+                    "error": "write-class dispatch requires request, correlation, effect and idempotency binding",
+                    "status": "operation_binding_required",
+                }
+            if effect_class != "CONSEQUENTIAL_WRITE":
+                return {
+                    "ok": False,
+                    "error": "write-class dispatch requires CONSEQUENTIAL_WRITE effect binding",
+                    "status": "effect_class_mismatch",
+                }
+            if supplied_payload_digest != expected_payload_digest:
+                return {
+                    "ok": False,
+                    "error": "payload digest mismatch",
+                    "status": "payload_digest_mismatch",
+                }
             if not verdict_token:
                 logger.error(
                     "mesh dispatch rejected: write-class capability %s for node %s "
@@ -1927,6 +1956,13 @@ class NodeMeshServer:
                 verdict_token,
                 expected_node_id=node_id,
                 expected_capability=capability,
+                expected_risk_class=risk_class,
+                expected_request_id=request_id,
+                expected_correlation_id=correlation_id,
+                expected_candidate_sha=candidate_sha,
+                expected_effect_class=effect_class,
+                expected_payload_digest=expected_payload_digest,
+                expected_idempotency_key=idempotency_key,
             )
             if not check.valid:
                 logger.error(
@@ -1947,13 +1983,18 @@ class NodeMeshServer:
         if node.ws is None:
             return {"ok": False, "error": f"node {node_id} has no WS connection"}
 
-        req_id = uuid4().hex
+        req_id = request_id or uuid4().hex
         rpc_msg = json.dumps(
             {
                 "jsonrpc": "2.0",
                 "method": "capability.execute",
                 "params": {
                     "request_id": req_id,
+                    "correlation_id": correlation_id,
+                    "candidate_sha": candidate_sha,
+                    "effect_class": effect_class,
+                    "idempotency_key": idempotency_key,
+                    "payload_digest": expected_payload_digest,
                     "capability_name": capability,
                     "params": params,
                     "risk_class": risk_class,

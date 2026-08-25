@@ -12,6 +12,7 @@ import logging
 import os
 import time
 from typing import Any
+from uuid import uuid4
 
 logger = logging.getLogger(__name__)
 
@@ -91,9 +92,12 @@ async def dispatch_plan_to_node(
         argv = ["claude", "-p", prompt, "--output-format", "json"]
 
         try:
-            from uuid import uuid4
-
-            from substrate.execution.mesh_verdict import get_verdict_secret, sign_verdict
+            from substrate.execution.mesh_verdict import (
+                canonical_payload_digest,
+                get_verdict_secret,
+                is_write_class,
+                sign_verdict,
+            )
 
             req_headers = {}
             if _MESH_RELAY_SECRET:
@@ -122,55 +126,50 @@ async def dispatch_plan_to_node(
                     }
                 )
                 continue
+            params = {"argv": argv, "cwd": cwd}
+            request_id = f"sync-{uuid4().hex}"
+            correlation_id = f"engineering-plan:{getattr(plan, 'plan_id', '')}:{task_id}"
+            effect_class = (
+                "CONSEQUENTIAL_WRITE" if is_write_class("reversible_write") else "READ_ONLY"
+            )
+            payload_digest = canonical_payload_digest(params)
             verdict_token = sign_verdict(
                 verdict_id=uuid4().hex,
                 node_id=node_id,
                 capability="shell",
                 risk_class="reversible_write",
+                request_id=request_id,
+                correlation_id=correlation_id,
+                candidate_sha=os.environ.get("UMH_SOURCE_SHA", "").strip(),
+                effect_class=effect_class,
+                payload_digest=payload_digest,
+                idempotency_key=request_id,
                 ttl_seconds=timeout_per_task + 30,
             )
             payload = {
+                "request_id": request_id,
+                "correlation_id": correlation_id,
+                "candidate_sha": os.environ.get("UMH_SOURCE_SHA", "").strip(),
+                "effect_class": effect_class,
+                "idempotency_key": request_id,
+                "payload_digest": payload_digest,
                 "node_id": node_id,
                 "capability": "shell",
-                "params": {"argv": argv, "cwd": cwd},
+                "params": params,
                 "risk_class": "reversible_write",
                 "verdict_token": verdict_token,
                 "timeout": timeout_per_task,
             }
             data = None
-            for attempt in range(3):
-                try:
-                    if attempt > 0:
-                        import asyncio
-
-                        await asyncio.sleep(1)
-                        try:
-                            async with httpx.AsyncClient(timeout=10) as warmup:
-                                health_url = _MESH_RELAY_URL.rsplit("/", 1)[0] + "/health"
-                                await warmup.get(health_url, headers=_health_headers)
-                                logger.info("dispatch task %s retry warmup ok", task_id)
-                        except Exception:
-                            pass
-                    async with httpx.AsyncClient(timeout=timeouts) as client:
-                        resp = await client.post(_MESH_RELAY_URL, headers=req_headers, json=payload)
-                        logger.info(
-                            "dispatch task %s got HTTP %d, %d bytes",
-                            task_id,
-                            resp.status_code,
-                            len(resp.content),
-                        )
-                        data = resp.json()
-                    break
-                except httpx.ReadError as read_err:
-                    if attempt < 2:
-                        logger.warning(
-                            "dispatch task %s ReadError on attempt %d, retrying: %r",
-                            task_id,
-                            attempt + 1,
-                            read_err,
-                        )
-                        continue
-                    raise
+            async with httpx.AsyncClient(timeout=timeouts) as client:
+                resp = await client.post(_MESH_RELAY_URL, headers=req_headers, json=payload)
+                logger.info(
+                    "dispatch task %s got HTTP %d, %d bytes",
+                    task_id,
+                    resp.status_code,
+                    len(resp.content),
+                )
+                data = resp.json()
 
             logger.info(
                 "dispatch task %s response: ok=%s latency=%s",

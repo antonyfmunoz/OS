@@ -990,7 +990,18 @@ class NodeClient:
         return False
 
     def _validate_verdict(
-        self, cap_name: str, risk_class: str, verdict_token: str
+        self,
+        cap_name: str,
+        risk_class: str,
+        verdict_token: str,
+        *,
+        request_id: str = "",
+        correlation_id: str = "",
+        candidate_sha: str = "",
+        effect_class: str = "",
+        payload_digest: str = "",
+        idempotency_key: str = "",
+        cap_params: dict[str, Any] | None = None,
     ) -> tuple[bool, str]:
         """Validate a governance verdict token before executing a capability.
 
@@ -1004,6 +1015,7 @@ class NodeClient:
         """
         try:
             from substrate.execution.mesh_verdict import (
+                canonical_payload_digest,
                 get_verdict_secret,
                 verify_verdict,
             )
@@ -1026,11 +1038,25 @@ class NodeClient:
             return False, "no mesh verdict secret configured on node (fail-closed)"
         if not verdict_token:
             return False, "write-class capability requires a governance verdict"
+        if not request_id or not correlation_id or not effect_class or not idempotency_key:
+            return False, "write-class capability requires exact operation binding"
+        if effect_class != "CONSEQUENTIAL_WRITE":
+            return False, "write-class capability requires CONSEQUENTIAL_WRITE effect binding"
+        expected_digest = canonical_payload_digest(cap_params or {})
+        if not payload_digest or payload_digest != expected_digest:
+            return False, "payload digest mismatch"
 
         check = verify_verdict(
             verdict_token,
             expected_node_id=self._config.node_id,
             expected_capability=cap_name,
+            expected_risk_class=risk_class,
+            expected_request_id=request_id,
+            expected_correlation_id=correlation_id,
+            expected_candidate_sha=candidate_sha,
+            expected_effect_class=effect_class,
+            expected_payload_digest=expected_digest,
+            expected_idempotency_key=idempotency_key,
         )
         if not check.valid:
             return False, check.reason
@@ -2690,7 +2716,20 @@ class NodeClient:
         cap_params = dict(req.params)
         risk_class = req.risk_class
         verdict_token = str(cap_params.pop("governance_verdict_id", ""))
-        verdict_ok, verdict_reason = self._validate_verdict(cap_name, risk_class, verdict_token)
+        verdict_ok, verdict_reason = self._validate_verdict(
+            cap_name,
+            risk_class,
+            verdict_token,
+            request_id=req.request_id,
+            correlation_id=req.correlation_id,
+            candidate_sha=req.candidate_sha,
+            effect_class="CONSEQUENTIAL_WRITE",
+            payload_digest=req.diagnostics.get("verdict_payload_digest", "")
+            if isinstance(req.diagnostics, dict)
+            else "",
+            idempotency_key=req.idempotency_key,
+            cap_params=cap_params,
+        )
         if not verdict_ok:
             return {"success": False, "error": f"node verdict rejected: {verdict_reason}"}
         adapter_key = cap_name.split(".")[0] if "." in cap_name else cap_name
@@ -3030,7 +3069,18 @@ class NodeClient:
             # node and THIS capability. Missing or invalid verdict → reject
             # before touching any adapter. This is the last line of the mesh
             # trust boundary — the node never trusts the orchestrator blindly.
-            verdict_ok, verdict_reason = self._validate_verdict(cap_name, risk_class, verdict_token)
+            verdict_ok, verdict_reason = self._validate_verdict(
+                cap_name,
+                risk_class,
+                verdict_token,
+                request_id=str(params.get("request_id", "")),
+                correlation_id=str(params.get("correlation_id", "")),
+                candidate_sha=str(params.get("candidate_sha", "")),
+                effect_class=str(params.get("effect_class", "")),
+                payload_digest=str(params.get("payload_digest", "")),
+                idempotency_key=str(params.get("idempotency_key", "")),
+                cap_params=cap_params if isinstance(cap_params, dict) else {},
+            )
             if not verdict_ok:
                 logger.warning(
                     "capability %s rejected by node verdict gate: %s",

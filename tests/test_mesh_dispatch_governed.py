@@ -22,13 +22,16 @@ import sys
 import textwrap
 import time
 from collections import deque
+from types import SimpleNamespace
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _REPO_ROOT)
 
+import httpx  # noqa: E402
 import pytest  # noqa: E402
 
 from substrate.execution.mesh_verdict import (  # noqa: E402
+    canonical_payload_digest,
     is_write_class,
     sign_verdict,
     verify_verdict,
@@ -41,21 +44,63 @@ _SECRET = "unit-test-verdict-secret"
 
 
 def test_verdict_round_trip_valid():
+    params = {"argv": ["echo", "ok"], "cwd": r"C:\dev\dev"}
     token = sign_verdict(
         verdict_id="v1",
         node_id="node-a",
         capability="terminal.create",
         risk_class="reversible_write",
+        request_id="req-1",
+        correlation_id="corr-1",
+        candidate_sha="a" * 40,
+        effect_class="CONSEQUENTIAL_WRITE",
+        payload_digest=canonical_payload_digest(params),
+        idempotency_key="idem-1",
         secret=_SECRET,
     )
     check = verify_verdict(
         token,
         expected_node_id="node-a",
         expected_capability="terminal.create",
+        expected_risk_class="reversible_write",
+        expected_request_id="req-1",
+        expected_correlation_id="corr-1",
+        expected_candidate_sha="a" * 40,
+        expected_effect_class="CONSEQUENTIAL_WRITE",
+        expected_payload_digest=canonical_payload_digest(params),
+        expected_idempotency_key="idem-1",
         secret=_SECRET,
     )
     assert check.valid is True
     assert check.verdict_id == "v1"
+
+
+def test_verdict_rejects_payload_digest_mismatch():
+    token = sign_verdict(
+        verdict_id="v1",
+        node_id="node-a",
+        capability="terminal.create",
+        risk_class="reversible_write",
+        request_id="req-1",
+        correlation_id="corr-1",
+        effect_class="CONSEQUENTIAL_WRITE",
+        payload_digest=canonical_payload_digest({"argv": ["echo", "ok"]}),
+        idempotency_key="idem-1",
+        secret=_SECRET,
+    )
+    check = verify_verdict(
+        token,
+        expected_node_id="node-a",
+        expected_capability="terminal.create",
+        expected_request_id="req-1",
+        expected_correlation_id="corr-1",
+        expected_effect_class="CONSEQUENTIAL_WRITE",
+        expected_payload_digest=canonical_payload_digest({"argv": ["echo", "changed"]}),
+        expected_idempotency_key="idem-1",
+        secret=_SECRET,
+    )
+    assert check.valid is False
+    assert "payload_digest mismatch" in check.reason
 
 
 def test_verdict_rejects_node_mismatch():
@@ -223,6 +268,169 @@ def test_default_dispatch_fail_closed_whitespace_relay_secret(monkeypatch):
     assert res["status"] == "relay_secret_unset"
 
 
+def test_http_dispatch_rejects_write_without_operation_binding(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
+    from substrate.execution.executor import WorkPacketExecutor
+    from substrate.sockets.capability_socket import CapabilitySocket
+    from substrate.sockets.outcome_socket import OutcomeSocket
+    from substrate.sockets.signal_socket import SignalSocket
+    from substrate.sockets.view_socket import ViewSocket
+    from transports.node_mesh.config import MeshConfig
+    from transports.node_mesh.server import NodeMeshServer
+
+    server = NodeMeshServer(
+        config=MeshConfig(),
+        executor=WorkPacketExecutor(),
+        signal_socket=SignalSocket(),
+        capability_socket=CapabilitySocket(),
+        outcome_socket=OutcomeSocket(),
+        view_socket=ViewSocket(),
+    )
+
+    result = asyncio.run(
+        server._http_dispatch(
+            {
+                "node_id": "node-a",
+                "capability": "shell",
+                "params": {"argv": ["echo", "unsafe"]},
+                "risk_class": "reversible_write",
+                "verdict_token": "v1.invalid.sig",
+                "timeout": 1,
+            }
+        )
+    )
+
+    assert result["ok"] is False
+    assert result["status"] == "operation_binding_required"
+
+
+def test_http_dispatch_rejects_write_payload_digest_mismatch(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
+    from substrate.execution.executor import WorkPacketExecutor
+    from substrate.sockets.capability_socket import CapabilitySocket
+    from substrate.sockets.outcome_socket import OutcomeSocket
+    from substrate.sockets.signal_socket import SignalSocket
+    from substrate.sockets.view_socket import ViewSocket
+    from transports.node_mesh.config import MeshConfig
+    from transports.node_mesh.server import NodeMeshServer
+
+    params = {"argv": ["echo", "safe"]}
+    token = sign_verdict(
+        verdict_id="v1",
+        node_id="node-a",
+        capability="shell",
+        risk_class="reversible_write",
+        request_id="req-1",
+        correlation_id="corr-1",
+        effect_class="CONSEQUENTIAL_WRITE",
+        payload_digest=canonical_payload_digest(params),
+        idempotency_key="req-1",
+        secret=_SECRET,
+    )
+    server = NodeMeshServer(
+        config=MeshConfig(),
+        executor=WorkPacketExecutor(),
+        signal_socket=SignalSocket(),
+        capability_socket=CapabilitySocket(),
+        outcome_socket=OutcomeSocket(),
+        view_socket=ViewSocket(),
+    )
+
+    result = asyncio.run(
+        server._http_dispatch(
+            {
+                "request_id": "req-1",
+                "correlation_id": "corr-1",
+                "effect_class": "CONSEQUENTIAL_WRITE",
+                "idempotency_key": "req-1",
+                "payload_digest": canonical_payload_digest({"argv": ["echo", "changed"]}),
+                "node_id": "node-a",
+                "capability": "shell",
+                "params": params,
+                "risk_class": "reversible_write",
+                "verdict_token": token,
+                "timeout": 1,
+            }
+        )
+    )
+
+    assert result["ok"] is False
+    assert result["status"] == "payload_digest_mismatch"
+
+
+def test_http_dispatch_read_only_does_not_require_write_binding(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
+    from substrate.execution.executor import WorkPacketExecutor
+    from substrate.sockets.capability_socket import CapabilitySocket
+    from substrate.sockets.outcome_socket import OutcomeSocket
+    from substrate.sockets.signal_socket import SignalSocket
+    from substrate.sockets.view_socket import ViewSocket
+    from transports.node_mesh.config import MeshConfig
+    from transports.node_mesh.server import NodeMeshServer
+
+    server = NodeMeshServer(
+        config=MeshConfig(),
+        executor=WorkPacketExecutor(),
+        signal_socket=SignalSocket(),
+        capability_socket=CapabilitySocket(),
+        outcome_socket=OutcomeSocket(),
+        view_socket=ViewSocket(),
+    )
+
+    result = asyncio.run(
+        server._http_dispatch(
+            {
+                "node_id": "node-a",
+                "capability": "terminal.capture",
+                "params": {"name": "s1"},
+                "risk_class": "read_only",
+                "timeout": 1,
+            }
+        )
+    )
+
+    assert result["ok"] is False
+    assert "not connected" in result["error"]
+
+
+def test_legacy_mesh_dispatch_does_not_retry_write_after_read_error(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_RELAY_SECRET", "relay-secret")
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
+    import transports.api._mesh_dispatch as mesh_dispatch
+
+    posts = {"count": 0}
+
+    class _FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, *_args, **_kwargs):
+            return None
+
+        async def post(self, *_args, **_kwargs):
+            posts["count"] += 1
+            raise httpx.ReadError("response lost after write may have executed")
+
+    monkeypatch.setattr(httpx, "AsyncClient", _FakeClient)
+
+    plan = SimpleNamespace(
+        plan_id="plan-1",
+        tasks=[SimpleNamespace(task_id="task-1", description="write something")],
+        intent=SimpleNamespace(goal="goal"),
+    )
+
+    result = asyncio.run(mesh_dispatch.dispatch_plan_to_node(plan, node_id="windows-desktop"))
+
+    assert posts["count"] == 1
+    assert result["failed"] == 1
+
+
 def test_default_dispatch_fail_closed_no_verdict_secret(monkeypatch):
     monkeypatch.setenv("UMH_MESH_RELAY_SECRET", "relay-secret")
     monkeypatch.delenv("UMH_MESH_VERDICT_SECRET", raising=False)
@@ -303,6 +511,12 @@ def test_default_dispatch_signs_verdict_and_authenticates(monkeypatch):
         token,
         expected_node_id="node-a",
         expected_capability="shell",
+        expected_risk_class="reversible_write",
+        expected_request_id=captured["payload"]["request_id"],
+        expected_correlation_id=captured["payload"]["correlation_id"],
+        expected_effect_class="CONSEQUENTIAL_WRITE",
+        expected_payload_digest=captured["payload"]["payload_digest"],
+        expected_idempotency_key=captured["payload"]["idempotency_key"],
         secret=_SECRET,
     )
     assert check.valid is True
@@ -319,6 +533,35 @@ def _bare_node_client(node_id: str = "node-a"):
     client = object.__new__(NodeClient)
     client._config = NodeConfig(node_id=node_id)
     return client
+
+
+def _operation_bound_verdict(
+    *,
+    node_id: str = "node-a",
+    capability: str = "shell.execute",
+    risk_class: str = "reversible_write",
+    request_id: str = "req-1",
+    correlation_id: str = "corr-1",
+    candidate_sha: str = "a" * 40,
+    effect_class: str = "CONSEQUENTIAL_WRITE",
+    idempotency_key: str = "idem-1",
+    params: dict[str, object] | None = None,
+) -> tuple[str, dict[str, object]]:
+    payload = params or {"argv": ["echo", "ok"]}
+    token = sign_verdict(
+        verdict_id="v1",
+        node_id=node_id,
+        capability=capability,
+        risk_class=risk_class,
+        request_id=request_id,
+        correlation_id=correlation_id,
+        candidate_sha=candidate_sha,
+        effect_class=effect_class,
+        payload_digest=canonical_payload_digest(payload),
+        idempotency_key=idempotency_key,
+        secret=_SECRET,
+    )
+    return token, payload
 
 
 class _DurableAckWs:
@@ -535,31 +778,64 @@ def test_node_rejects_write_class_with_invalid_verdict(monkeypatch):
 def test_node_rejects_verdict_bound_to_other_node(monkeypatch):
     monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
     # Token minted for node-b, but this node is node-a.
-    token = sign_verdict(
-        verdict_id="v1",
-        node_id="node-b",
-        capability="shell.execute",
-        risk_class="reversible_write",
-        secret=_SECRET,
-    )
+    token, params = _operation_bound_verdict(node_id="node-b")
     client = _bare_node_client("node-a")
-    ok, reason = client._validate_verdict("shell.execute", "reversible_write", token)
+    ok, reason = client._validate_verdict(
+        "shell.execute",
+        "reversible_write",
+        token,
+        request_id="req-1",
+        correlation_id="corr-1",
+        candidate_sha="a" * 40,
+        effect_class="CONSEQUENTIAL_WRITE",
+        payload_digest=canonical_payload_digest(params),
+        idempotency_key="idem-1",
+        cap_params=params,
+    )
     assert ok is False
     assert "node mismatch" in reason
 
 
 def test_node_accepts_valid_write_class_verdict(monkeypatch):
     monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
-    token = sign_verdict(
-        verdict_id="v1",
-        node_id="node-a",
-        capability="shell.execute",
-        risk_class="reversible_write",
-        secret=_SECRET,
-    )
+    token, params = _operation_bound_verdict()
     client = _bare_node_client("node-a")
-    ok, reason = client._validate_verdict("shell.execute", "reversible_write", token)
+    ok, reason = client._validate_verdict(
+        "shell.execute",
+        "reversible_write",
+        token,
+        request_id="req-1",
+        correlation_id="corr-1",
+        candidate_sha="a" * 40,
+        effect_class="CONSEQUENTIAL_WRITE",
+        payload_digest=canonical_payload_digest(params),
+        idempotency_key="idem-1",
+        cap_params=params,
+    )
     assert ok is True
+
+
+def test_node_rejects_operation_bound_verdict_for_stale_payload(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
+    token, _params = _operation_bound_verdict(params={"argv": ["echo", "old"]})
+    changed = {"argv": ["echo", "new"]}
+    client = _bare_node_client("node-a")
+
+    ok, reason = client._validate_verdict(
+        "shell.execute",
+        "reversible_write",
+        token,
+        request_id="req-1",
+        correlation_id="corr-1",
+        candidate_sha="a" * 40,
+        effect_class="CONSEQUENTIAL_WRITE",
+        payload_digest=canonical_payload_digest(changed),
+        idempotency_key="idem-1",
+        cap_params=changed,
+    )
+
+    assert ok is False
+    assert "payload_digest mismatch" in reason
 
 
 def test_node_allows_read_only_without_verdict(monkeypatch):
@@ -4923,6 +5199,13 @@ def test_governed_remote_dispatch_uses_remote_node_exec_mutation(monkeypatch):
         token,
         expected_node_id="node-a",
         expected_capability="terminal.create",
+        expected_risk_class="reversible_write",
+        expected_request_id=captured["payload"]["request_id"],
+        expected_correlation_id=captured["payload"]["correlation_id"],
+        expected_candidate_sha=captured["payload"]["candidate_sha"],
+        expected_effect_class="CONSEQUENTIAL_WRITE",
+        expected_payload_digest=captured["payload"]["payload_digest"],
+        expected_idempotency_key=captured["payload"]["idempotency_key"],
         secret=_SECRET,
     )
     assert check.valid is True

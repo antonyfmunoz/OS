@@ -80,6 +80,11 @@ _readiness_components: dict[str, dict[str, Any]] = {
     "config_store": {"required": True, "ready": False, "detail": "not initialized"},
     "organism_daemon": {"required": True, "ready": False, "detail": "not initialized"},
     "organism_port": {"required": True, "ready": False, "detail": "not initialized"},
+    "cockpit_frontend_artifact": {
+        "required": True,
+        "ready": False,
+        "detail": "not verified",
+    },
     "voice_warmup": {"required": False, "ready": False, "detail": "optional"},
 }
 if not API_KEY.strip():
@@ -1010,8 +1015,24 @@ if cockpit_dist.exists():
         and frontend_proof.get("frontend_artifact_ok") is True
     ):
         app.mount("/", StaticFiles(directory=str(cockpit_dist), html=True), name="cockpit")
+        _set_readiness_component(
+            "cockpit_frontend_artifact",
+            ready=True,
+            detail="exact artifact verified",
+        )
     else:
+        _set_readiness_component(
+            "cockpit_frontend_artifact",
+            ready=False,
+            detail="exact artifact refused",
+        )
         logger.error("cockpit static mount refused: %s", frontend_proof)
+else:
+    _set_readiness_component(
+        "cockpit_frontend_artifact",
+        ready=False,
+        detail="dist-web missing",
+    )
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":

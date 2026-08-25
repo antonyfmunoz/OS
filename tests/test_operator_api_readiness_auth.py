@@ -171,6 +171,26 @@ def test_operator_api_auth_rejects_empty_wrong_and_accepts_exact_key(monkeypatch
     assert asyncio.run(operator_api.verify_api_key(_request("secret-token"))) is None
 
 
+def test_cockpit_api_auth_rejects_blank_server_and_client_tokens(monkeypatch) -> None:
+    import transports.api.cockpit as cockpit
+
+    request = SimpleNamespace(state=SimpleNamespace(clerk_user_id=None))
+    monkeypatch.setattr(cockpit, "_DEV_BYPASS", False)
+
+    monkeypatch.setattr(cockpit, "_API_KEY", "   ")
+    with pytest.raises(HTTPException) as missing_config:
+        asyncio.run(cockpit._require_api_key(request, "   "))
+    assert missing_config.value.status_code == 503
+
+    monkeypatch.setattr(cockpit, "_API_KEY", "secret-token")
+    for provided in (None, "", "   ", "wrong"):
+        with pytest.raises(HTTPException) as exc:
+            asyncio.run(cockpit._require_api_key(request, provided))
+        assert exc.value.status_code == 401
+
+    assert asyncio.run(cockpit._require_api_key(request, " secret-token ")) == " secret-token "
+
+
 def test_operator_websocket_auth_rejects_whitespace_configured_key(monkeypatch) -> None:
     monkeypatch.setattr(operator_api, "_WS_TOKEN", "   ")
     monkeypatch.setattr(operator_api, "_DEV_BYPASS", False)
@@ -183,6 +203,35 @@ def test_operator_websocket_auth_rejects_whitespace_configured_key(monkeypatch) 
     assert operator_api._validate_ws_auth(ws) is False
 
 
+def test_cockpit_core_ws_rejects_blank_server_and_client_tokens(monkeypatch) -> None:
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from transports.api import cockpit_core_routes
+
+    def _private(_ip: str) -> bool:
+        return False
+
+    def _no_clerk(_ws):
+        return None
+
+    cockpit_core_routes.configure(
+        require_operator_dep=lambda: "operator",
+        is_private_ip_fn=_private,
+        validate_ws_clerk_token_fn=_no_clerk,
+        ws_token="   ",
+        dev_bypass=False,
+        trusted_proxies=set(),
+    )
+    app = FastAPI()
+    app.include_router(cockpit_core_routes.core_ws_router)
+
+    with TestClient(app) as client:
+        with pytest.raises(Exception):
+            with client.websocket_connect("/ws?token=%20%20%20"):
+                pass
+
+
 def test_ready_distinguishes_required_startup_from_optional_voice_warmup(monkeypatch) -> None:
     components = {
         "operator_api_key": {"required": True, "ready": True, "detail": "configured"},
@@ -191,6 +240,11 @@ def test_ready_distinguishes_required_startup_from_optional_voice_warmup(monkeyp
         "config_store": {"required": True, "ready": True, "detail": "registered"},
         "organism_daemon": {"required": True, "ready": True, "detail": "started"},
         "organism_port": {"required": True, "ready": True, "detail": "registered"},
+        "cockpit_frontend_artifact": {
+            "required": True,
+            "ready": True,
+            "detail": "exact artifact verified",
+        },
         "voice_warmup": {"required": False, "ready": False, "detail": "fail_soft"},
     }
     monkeypatch.setattr(operator_api, "_readiness_components", deepcopy(components))
@@ -205,5 +259,28 @@ def test_ready_distinguishes_required_startup_from_optional_voice_warmup(monkeyp
     monkeypatch.setattr(operator_api, "_readiness_components", not_ready_components)
 
     not_ready = asyncio.run(operator_api.ready())
+    assert isinstance(not_ready, JSONResponse)
+    assert not_ready.status_code == 503
+
+
+def test_ready_requires_exact_frontend_artifact(monkeypatch) -> None:
+    components = {
+        "operator_api_key": {"required": True, "ready": True, "detail": "configured"},
+        "execution_spine": {"required": True, "ready": True, "detail": "loaded"},
+        "adapter_sockets": {"required": True, "ready": True, "detail": "registered"},
+        "config_store": {"required": True, "ready": True, "detail": "registered"},
+        "organism_daemon": {"required": True, "ready": True, "detail": "started"},
+        "organism_port": {"required": True, "ready": True, "detail": "registered"},
+        "cockpit_frontend_artifact": {
+            "required": True,
+            "ready": False,
+            "detail": "artifact manifest missing",
+        },
+        "voice_warmup": {"required": False, "ready": False, "detail": "WARMING"},
+    }
+    monkeypatch.setattr(operator_api, "_readiness_components", deepcopy(components))
+
+    not_ready = asyncio.run(operator_api.ready())
+
     assert isinstance(not_ready, JSONResponse)
     assert not_ready.status_code == 503

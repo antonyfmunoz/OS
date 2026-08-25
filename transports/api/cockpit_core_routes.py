@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import hmac as _hmac
 import json
 import logging
 import os
@@ -251,7 +250,9 @@ def configure(
 
     _is_private_ip_fn = is_private_ip_fn
     _validate_ws_clerk_token_fn = validate_ws_clerk_token_fn
-    _ws_token = ws_token
+    from transports.api.cockpit_token_auth import normalize_secret
+
+    _ws_token = normalize_secret(ws_token)
     _dev_bypass = dev_bypass
     _trusted_proxies = trusted_proxies or set()
 
@@ -1627,9 +1628,11 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         Fallback: ?token= query param for clients that cannot set subprotocols.
         """
         sub = _extract_ws_subprotocol(ws)
+        from transports.api.cockpit_token_auth import normalize_secret
+
         if sub:
-            return sub[7:]
-        return ws.query_params.get("token", "")
+            return normalize_secret(sub[7:])
+        return normalize_secret(ws.query_params.get("token", ""))
 
     def _real_ws_client_ip(ws: WebSocket) -> str:
         """Real client IP for WebSocket, same trusted-proxy logic as HTTP."""
@@ -1653,9 +1656,12 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 return True
         except HTTPException:
             return False
-        if _ws_token:
+        from transports.api.cockpit_token_auth import normalize_secret, token_matches
+
+        expected_ws_token = normalize_secret(_ws_token)
+        if expected_ws_token:
             token = _extract_ws_token(ws)
-            if token and _hmac.compare_digest(token, _ws_token):
+            if token_matches(token, expected_ws_token):
                 return True
         client_ip = _real_ws_client_ip(ws)
         if _dev_bypass and _is_private_ip_fn(client_ip):

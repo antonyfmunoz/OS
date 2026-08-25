@@ -3,6 +3,7 @@
 All endpoints are prefixed /api/umh/ and registered via include_router
 in operator_api.py (production) and app.py (substrate runtime).
 """
+# ruff: noqa: E402, F401, I001
 
 from __future__ import annotations
 
@@ -36,18 +37,18 @@ from fastapi import (
 from fastapi.responses import JSONResponse
 from fastapi.security import APIKeyHeader
 from transports.api.cockpit_auth import require_clerk_auth, validate_ws_clerk_token
+from transports.api.cockpit_token_auth import normalize_secret, token_matches
 
 logger = logging.getLogger(__name__)
 
-_API_KEY = os.environ.get("UMH_OPERATOR_API_KEY", "")
-_OPERATOR_TOKEN = os.environ.get("UMH_OPERATOR_TOKEN", "")
-_WS_TOKEN = os.environ.get("UMH_WS_TOKEN", "") or _API_KEY
+_API_KEY = normalize_secret(os.environ.get("UMH_OPERATOR_API_KEY", ""))
+_OPERATOR_TOKEN = normalize_secret(os.environ.get("UMH_OPERATOR_TOKEN", ""))
+_WS_TOKEN = normalize_secret(os.environ.get("UMH_WS_TOKEN", "")) or _API_KEY
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 _operator_token_header = APIKeyHeader(name="X-Operator-Token", auto_error=False)
 
 _DEV_BYPASS = os.environ.get("UMH_DEV_BYPASS", "").lower() in ("1", "true", "yes")
 
-import hmac as _hmac
 import ipaddress as _ipaddress
 
 _TAILSCALE_CGNAT = _ipaddress.ip_network("100.64.0.0/10")
@@ -119,13 +120,14 @@ async def _require_api_key(
     if clerk_user and clerk_user != "dev-bypass":
         return f"clerk:{clerk_user}"
 
-    if not _API_KEY:
+    api_key = normalize_secret(_API_KEY)
+    if not api_key:
         if _dev_bypass_allowed(request):
             return "dev-bypass"
         raise HTTPException(
             status_code=503, detail="API key not configured — set UMH_OPERATOR_API_KEY"
         )
-    if not key or not _hmac.compare_digest(key, _API_KEY):
+    if not token_matches(key, api_key):
         if _dev_bypass_allowed(request):
             return "dev-bypass"
         raise HTTPException(status_code=401, detail="Invalid or missing API key")
@@ -143,7 +145,8 @@ async def _require_operator_role(
     if api_identity.startswith("clerk:"):
         return api_identity
 
-    if not _OPERATOR_TOKEN:
+    operator_secret = normalize_secret(_OPERATOR_TOKEN)
+    if not operator_secret:
         if _dev_bypass_allowed(request):
             logger.info("Operator dev-bypass from private IP %s", _real_client_ip(request))
             return "operator-dev-bypass"
@@ -151,7 +154,7 @@ async def _require_operator_role(
             status_code=503, detail="Operator token not configured — set UMH_OPERATOR_TOKEN"
         )
 
-    if not operator_token or not _hmac.compare_digest(operator_token, _OPERATOR_TOKEN):
+    if not token_matches(operator_token, operator_secret):
         logger.warning(
             "Unauthorized operator access attempt: %s %s from %s",
             request.method,

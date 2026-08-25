@@ -73,6 +73,12 @@ class VerdictCheck:
     node_id: str = ""
     capability: str = ""
     risk_class: str = ""
+    request_id: str = ""
+    correlation_id: str = ""
+    candidate_sha: str = ""
+    effect_class: str = ""
+    payload_digest: str = ""
+    idempotency_key: str = ""
 
 
 def _b64e(raw: bytes) -> str:
@@ -89,6 +95,12 @@ def _sign_payload(payload_b64: str, secret: str) -> str:
     return mac.hexdigest()
 
 
+def canonical_payload_digest(params: Any) -> str:
+    """Stable digest for operation params carried by a mesh verdict."""
+    raw = json.dumps(params, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def sign_verdict(
     *,
     verdict_id: str,
@@ -96,6 +108,12 @@ def sign_verdict(
     capability: str,
     risk_class: str,
     ttl_seconds: int = 600,
+    request_id: str = "",
+    correlation_id: str = "",
+    candidate_sha: str = "",
+    effect_class: str = "",
+    payload_digest: str = "",
+    idempotency_key: str = "",
     secret: str | None = None,
     now: float | None = None,
 ) -> str:
@@ -122,6 +140,18 @@ def sign_verdict(
         "iat": int(issued),
         "exp": int(issued + max(1, int(ttl_seconds))),
     }
+    optional = {
+        "rid": request_id,
+        "cid": correlation_id,
+        "sha": candidate_sha,
+        "eff": effect_class,
+        "pd": payload_digest,
+        "idem": idempotency_key,
+    }
+    for key, value in optional.items():
+        normalized = str(value or "").strip()
+        if normalized:
+            payload[key] = normalized
     payload_b64 = _b64e(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode())
     sig = _sign_payload(payload_b64, secret)
     return f"{_TOKEN_VERSION}.{payload_b64}.{sig}"
@@ -132,6 +162,13 @@ def verify_verdict(
     *,
     expected_node_id: str,
     expected_capability: str,
+    expected_risk_class: str = "",
+    expected_request_id: str = "",
+    expected_correlation_id: str = "",
+    expected_candidate_sha: str = "",
+    expected_effect_class: str = "",
+    expected_payload_digest: str = "",
+    expected_idempotency_key: str = "",
     secret: str | None = None,
     now: float | None = None,
 ) -> VerdictCheck:
@@ -167,18 +204,35 @@ def verify_verdict(
     nid = str(payload.get("nid", ""))
     cap = str(payload.get("cap", ""))
     rc = str(payload.get("rc", ""))
+    rid = str(payload.get("rid", ""))
+    cid = str(payload.get("cid", ""))
+    sha = str(payload.get("sha", ""))
+    eff = str(payload.get("eff", ""))
+    pd = str(payload.get("pd", ""))
+    idem = str(payload.get("idem", ""))
     exp = payload.get("exp", 0)
 
     cur = float(now if now is not None else time.time())
     try:
         if cur > float(exp):
-            return VerdictCheck(False, "verdict expired", vid, nid, cap, rc)
+            return VerdictCheck(False, "verdict expired", vid, nid, cap, rc, rid, cid, sha, eff, pd, idem)
     except (TypeError, ValueError):
-        return VerdictCheck(False, "invalid expiry", vid, nid, cap, rc)
+        return VerdictCheck(False, "invalid expiry", vid, nid, cap, rc, rid, cid, sha, eff, pd, idem)
 
     if nid != expected_node_id:
         return VerdictCheck(
-            False, f"node mismatch: token={nid} expected={expected_node_id}", vid, nid, cap, rc
+            False,
+            f"node mismatch: token={nid} expected={expected_node_id}",
+            vid,
+            nid,
+            cap,
+            rc,
+            rid,
+            cid,
+            sha,
+            eff,
+            pd,
+            idem,
         )
     if cap != expected_capability:
         return VerdictCheck(
@@ -188,6 +242,54 @@ def verify_verdict(
             nid,
             cap,
             rc,
+            rid,
+            cid,
+            sha,
+            eff,
+            pd,
+            idem,
+        )
+    normalized_risk = str(expected_risk_class or "").strip()
+    if normalized_risk and rc != normalized_risk:
+        return VerdictCheck(
+            False,
+            f"risk_class mismatch: token={rc} expected={normalized_risk}",
+            vid,
+            nid,
+            cap,
+            rc,
+            rid,
+            cid,
+            sha,
+            eff,
+            pd,
+            idem,
         )
 
-    return VerdictCheck(True, "ok", vid, nid, cap, rc)
+    expected_bindings = {
+        "request_id": (expected_request_id, rid),
+        "correlation_id": (expected_correlation_id, cid),
+        "candidate_sha": (expected_candidate_sha, sha),
+        "effect_class": (expected_effect_class, eff),
+        "payload_digest": (expected_payload_digest, pd),
+        "idempotency_key": (expected_idempotency_key, idem),
+    }
+    for label, (expected, actual) in expected_bindings.items():
+        normalized_expected = str(expected or "").strip()
+        if normalized_expected and actual != normalized_expected:
+            return VerdictCheck(
+                False,
+                f"{label} mismatch: token={actual} expected={normalized_expected}",
+                vid,
+                nid,
+                cap,
+                rc,
+                rid,
+                cid,
+                sha,
+                eff,
+                pd,
+                idem,
+            )
+
+    return VerdictCheck(True, "ok", vid, nid, cap, rc, rid, cid, sha, eff, pd, idem)
