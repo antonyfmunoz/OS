@@ -862,6 +862,14 @@ def _validate_downstream_composition_proof(
         "composed_commit": composed_commit,
         "composed_ref": expected_ref,
     }
+    rc, expected_tree, err = _git(
+        repo, ["rev-parse", f"{composed_commit}^{{tree}}"], caller="composition_tree"
+    )
+    if rc != 0 or not _SHA_RE.match(expected_tree):
+        raise CompositionError(
+            f"composed commit {composed_commit[:12]} tree cannot be verified: {err}"
+        )
+    expected["tree_sha"] = expected_tree
     expected["run_id"] = run_id
     expected["candidate_sha"] = candidate
     mismatches = [
@@ -881,7 +889,6 @@ def _validate_downstream_composition_proof(
         predecessor_commits
     ):
         raise CompositionError("composition Proof does not bind predecessor Proof IDs")
-
     for pred_task, pred_commit in sorted(predecessor_commits.items()):
         if not _SHA_RE.match(str(pred_commit)):
             raise CompositionError(f"predecessor {pred_task} commit is not a 40-hex sha")
@@ -911,6 +918,20 @@ def _validate_downstream_composition_proof(
                 f"predecessor {pred_task} trusted commit {trusted[:12] if trusted else '<missing>'} "
                 f"does not match Proof commit {str(pred_commit)[:12]}"
             )
+    ordered_predecessors = sorted((str(task), str(commit)) for task, commit in predecessor_commits.items())
+    left = ordered_predecessors[0][1]
+    right = ordered_predecessors[1][1]
+    rc, expected_merge_base, err = _git(
+        repo, ["merge-base", left, right], caller="composition_merge_base"
+    )
+    if rc != 0 or not _SHA_RE.match(expected_merge_base):
+        raise CompositionError(
+            f"composition Proof merge-base cannot be verified for predecessors: {err}"
+        )
+    if str(action.get("merge_base", "")) != expected_merge_base:
+        raise CompositionError(
+            f"Proof {getattr(durable, 'proof_id', '')} composition binding mismatch: merge_base"
+        )
 
 
 def existing_composition_proof(

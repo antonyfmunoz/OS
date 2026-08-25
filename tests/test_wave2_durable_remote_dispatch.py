@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from itertools import chain, repeat
 from pathlib import Path
@@ -9,6 +10,30 @@ import pytest
 
 from substrate.execution.durable_remote_transport import DurableRemoteStore
 from tests.wave2_script_import import load_wave2_script
+
+
+def _write_dist_web(dist: Path, *, js_body: str = "console.log('candidate')\n") -> dict:
+    assets = dist / "assets"
+    assets.mkdir(parents=True, exist_ok=True)
+    js = assets / "main.js"
+    css = assets / "main.css"
+    js.write_text(js_body, encoding="utf-8")
+    css.write_text("body{}\n", encoding="utf-8")
+    dist.mkdir(parents=True, exist_ok=True)
+    (dist / "index.html").write_text(
+        """
+        <script type="module" src="/assets/main.js"></script>
+        <link rel="stylesheet" href="/assets/main.css">
+        """,
+        encoding="utf-8",
+    )
+    return {
+        "index_sha256": hashlib.sha256((dist / "index.html").read_bytes()).hexdigest(),
+        "assets": {
+            "js": {"name": "main.js", "sha256": hashlib.sha256(js.read_bytes()).hexdigest()},
+            "css": {"name": "main.css", "sha256": hashlib.sha256(css.read_bytes()).hexdigest()},
+        },
+    }
 
 
 def test_mesh_read_submits_durable_request_with_signed_shell_shape(monkeypatch) -> None:
@@ -95,8 +120,7 @@ def test_candidate_frontend_artifact_success_emits_exact_sha_manifest(monkeypatc
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if cmd[:3] == ["npm", "run", "build:web"]:
             dist = cockpit / "dist-web"
-            dist.mkdir()
-            (dist / "index.html").write_text("<html></html>", encoding="utf-8")
+            _write_dist_web(dist)
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         raise AssertionError(cmd)
 
@@ -111,6 +135,8 @@ def test_candidate_frontend_artifact_success_emits_exact_sha_manifest(monkeypatc
     assert manifest["candidate_sha"] == "b" * 40
     assert manifest["source_head"] == "b" * 40
     assert manifest["source_tree"] == "2" * 40
+    assert manifest["index_sha256"] == proof["index_sha256"]
+    assert manifest["assets"] == proof["assets"]
     assert dispatch._verify_candidate_frontend_artifact(cockpit / "dist-web", "b" * 40)["ok"]
 
 
@@ -148,15 +174,21 @@ def test_candidate_frontend_artifact_refuses_dirty_frontend_source(monkeypatch, 
 def test_candidate_frontend_artifact_rejects_missing_or_stale_marker(tmp_path):
     dispatch = load_wave2_script("wave2_field_dispatch")
     dist = tmp_path / "dist-web"
-    dist.mkdir()
-    (dist / "index.html").write_text("<html></html>", encoding="utf-8")
+    bytes_proof = _write_dist_web(dist)
 
     missing = dispatch._verify_candidate_frontend_artifact(dist, "c" * 40)
     assert missing["ok"] is False
     assert missing["error"] == "artifact manifest missing"
 
     (dist / ".umh-wave2-artifact.json").write_text(
-        json.dumps({"candidate_sha": "d" * 40, "source_head": "d" * 40, "source_tree": "1" * 40}),
+        json.dumps(
+            {
+                "candidate_sha": "d" * 40,
+                "source_head": "d" * 40,
+                "source_tree": "1" * 40,
+                **bytes_proof,
+            }
+        ),
         encoding="utf-8",
     )
     stale = dispatch._verify_candidate_frontend_artifact(dist, "c" * 40)
@@ -164,7 +196,14 @@ def test_candidate_frontend_artifact_rejects_missing_or_stale_marker(tmp_path):
     assert stale["error"] == "artifact candidate SHA mismatch"
 
     (dist / ".umh-wave2-artifact.json").write_text(
-        json.dumps({"candidate_sha": "c" * 40, "source_head": "d" * 40, "source_tree": "1" * 40}),
+        json.dumps(
+            {
+                "candidate_sha": "c" * 40,
+                "source_head": "d" * 40,
+                "source_tree": "1" * 40,
+                **bytes_proof,
+            }
+        ),
         encoding="utf-8",
     )
     wrong_head = dispatch._verify_candidate_frontend_artifact(dist, "c" * 40)
@@ -172,12 +211,41 @@ def test_candidate_frontend_artifact_rejects_missing_or_stale_marker(tmp_path):
     assert wrong_head["error"] == "artifact source HEAD mismatch"
 
     (dist / ".umh-wave2-artifact.json").write_text(
-        json.dumps({"candidate_sha": "c" * 40, "source_head": "c" * 40}),
+        json.dumps(
+            {
+                "candidate_sha": "c" * 40,
+                "source_head": "c" * 40,
+                **bytes_proof,
+            }
+        ),
         encoding="utf-8",
     )
     missing_tree = dispatch._verify_candidate_frontend_artifact(dist, "c" * 40)
     assert missing_tree["ok"] is False
     assert missing_tree["error"] == "artifact source tree missing"
+
+
+def test_candidate_frontend_artifact_rejects_stale_served_bytes(tmp_path):
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    dist = tmp_path / "dist-web"
+    bytes_proof = _write_dist_web(dist, js_body="console.log('fresh')\n")
+    (dist / ".umh-wave2-artifact.json").write_text(
+        json.dumps(
+            {
+                "candidate_sha": "c" * 40,
+                "source_head": "c" * 40,
+                "source_tree": "1" * 40,
+                **bytes_proof,
+            }
+        ),
+        encoding="utf-8",
+    )
+    (dist / "assets" / "main.js").write_text("console.log('stale')\n", encoding="utf-8")
+
+    stale = dispatch._verify_candidate_frontend_artifact(dist, "c" * 40)
+
+    assert stale["ok"] is False
+    assert stale["error"] == "artifact asset hash mismatch"
 
 
 def test_deploy_candidate_verdict_requires_positive_serve_readiness_and_artifact() -> None:
@@ -266,6 +334,58 @@ def test_deploy_candidate_result_fails_when_serve_command_fails_even_if_probes_p
     assert out["serve"]["wired"] is False
     assert out["deploy_ok"] is False
     assert "serve=NOT WIRED" in out["failure_reason"]
+
+
+def test_deploy_candidate_prepares_frontend_before_operator_starts(monkeypatch, tmp_path) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    worktree = tmp_path / "repo"
+    cockpit = worktree / "cockpit"
+    dist = cockpit / "dist-web"
+    dist.mkdir(parents=True)
+    template = worktree / "infra" / "candidate" / "nginx.candidate.conf.template"
+    template.parent.mkdir(parents=True)
+    template.write_text("proxy_pass http://${CANDIDATE_UPSTREAM};\n", encoding="utf-8")
+    monkeypatch.setattr(dispatch, "_WORKTREE", worktree)
+    monkeypatch.setattr(dispatch, "_ROOT", tmp_path / "root")
+    monkeypatch.setattr(dispatch, "_proof_root", lambda: tmp_path / "proof")
+    monkeypatch.setattr(dispatch, "_state_dir", lambda _sha: tmp_path / "state")
+    monkeypatch.setattr(dispatch, "_CANDIDATE_CONTAINER", "candidate-api")
+    monkeypatch.setattr(dispatch, "_CANDIDATE_NGINX_CONTAINER", "candidate-nginx")
+    monkeypatch.setattr(dispatch, "_OPERATOR_DOCKER_NETWORK", "candidate-net")
+    monkeypatch.setattr(dispatch, "_read_clerk_publishable_key", lambda: "pk_test")
+    monkeypatch.setattr(dispatch, "_smoke_workspace_scope", lambda: "app/**")
+    monkeypatch.setattr(dispatch, "_declared_lanes_json", lambda: "{}")
+    monkeypatch.setattr(dispatch, "_candidate_image_id", lambda _runner: "image")
+    monkeypatch.setattr(dispatch, "_remove_container_and_wait", lambda *_args, **_kw: None)
+    monkeypatch.setattr(dispatch, "_snapshot_tailscale_serve", lambda *_args, **_kw: tmp_path / "snap")
+    monkeypatch.setattr(dispatch, "_install_crash_handlers", lambda *_args, **_kw: None)
+    monkeypatch.setattr(dispatch, "_candidate_origin", lambda: "https://candidate.example:10443")
+    monkeypatch.setattr(dispatch, "_wait_candidate_ready", lambda _runner, **_kw: {"ready": True})
+    monkeypatch.setattr(
+        dispatch,
+        "_http_ok",
+        lambda _runner, url, expect_status=None: {"ok": True, "status": 200, "url": url},
+    )
+    events: list[str] = []
+
+    def prepare(_runner, *, sha, clerk_key):
+        events.append("frontend-proof")
+        return {"ok": True, "dist_web": str(dist), "candidate_sha": sha}
+
+    monkeypatch.setattr(dispatch, "_prepare_candidate_frontend_artifact", prepare)
+
+    class Runner:
+        dry_run = False
+
+        def run(self, cmd, **_kwargs):
+            if cmd[:3] == ["docker", "run", "-d"]:
+                events.append(f"docker:{cmd[cmd.index('--name') + 1]}")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    dispatch.deploy_candidate(Runner(), "e" * 40)
+
+    assert events.index("frontend-proof") < events.index("docker:candidate-api")
+    assert events.index("frontend-proof") < events.index("docker:candidate-nginx")
 
 
 def test_deploy_candidate_retires_stale_nginx_before_frontend_build_failure(

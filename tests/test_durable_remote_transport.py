@@ -290,6 +290,7 @@ def test_success_after_cancel_request_wins_before_cancel_ack(tmp_path) -> None:
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "late"},
+        cleanup={"process_residue": []},
     )
 
     assert final.lifecycle_state == "SUCCEEDED"
@@ -703,6 +704,7 @@ def test_terminal_result_is_idempotent_but_conflicting_replay_fails_closed(tmp_p
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "ok"},
+        cleanup={"process_residue": []},
     )
     assert first.lifecycle_state == "SUCCEEDED"
 
@@ -711,6 +713,7 @@ def test_terminal_result_is_idempotent_but_conflicting_replay_fails_closed(tmp_p
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "ok"},
+        cleanup={"process_residue": []},
     )
     assert same.lifecycle_state == "SUCCEEDED"
 
@@ -734,6 +737,7 @@ def test_remove_request_refuses_terminal_evidence_without_explicit_force(tmp_pat
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "ok"},
+        cleanup={"process_residue": []},
     )
 
     with pytest.raises(ValueError, match="terminal durable request"):
@@ -849,6 +853,27 @@ def test_success_with_process_residue_requires_reconciliation(tmp_path) -> None:
 
     assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
     assert final.diagnostics["success_without_cleanup"][0]["state"] == "still_alive"
+    assert store.result_for(req.request_id) is None
+
+
+def test_success_without_cleanup_proof_requires_reconciliation(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    final = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "ok"},
+        cleanup=None,
+    )
+
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["success_without_cleanup"] == [
+        {"state": "cleanup_proof_missing"}
+    ]
+    assert final.cleanup == {}
     assert store.result_for(req.request_id) is None
 
 

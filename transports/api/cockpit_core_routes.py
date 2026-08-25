@@ -96,7 +96,13 @@ def _sha256_file(path: Path) -> str:
 
 def _current_source_sha(root: Path | None = None) -> str:
     base = root or _ROOT
-    for key in ("UMH_SOURCE_SHA", "SOURCE_SHA", "UMH_RELEASE_SHA", "UMH_CANDIDATE_SHA"):
+    for key in (
+        "UMH_SOURCE_SHA",
+        "SOURCE_SHA",
+        "UMH_RELEASE_SHA",
+        "UMH_CANDIDATE_SHA",
+        "UMH_BUILD_COMMIT",
+    ):
         value = os.getenv(key, "").strip()
         if _SHA_RE.match(value):
             return value
@@ -121,7 +127,9 @@ def _current_source_sha(root: Path | None = None) -> str:
     return value if _SHA_RE.match(value) else ""
 
 
-def _cockpit_frontend_artifact_proof(dist_web: Path, expected_sha: str) -> dict[str, Any]:
+def _cockpit_frontend_artifact_proof(
+    dist_web: Path, expected_sha: str, bytes_proof: dict[str, Any] | None = None
+) -> dict[str, Any]:
     manifest_path = dist_web / _FRONTEND_ARTIFACT_MANIFEST
     proof: dict[str, Any] = {
         "frontend_artifact_ok": False,
@@ -147,12 +155,21 @@ def _cockpit_frontend_artifact_proof(dist_web: Path, expected_sha: str) -> dict[
     proof["artifact_candidate_sha"] = manifest.get("candidate_sha")
     proof["artifact_source_head"] = manifest.get("source_head")
     proof["artifact_source_tree"] = manifest.get("source_tree")
+    proof["artifact_index_sha256"] = manifest.get("index_sha256")
+    proof["artifact_assets"] = manifest.get("assets")
     if manifest.get("candidate_sha") != expected_sha:
         errors.append("artifact candidate SHA mismatch")
     if manifest.get("source_head") != expected_sha:
         errors.append("artifact source HEAD mismatch")
     if not manifest.get("source_tree"):
         errors.append("artifact source tree missing")
+    if bytes_proof is None:
+        errors.append("artifact bytes proof unavailable")
+    else:
+        if manifest.get("index_sha256") != bytes_proof.get("index_sha256"):
+            errors.append("artifact index hash mismatch")
+        if manifest.get("assets") != bytes_proof.get("assets"):
+            errors.append("artifact asset hash mismatch")
     proof["frontend_artifact_ok"] = not errors
     return proof
 
@@ -176,7 +193,9 @@ def _cockpit_frontend_asset_info(
         }
     parser = _CockpitAssetParser()
     parser.feed(index_html.read_text(encoding="utf-8"))
+    index_sha256 = _sha256_file(index_html)
     assets: dict[str, str] = {}
+    artifact_assets: dict[str, dict[str, str]] = {}
     errors: list[str] = []
     for key, refs, suffix in (
         ("js", parser.module_scripts, ".js"),
@@ -193,9 +212,15 @@ def _cockpit_frontend_asset_info(
             continue
         assets[f"{key}_asset"] = names[0]
         assets[f"{key}_hash"] = names[0]
-        assets[f"{key}_sha256"] = _sha256_file(asset_path)
+        asset_sha = _sha256_file(asset_path)
+        assets[f"{key}_sha256"] = asset_sha
+        artifact_assets[key] = {"name": names[0], "sha256": asset_sha}
+    bytes_proof = {
+        "index_sha256": index_sha256,
+        "assets": artifact_assets,
+    }
     proof = (
-        _cockpit_frontend_artifact_proof(dist_web, expected_sha)
+        _cockpit_frontend_artifact_proof(dist_web, expected_sha, bytes_proof)
         if expected_sha is not None
         else {}
     )
@@ -203,6 +228,8 @@ def _cockpit_frontend_asset_info(
     return {
         **proof,
         **assets,
+        "index_sha256": index_sha256,
+        "assets": artifact_assets,
         "frontend_assets_ok": not errors and artifact_ok is True,
         "frontend_asset_errors": errors,
     }

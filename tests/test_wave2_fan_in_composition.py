@@ -855,6 +855,8 @@ def test_downstream_base_requires_full_authority_chain(repo, tmp_path):
         ("task_id", "wp-foreign", "task_id"),
         ("kind", _K.WORKER.value, "kind"),
         ("composed_commit", "f" * 40, "composed_commit"),
+        ("tree_sha", "e" * 40, "tree_sha"),
+        ("merge_base", "e" * 40, "merge_base"),
         ("run_id", "20260101T000000Z-x", "run_id"),
         ("candidate_sha", "0" * 40, "candidate_sha"),
         ("composed_ref", "refs/umh/composed/foreign/run/task/attempt", "composed_ref"),

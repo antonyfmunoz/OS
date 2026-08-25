@@ -51,6 +51,7 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -1057,6 +1058,70 @@ def _must(runner: Runner, step: str, result: subprocess.CompletedProcess | None)
 _FRONTEND_ARTIFACT_MANIFEST = ".umh-wave2-artifact.json"
 
 
+class _FrontendAssetParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.module_scripts: list[str] = []
+        self.stylesheets: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr = {key: value or "" for key, value in attrs}
+        if tag == "script" and attr.get("type") == "module" and attr.get("src"):
+            self.module_scripts.append(attr["src"])
+        if tag == "link" and attr.get("rel") == "stylesheet" and attr.get("href"):
+            self.stylesheets.append(attr["href"])
+
+
+def _frontend_asset_name_from_ref(ref: str, suffix: str) -> str:
+    normalized = ref.split("?", 1)[0].split("#", 1)[0].lstrip("./")
+    prefix = "assets/"
+    if not normalized.startswith(prefix) or not normalized.endswith(suffix):
+        return ""
+    name = normalized[len(prefix) :]
+    if "/" in name or not name:
+        return ""
+    return name
+
+
+def _candidate_frontend_bytes_proof(dist_web: Path) -> dict[str, Any]:
+    index = dist_web / "index.html"
+    proof: dict[str, Any] = {
+        "ok": False,
+        "index_sha256": "",
+        "assets": {},
+        "errors": [],
+    }
+    errors: list[str] = proof["errors"]
+    if not index.is_file():
+        errors.append("dist-web index.html missing")
+        return proof
+    proof["index_sha256"] = _sha256_file(index)
+    parser = _FrontendAssetParser()
+    try:
+        parser.feed(index.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"index.html unreadable: {type(exc).__name__}")
+        return proof
+    assets: dict[str, dict[str, str]] = {}
+    for key, refs, suffix in (
+        ("js", parser.module_scripts, ".js"),
+        ("css", parser.stylesheets, ".css"),
+    ):
+        names = [_frontend_asset_name_from_ref(ref, suffix) for ref in refs]
+        names = [name for name in names if name]
+        if len(names) != 1:
+            errors.append(f"expected exactly one {key} asset reference")
+            continue
+        asset_path = dist_web / "assets" / names[0]
+        if not asset_path.is_file():
+            errors.append(f"{key} asset missing: {names[0]}")
+            continue
+        assets[key] = {"name": names[0], "sha256": _sha256_file(asset_path)}
+    proof["assets"] = assets
+    proof["ok"] = not errors
+    return proof
+
+
 def _verify_candidate_frontend_artifact(dist_web: Path, sha: str) -> dict[str, Any]:
     manifest_path = dist_web / _FRONTEND_ARTIFACT_MANIFEST
     if not dist_web.is_dir():
@@ -1088,12 +1153,35 @@ def _verify_candidate_frontend_artifact(dist_web: Path, sha: str) -> dict[str, A
     index = dist_web / "index.html"
     if not index.is_file():
         return {"ok": False, "error": "dist-web index.html missing"}
+    bytes_proof = _candidate_frontend_bytes_proof(dist_web)
+    if not bytes_proof.get("ok"):
+        return {
+            "ok": False,
+            "error": "artifact bytes proof failed",
+            "errors": bytes_proof.get("errors", []),
+        }
+    if manifest.get("index_sha256") != bytes_proof.get("index_sha256"):
+        return {
+            "ok": False,
+            "error": "artifact index hash mismatch",
+            "expected": manifest.get("index_sha256"),
+            "actual": bytes_proof.get("index_sha256"),
+        }
+    if manifest.get("assets") != bytes_proof.get("assets"):
+        return {
+            "ok": False,
+            "error": "artifact asset hash mismatch",
+            "expected": manifest.get("assets"),
+            "actual": bytes_proof.get("assets"),
+        }
     return {
         "ok": True,
         "candidate_sha": sha,
         "manifest": str(manifest_path),
         "dist_web": str(dist_web),
         "built_at": manifest.get("built_at"),
+        "index_sha256": bytes_proof["index_sha256"],
+        "assets": bytes_proof["assets"],
     }
 
 
@@ -1186,6 +1274,9 @@ def _prepare_candidate_frontend_artifact(
         raise SystemExit(f"candidate frontend artifact build did not create {dist_web}")
     if not (dist_web / "index.html").is_file():
         raise SystemExit("candidate frontend artifact build did not create dist-web/index.html")
+    bytes_proof = _candidate_frontend_bytes_proof(dist_web)
+    if not bytes_proof.get("ok"):
+        raise SystemExit(f"candidate frontend artifact bytes are invalid: {bytes_proof}")
     manifest_path = dist_web / _FRONTEND_ARTIFACT_MANIFEST
     manifest_path.write_text(
         json.dumps(
@@ -1194,6 +1285,8 @@ def _prepare_candidate_frontend_artifact(
                 "source_head": source_head,
                 "source_tree": source_tree,
                 "source_worktree": str(_WORKTREE),
+                "index_sha256": bytes_proof["index_sha256"],
+                "assets": bytes_proof["assets"],
                 "build_command": "npm run build:web",
                 "built_at": datetime.now(timezone.utc).isoformat(),
                 "artifact_contract": "wave2_exact_candidate_frontend",
@@ -1260,7 +1353,14 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     _remove_container_and_wait(runner, _CANDIDATE_CONTAINER)
     _remove_container_and_wait(runner, _CANDIDATE_NGINX_CONTAINER)
 
-    # (4) candidate operator container — SAME image, worktree mounted read-only,
+    # (4) build the candidate frontend and prove the served artifact binds to this SHA
+    # before the operator imports/configures its static routes and /api/umh/build info.
+    artifact = _prepare_candidate_frontend_artifact(runner, sha=sha, clerk_key=clerk_key)
+    steps["dist_web"] = artifact.get("dist_web")
+    steps["frontend_artifact"] = artifact
+    dist_web = Path(str(artifact.get("dist_web") or (_WORKTREE / "cockpit" / "dist-web")))
+
+    # (5) candidate operator container — SAME image, worktree mounted read-only,
     # candidate state dir mounted rw, allowlisted env only.
     _must(
         runner,
@@ -1321,12 +1421,6 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
             timeout=120,
         ),
     )
-
-    # (5) build the candidate frontend and prove the served artifact binds to this SHA.
-    artifact = _prepare_candidate_frontend_artifact(runner, sha=sha, clerk_key=clerk_key)
-    steps["dist_web"] = artifact.get("dist_web")
-    steps["frontend_artifact"] = artifact
-    dist_web = Path(str(artifact.get("dist_web") or (_WORKTREE / "cockpit" / "dist-web")))
 
     # (6) render nginx.candidate.conf from the template and start nginx:alpine
     conf_out = run_dir / "nginx.candidate.conf"
