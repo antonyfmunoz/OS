@@ -329,6 +329,52 @@ def test_served_frontend_artifact_proof_rejects_stale_asset(monkeypatch, tmp_pat
     assert "served js asset hash mismatch" in proof["errors"]
 
 
+def test_served_frontend_artifact_proof_rejects_stale_index(monkeypatch, tmp_path):
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    dist = tmp_path / "dist-web"
+    bytes_proof = _write_dist_web(dist)
+    local_artifact = {
+        "ok": True,
+        "index_sha256": bytes_proof["index_sha256"],
+        "assets": bytes_proof["assets"],
+    }
+    stale_index = b"""
+        <script type="module" src="/assets/main.js"></script>
+        <link rel="stylesheet" href="/assets/main.css">
+        <main>old build</main>
+        """
+    bodies = {
+        "https://candidate.example/index.html": stale_index,
+        "https://candidate.example/assets/main.js": (
+            dist / "assets" / "main.js"
+        ).read_bytes(),
+        "https://candidate.example/assets/main.css": (
+            dist / "assets" / "main.css"
+        ).read_bytes(),
+    }
+
+    def fake_body(_runner, url):
+        body = bodies[url]
+        return {
+            "ok": True,
+            "status": 200,
+            "url": url,
+            "sha256": hashlib.sha256(body).hexdigest(),
+            "body": body,
+        }
+
+    monkeypatch.setattr(dispatch, "_http_body", fake_body)
+
+    proof = dispatch._served_candidate_frontend_artifact_proof(
+        dispatch.Runner(dry_run=False),
+        origin="https://candidate.example",
+        local_artifact=local_artifact,
+    )
+
+    assert proof["ok"] is False
+    assert "served index hash mismatch" in proof["errors"]
+
+
 def test_deploy_candidate_verdict_requires_positive_serve_readiness_and_artifact() -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
     out = {
