@@ -63,6 +63,31 @@ def test_operator_api_missing_key_import_initializes_not_ready() -> None:
     assert "not configured" in component["detail"]
 
 
+def test_operator_api_import_initializes_frontend_artifact_as_required() -> None:
+    env = dict(os.environ)
+    env["UMH_OPERATOR_API_KEY"] = "secret"
+    env["PYTHONPATH"] = str(ROOT)
+    script = (
+        "import json; "
+        "import services.operator_api as op; "
+        "status = op.operator_readiness_status(); "
+        "print(json.dumps(status['components']['cockpit_frontend_artifact'], sort_keys=True))"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=str(ROOT),
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    component = json.loads(result.stdout)
+    assert component["required"] is True
+    assert component["ready"] is False
+
+
 def test_operator_api_pins_umh_root_before_substrate_import(tmp_path) -> None:
     foreign = tmp_path / "foreign"
     (foreign / "substrate" / "execution").mkdir(parents=True)
