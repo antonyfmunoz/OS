@@ -201,6 +201,31 @@ def test_late_running_after_succeeded_is_ignored_even_for_foreign_claim(tmp_path
     assert events[-1] == "LATE_RUNNING_IGNORED"
 
 
+def test_same_claim_late_running_after_succeeded_is_ignored(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.mark_running(req.request_id, claim_id="claim-1", process_tree={"root_pid": 22})
+    store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "done"},
+        cleanup={"process_residue": []},
+    )
+
+    late = store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"root_pid": 99, "late": True},
+    )
+
+    assert late.lifecycle_state == "SUCCEEDED"
+    assert late.process_tree["root_pid"] == 22
+    assert "running_without_claimed_state" not in late.diagnostics
+    assert "running_claim_conflict" not in late.diagnostics
+
+
 def test_late_running_after_failed_cancelled_or_recovery_terminal_does_not_regress(
     tmp_path,
 ) -> None:

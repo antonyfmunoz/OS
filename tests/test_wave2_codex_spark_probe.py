@@ -371,7 +371,10 @@ def test_probe_returns_structured_readiness_timeout(tmp_path, monkeypatch) -> No
             raise subprocess.TimeoutExpired(
                 cmd=["codex", "login", "status"],
                 timeout=20,
-                stderr="codex status pipe never closed",
+                stderr=(
+                    "Authorization: Bearer synthetic-readiness-token\n"
+                    "codex status pipe never closed"
+                ),
             )
 
     home_root = tmp_path / "home"
@@ -406,6 +409,9 @@ def test_probe_returns_structured_readiness_timeout(tmp_path, monkeypatch) -> No
     assert result["status"] == "failed"
     assert result["execution_identity"]["terminal_status"] == "readiness_failed"
     assert "codex status pipe never closed" in result["raw_stderr"]
+    assert "synthetic-readiness-token" not in result["raw_stderr"]
+    assert "[redacted credential-bearing line]" in result["raw_stderr"]
+    assert result["raw_stderr_sha256"] == module._sha256_text(result["raw_stderr"])
     assert result["attempt_home_exists_after_close"] is False
     assert result["run_root_exists_after_cleanup"] is False
     assert [item["phase"] for item in result["timeline"]] == [
