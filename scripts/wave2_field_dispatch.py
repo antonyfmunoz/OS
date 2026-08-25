@@ -712,24 +712,17 @@ def _serve_restore_success(result: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
-def _restore_tailscale_serve(runner: Runner) -> dict[str, Any]:
+def _restore_tailscale_serve(runner: Runner, *, sha: str = "") -> dict[str, Any]:
     """Restore serve config from the snapshot. Idempotent; safe on every exit."""
     global _serve_restored
+    if sha and _serve_snapshot_path is None:
+        _load_serve_snapshot_path(sha)
     if _serve_restored or _serve_snapshot_path is None:
         return {
             "ok": _serve_restored,
             "already_restored": _serve_restored,
             "snapshot": str(_serve_snapshot_path) if _serve_snapshot_path else "",
             "reason": "" if _serve_restored else "serve snapshot unavailable",
-        }
-    # Reset first, then re-apply the snapshot if it was non-empty.
-    reset = runner.run(["tailscale", "serve", "reset"], timeout=30, check=False)
-    if reset is not None and reset.returncode != 0:
-        return {
-            "ok": False,
-            "snapshot": str(_serve_snapshot_path),
-            "reason": "tailscale serve reset failed",
-            "stderr": _SECRET_REDACT_RE.sub("<redacted>", (reset.stderr or "")[-800:]),
         }
     if runner.dry_run:
         print("[dry-run] would re-apply tailscale serve snapshot if non-empty")
@@ -743,6 +736,25 @@ def _restore_tailscale_serve(runner: Runner) -> dict[str, Any]:
             "ok": False,
             "snapshot": str(_serve_snapshot_path),
             "reason": f"serve snapshot unreadable: {type(exc).__name__}",
+        }
+    if snap.get("snapshot_contract") == "tailscale_serve_exact_restore_v3":
+        snapshot_sha = str(snap.get("candidate_sha", ""))
+        if sha and snapshot_sha != sha:
+            return {
+                "ok": False,
+                "snapshot": str(_serve_snapshot_path),
+                "reason": "serve snapshot candidate_sha mismatch",
+                "candidate_sha": sha,
+                "snapshot_candidate_sha": snapshot_sha,
+            }
+    # Reset first, then re-apply the snapshot if it was non-empty.
+    reset = runner.run(["tailscale", "serve", "reset"], timeout=30, check=False)
+    if reset is not None and reset.returncode != 0:
+        return {
+            "ok": False,
+            "snapshot": str(_serve_snapshot_path),
+            "reason": "tailscale serve reset failed",
+            "stderr": _SECRET_REDACT_RE.sub("<redacted>", (reset.stderr or "")[-800:]),
         }
     status = snap.get("status") if snap.get("snapshot_contract") else snap
     if snap.get("config_captured") and isinstance(snap.get("config"), dict):
@@ -828,7 +840,7 @@ def _install_crash_handlers(runner: Runner, sha: str = "") -> None:
     """
 
     def _handler(signum: int, _frame: Any) -> None:
-        _restore_tailscale_serve(runner)
+        _restore_tailscale_serve(runner, sha=sha)
         # Destroy the run secret on an interrupted/killed run too (SEC-W4):
         # shredding used to be reachable ONLY via an explicit `teardown`, so any
         # crash or SIGKILL left it on disk indefinitely (one such orphan was
@@ -1252,7 +1264,7 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     # There is no automatic plaintext fallback for the Session-1 run because
     # Clerk requires HTTPS.
     _snapshot_tailscale_serve(runner, run_dir, sha=sha)
-    _install_crash_handlers(runner)
+    _install_crash_handlers(runner, sha)
     # Probe cert issuance WITHOUT dropping key material into the source tree:
     # `tailscale cert` writes <host>.crt/<host>.key to CWD by default (a
     # freshly-minted private key landed in the worktree on 2026-07-21 —
@@ -4896,7 +4908,7 @@ def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
     homes_swept = _sweep_run_homes(sha, run_id) if run_id else _no_run_ref_proof()
 
     secret_shredded = _shred_run_secret(runner, sha) if sha else True
-    serve_restore_raw = _restore_tailscale_serve(runner)
+    serve_restore_raw = _restore_tailscale_serve(runner, sha=sha)
     serve_restore = (
         serve_restore_raw
         if isinstance(serve_restore_raw, dict)

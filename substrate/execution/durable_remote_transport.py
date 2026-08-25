@@ -330,6 +330,7 @@ class DurableRemoteStore:
                 or STATE_ORDER.get(request.lifecycle_state, -1)
                 < STATE_ORDER.get(current.lifecycle_state, -1)
                 or bool(current.claim_id and request.claim_id != current.claim_id)
+                or bool(not current.claim_id and request.claim_id)
             ):
                 return
             self._update_request_locked(request, event)
@@ -745,8 +746,21 @@ class DurableRemoteStore:
                     "incoming": claim_id,
                 }
                 return self._enter_reconciliation(req, reason="running_claim_conflict")
+            if req.lifecycle_state == "RUNNING":
+                if process_tree is not None:
+                    req.process_tree = {**req.process_tree, **process_tree}
+                    req.process_tree.setdefault("running_at", now_s())
+                    self._update_request_locked(req, "RUNNING")
+                return req
             if req.lifecycle_state == "CANCEL_REQUESTED":
                 return req
+            if req.lifecycle_state != "CLAIMED":
+                req.diagnostics["running_without_claimed_state"] = {
+                    "state": req.lifecycle_state,
+                    "claim_id": req.claim_id,
+                    "incoming": claim_id,
+                }
+                return self._enter_reconciliation(req, reason="running_without_claimed_state")
             if req.lifecycle_state not in TERMINAL_STATES and req.lifecycle_state not in RECOVERY_STATES:
                 req.claim_id = claim_id
                 req.lifecycle_state = "RUNNING"

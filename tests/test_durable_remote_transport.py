@@ -117,6 +117,64 @@ def test_running_without_prior_claim_fails_closed(tmp_path) -> None:
     assert store.deliverable_for_node("windows-desktop") == []
 
 
+def test_running_requires_current_claimed_lifecycle(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    delivered = store.mark_delivered(req.request_id)
+    delivered.claim_id = "claim-1"
+    store.update_request(delivered, "MALFORMED_CLAIM_INJECTION")
+
+    current = store.get_request(req.request_id)
+    assert current is not None
+    assert not current.claim_id
+
+    rejected = store.mark_running(req.request_id, claim_id="claim-1")
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.diagnostics["running_without_claim"] == {"incoming": "claim-1"}
+
+
+def test_running_rejects_corrupt_active_claim_outside_claimed_state(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    corrupt = store.mark_delivered(req.request_id)
+    corrupt.lifecycle_state = "DELIVERED"
+    corrupt.claim_id = "claim-1"
+    store._update_request_locked(corrupt, "CORRUPT_CLAIM_FOR_TEST")
+
+    rejected = store.mark_running(req.request_id, claim_id="claim-1")
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.diagnostics["running_without_claimed_state"]["state"] == "DELIVERED"
+
+
+def test_same_claim_running_replay_updates_execution_evidence_without_reconciliation(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"node_pid": 10})
+    pre_start = store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"node_pid": 10, "root_pid": None, "pre_start_containment": True},
+    )
+    assert pre_start.lifecycle_state == "RUNNING"
+
+    updated = store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"root_pid": 1234, "command_digest": req.payload_digest},
+    )
+
+    assert updated.lifecycle_state == "RUNNING"
+    assert updated.claim_id == "claim-1"
+    assert updated.process_tree["node_pid"] == 10
+    assert updated.process_tree["root_pid"] == 1234
+    assert updated.process_tree["command_digest"] == req.payload_digest
+    assert "running_without_claimed_state" not in updated.diagnostics
+
+
 def test_late_running_after_succeeded_is_ignored_even_for_foreign_claim(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())

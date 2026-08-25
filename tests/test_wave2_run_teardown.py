@@ -165,7 +165,7 @@ def test_dispatch_teardown_result_includes_collector_tree(monkeypatch):
     monkeypatch.setattr(dispatch, "_remove_container_and_wait", lambda runner, name: None)
     monkeypatch.setattr(dispatch, "_sweep_run_homes", lambda sha, run_id: _zero_ref_proof())
     monkeypatch.setattr(dispatch, "_shred_run_secret", lambda runner, sha: True)
-    monkeypatch.setattr(dispatch, "_restore_tailscale_serve", lambda runner: None)
+    monkeypatch.setattr(dispatch, "_restore_tailscale_serve", lambda runner, sha="": None)
 
     out = dispatch.teardown(dispatch.Runner(dry_run=False), sha="s", run_id="r1")
 
@@ -202,7 +202,7 @@ def test_no_run_teardown_produces_positive_empty_ref_proof(monkeypatch):
     monkeypatch.setattr(dispatch.subprocess, "run", lambda *_args, **_kwargs: _Proc())
     monkeypatch.setattr(dispatch, "_remove_container_and_wait", lambda runner, name: None)
     monkeypatch.setattr(dispatch, "_shred_run_secret", lambda runner, sha: True)
-    monkeypatch.setattr(dispatch, "_restore_tailscale_serve", lambda runner: None)
+    monkeypatch.setattr(dispatch, "_restore_tailscale_serve", lambda runner, sha="": None)
 
     out = dispatch.teardown(dispatch.Runner(dry_run=False), sha="s", run_id="")
     homes = out["homes_swept"]

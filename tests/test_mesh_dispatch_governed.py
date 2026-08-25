@@ -300,21 +300,7 @@ class _DurableAckWs:
             return
         result = self.claim_acks.pop(0) if self.claim_acks else {"ok": True, "error": ""}
         if result.get("ok") and "authority_source" not in result:
-            current = self.client._durable_store.get_request(str(msg["params"]["request_id"]))
-            if current is not None:
-                result = {
-                    **result,
-                    "accepted": True,
-                    "request_id": current.request_id,
-                    "correlation_id": current.correlation_id,
-                    "candidate_sha": current.candidate_sha,
-                    "node_id": current.node_id,
-                    "claim_id": current.claim_id,
-                    "lifecycle_state": current.lifecycle_state,
-                    "lease_expires_at": current.lease_expires_at,
-                    "process_tree": current.process_tree,
-                    "authority_source": "vps_canonical_durable_store",
-                }
+            result = {**_canonical_claim_ack(self.client, msg["params"]), **result}
 
         async def _respond() -> None:
             await self.client._handle_message(
@@ -382,6 +368,22 @@ def _canonical_claim_readback(client, payload):
 
 
 def _canonical_claim_ack(client, payload):
+    state = str(payload.get("state", ""))
+    request_id = str(payload["request_id"])
+    claim_id = str(payload["claim_id"])
+    process_tree = payload.get("process_tree")
+    if state == "CLAIMED":
+        client._durable_store.mark_claimed(
+            request_id,
+            claim_id=claim_id,
+            process_tree=process_tree if isinstance(process_tree, dict) else None,
+        )
+    elif state == "RUNNING":
+        client._durable_store.mark_running(
+            request_id,
+            claim_id=claim_id,
+            process_tree=process_tree if isinstance(process_tree, dict) else None,
+        )
     return {**_canonical_claim_readback(client, payload), "error": ""}
 
 
@@ -659,7 +661,7 @@ def test_durable_node_running_ack_timeout_reads_back_running_before_execution(
     async def _send_event(method, payload, **_kwargs):
         methods.append((method, str(payload.get("state", ""))))
         if method == "durable_command.claimed" and payload.get("state") == "CLAIMED":
-            return {"ok": True, "error": ""}
+            return _canonical_claim_ack(client, payload)
         if method == "durable_command.claimed" and payload.get("state") == "RUNNING":
             return {"ok": False, "error": "durable_command.claimed acknowledgement timed out"}
         return {"ok": True, "error": ""}
@@ -1874,6 +1876,7 @@ def test_durable_claim_ack_timeout_reconciles_same_claim_before_execution(
     async def _send_event(method, payload, **_kwargs):
         events.append((method, str(payload.get("state", ""))))
         if method == "durable_command.claimed" and payload.get("state") == "CLAIMED":
+            _canonical_claim_ack(client, payload)
             return {"ok": False, "error": "durable_command.claimed acknowledgement timed out"}
         if method == "durable_command.claimed":
             return _canonical_claim_ack(client, payload)
@@ -1933,6 +1936,7 @@ def test_durable_lost_claim_ack_reads_back_canonical_claim_before_execution(
     async def _send_event(method, payload, **_kwargs):
         events.append((method, str(payload.get("request_id", "")), str(payload.get("claim_id", ""))))
         if method == "durable_command.claimed" and payload.get("state") == "CLAIMED":
+            _canonical_claim_ack(client, payload)
             return {"ok": False, "error": "durable_command.claimed acknowledgement timed out"}
         if method == "durable_command.claimed":
             return _canonical_claim_ack(client, payload)

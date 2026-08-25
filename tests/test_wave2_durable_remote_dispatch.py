@@ -445,6 +445,39 @@ def test_tailscale_serve_restore_failure_does_not_mark_restored(tmp_path) -> Non
     assert dispatch._serve_restored is True
 
 
+def test_tailscale_serve_restore_rejects_wrong_sha_before_reset(tmp_path) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    dispatch._serve_restored = False
+    snapshot = tmp_path / "tailscale_serve_snapshot.json"
+    snapshot.write_text(
+        json.dumps(
+            {
+                "snapshot_contract": "tailscale_serve_exact_restore_v3",
+                "candidate_sha": "a" * 40,
+                "config_captured": True,
+                "config": {"Web": {"host:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8080"}}}}},
+            }
+        ),
+        encoding="utf-8",
+    )
+    dispatch._serve_snapshot_path = snapshot
+    calls: list[list[str]] = []
+
+    class Runner:
+        dry_run = False
+
+        def run(self, cmd, **_kwargs):
+            calls.append(cmd)
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    out = dispatch._restore_tailscale_serve(Runner(), sha="b" * 40)
+
+    assert out["ok"] is False
+    assert out["reason"] == "serve snapshot candidate_sha mismatch"
+    assert dispatch._serve_restored is False
+    assert calls == []
+
+
 def test_tailscale_serve_restore_replays_legacy_status_without_hardcoded_target(
     monkeypatch, tmp_path
 ) -> None:
