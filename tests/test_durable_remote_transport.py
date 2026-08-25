@@ -224,6 +224,12 @@ def test_same_claim_late_running_after_succeeded_is_ignored(tmp_path) -> None:
     assert late.process_tree["root_pid"] == 22
     assert "running_without_claimed_state" not in late.diagnostics
     assert "running_claim_conflict" not in late.diagnostics
+    events = [
+        json.loads(line)["event"]
+        for line in store.events_path.read_text(encoding="utf-8").splitlines()
+        if json.loads(line)["request_id"] == req.request_id
+    ]
+    assert events[-1] == "LATE_RUNNING_IGNORED"
 
 
 def test_late_running_after_failed_cancelled_or_recovery_terminal_does_not_regress(
