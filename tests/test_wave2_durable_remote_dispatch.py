@@ -352,6 +352,8 @@ def test_tailscale_serve_restore_uses_exact_declarative_snapshot(monkeypatch, tm
 
     assert out["ok"] is True
     assert out["method"] == "set-config"
+    assert out["readback_proof"]["ok"] is True
+    assert out["readback_proof"]["config_matches_snapshot"] is True
     snapshot = json.loads(snap.read_text(encoding="utf-8"))
     assert snap == tmp_path / "candidates" / sha / "state" / "tailscale_serve_snapshot.json"
     assert snapshot["candidate_sha"] == sha
@@ -388,8 +390,11 @@ def test_tailscale_serve_snapshot_refreshes_after_successful_restore(
             if cmd[:4] == ["tailscale", "serve", "status", "--json"]:
                 return SimpleNamespace(returncode=0, stdout=json.dumps(configs[get_config_count]), stderr="")
             if cmd[:3] == ["tailscale", "serve", "get-config"]:
-                Path(cmd[3]).write_text(json.dumps(configs[get_config_count]), encoding="utf-8")
-                get_config_count += 1
+                if Path(cmd[3]).name == "tailscale_serve_live_after_restore.json":
+                    Path(cmd[3]).write_text(json.dumps(configs[0]), encoding="utf-8")
+                else:
+                    Path(cmd[3]).write_text(json.dumps(configs[get_config_count]), encoding="utf-8")
+                    get_config_count += 1
                 return SimpleNamespace(returncode=0, stdout="", stderr="")
             return SimpleNamespace(returncode=0, stdout="", stderr="")
 
@@ -433,6 +438,8 @@ def test_tailscale_serve_restore_failure_does_not_mark_restored(tmp_path) -> Non
                 set_config_attempts += 1
                 if set_config_attempts == 1:
                     return SimpleNamespace(returncode=1, stdout="", stderr="temporary failure")
+            if cmd[:3] == ["tailscale", "serve", "get-config"]:
+                Path(cmd[3]).write_text(json.dumps(restore_config), encoding="utf-8")
             return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     first = dispatch._restore_tailscale_serve(Runner())
@@ -442,7 +449,43 @@ def test_tailscale_serve_restore_failure_does_not_mark_restored(tmp_path) -> Non
     second = dispatch._restore_tailscale_serve(Runner())
     assert second["ok"] is True
     assert second["method"] == "set-config"
+    assert second["readback_proof"]["ok"] is True
     assert dispatch._serve_restored is True
+
+
+def test_tailscale_serve_restore_requires_exact_readback_match(tmp_path) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    dispatch._serve_restored = False
+    snapshot = tmp_path / "tailscale_serve_snapshot.json"
+    expected = {"Web": {"host:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:8080"}}}}}
+    live = {"Web": {"host:443": {"Handlers": {"/": {"Proxy": "http://127.0.0.1:9999"}}}}}
+    snapshot.write_text(
+        json.dumps(
+            {
+                "snapshot_contract": "tailscale_serve_exact_restore_v3",
+                "candidate_sha": "a" * 40,
+                "config_captured": True,
+                "config": expected,
+            }
+        ),
+        encoding="utf-8",
+    )
+    dispatch._serve_snapshot_path = snapshot
+
+    class Runner:
+        dry_run = False
+
+        def run(self, cmd, **_kwargs):
+            if cmd[:3] == ["tailscale", "serve", "get-config"]:
+                Path(cmd[3]).write_text(json.dumps(live), encoding="utf-8")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    out = dispatch._restore_tailscale_serve(Runner(), sha="a" * 40)
+
+    assert out["ok"] is False
+    assert out["readback_proof"]["ok"] is False
+    assert out["readback_proof"]["reason"] == "tailscale serve restore readback mismatch"
+    assert dispatch._serve_restored is False
 
 
 def test_tailscale_serve_restore_rejects_wrong_sha_before_reset(tmp_path) -> None:

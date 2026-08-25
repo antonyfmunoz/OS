@@ -712,6 +712,50 @@ def _serve_restore_success(result: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _canonical_json(value: Any) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+
+def _verify_tailscale_serve_restored_config(
+    runner: Runner,
+    *,
+    snapshot: Path,
+    expected_config: dict[str, Any],
+) -> dict[str, Any]:
+    live_path = snapshot.with_name("tailscale_serve_live_after_restore.json")
+    readback = runner.run(
+        ["tailscale", "serve", "get-config", str(live_path), "--all"],
+        timeout=30,
+        check=False,
+        capture=True,
+    )
+    if readback is not None and readback.returncode != 0:
+        return {
+            "ok": False,
+            "reason": "tailscale serve restore readback failed",
+            "stderr": _SECRET_REDACT_RE.sub("<redacted>", (readback.stderr or "")[-800:]),
+        }
+    if not live_path.is_file():
+        return {"ok": False, "reason": "tailscale serve restore readback missing"}
+    try:
+        live_config = json.loads(live_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "ok": False,
+            "reason": f"tailscale serve restore readback unreadable: {type(exc).__name__}",
+        }
+    expected_digest = hashlib.sha256(_canonical_json(expected_config).encode("utf-8")).hexdigest()
+    live_digest = hashlib.sha256(_canonical_json(live_config).encode("utf-8")).hexdigest()
+    return {
+        "ok": live_config == expected_config,
+        "readback": str(live_path),
+        "expected_config_sha256": expected_digest,
+        "live_config_sha256": live_digest,
+        "config_matches_snapshot": live_config == expected_config,
+        "reason": "" if live_config == expected_config else "tailscale serve restore readback mismatch",
+    }
+
+
 def _restore_tailscale_serve(runner: Runner, *, sha: str = "") -> dict[str, Any]:
     """Restore serve config from the snapshot. Idempotent; safe on every exit."""
     global _serve_restored
@@ -774,7 +818,16 @@ def _restore_tailscale_serve(runner: Runner, *, sha: str = "") -> dict[str, Any]
             "config_captured": True,
             "stderr": "" if ok else _SECRET_REDACT_RE.sub("<redacted>", (applied.stderr or "")[-800:]),
         }
-        return _serve_restore_success(out) if ok else out
+        if not ok:
+            return out
+        proof = _verify_tailscale_serve_restored_config(
+            runner,
+            snapshot=_serve_snapshot_path,
+            expected_config=snap["config"],
+        )
+        out["readback_proof"] = proof
+        out["ok"] = proof.get("ok") is True
+        return _serve_restore_success(out) if out["ok"] else out
     web = status.get("Web") if isinstance(status, dict) else None
     tcp = status.get("TCP") if isinstance(status, dict) else None
     if tcp and not web:

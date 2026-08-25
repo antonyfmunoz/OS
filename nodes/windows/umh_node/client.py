@@ -369,8 +369,11 @@ def _durable_post_exit_process_cleanup(
     try:
         observed = _durable_owned_process_tree_pids(proc.pid)
     except Exception as exc:  # noqa: BLE001
+        cleanup["post_exit_process_check_ok"] = False
         cleanup["post_exit_process_check_error"] = f"{type(exc).__name__}: {exc}"
-        observed = []
+        cleanup["process_residue"] = [{"state": "post_exit_process_tree_unverified"}]
+        return cleanup
+    cleanup["post_exit_process_check_ok"] = True
     candidates = sorted({pid for pid in [*last_tree_pids, *observed] if pid != proc.pid})
     alive = _durable_alive_pids(candidates)
     if not alive:
@@ -2890,10 +2893,13 @@ class NodeClient:
                     **captured,
                 }
             cleanup = _durable_post_exit_process_cleanup(proc, last_tree_pids)
-            if cleanup.get("process_residue"):
+            if (
+                cleanup.get("post_exit_process_check_ok") is not True
+                or cleanup.get("process_residue")
+            ):
                 return {
                     "success": False,
-                    "error": "durable success left process residue",
+                    "error": "durable success process residue unproven",
                     "cleanup": cleanup,
                     **captured,
                 }
