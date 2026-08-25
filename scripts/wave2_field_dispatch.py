@@ -4912,7 +4912,11 @@ def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
     serve_restore = (
         serve_restore_raw
         if isinstance(serve_restore_raw, dict)
-        else {"ok": serve_restore_raw is not False, "legacy_stub": True}
+        else {
+            "ok": False,
+            "reason": "tailscale serve restore did not return structured proof",
+            "unexpected_return_type": type(serve_restore_raw).__name__,
+        }
     )
     return {
         "torn_down": [_CANDIDATE_CONTAINER, _CANDIDATE_NGINX_CONTAINER],

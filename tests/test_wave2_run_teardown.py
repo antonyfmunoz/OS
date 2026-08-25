@@ -165,7 +165,11 @@ def test_dispatch_teardown_result_includes_collector_tree(monkeypatch):
     monkeypatch.setattr(dispatch, "_remove_container_and_wait", lambda runner, name: None)
     monkeypatch.setattr(dispatch, "_sweep_run_homes", lambda sha, run_id: _zero_ref_proof())
     monkeypatch.setattr(dispatch, "_shred_run_secret", lambda runner, sha: True)
-    monkeypatch.setattr(dispatch, "_restore_tailscale_serve", lambda runner, sha="": None)
+    monkeypatch.setattr(
+        dispatch,
+        "_restore_tailscale_serve",
+        lambda runner, sha="": {"ok": True, "method": "unit"},
+    )
 
     out = dispatch.teardown(dispatch.Runner(dry_run=False), sha="s", run_id="r1")
 
@@ -202,17 +206,43 @@ def test_no_run_teardown_produces_positive_empty_ref_proof(monkeypatch):
     monkeypatch.setattr(dispatch.subprocess, "run", lambda *_args, **_kwargs: _Proc())
     monkeypatch.setattr(dispatch, "_remove_container_and_wait", lambda runner, name: None)
     monkeypatch.setattr(dispatch, "_shred_run_secret", lambda runner, sha: True)
-    monkeypatch.setattr(dispatch, "_restore_tailscale_serve", lambda runner, sha="": None)
+    monkeypatch.setattr(
+        dispatch,
+        "_restore_tailscale_serve",
+        lambda runner, sha="": {"ok": True, "method": "unit"},
+    )
 
     out = dispatch.teardown(dispatch.Runner(dry_run=False), sha="s", run_id="")
     homes = out["homes_swept"]
 
+    assert out["serve_restored"] is True
+    assert out["serve_restore"] == {"ok": True, "method": "unit"}
     assert homes["zero_ref_residue"] is True
     assert homes["ref_enumeration_executed"] is True
     assert homes["ref_inventory"] == []
     assert homes["ref_residue"] == []
     assert homes["unexpected_ref_count"] == 0
     assert homes["quarantined_refs"] == []
+
+
+def test_teardown_requires_structured_tailscale_restore_proof(monkeypatch):
+    dispatch = load_wave2_script("wave2_field_dispatch")
+
+    class _Proc:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    monkeypatch.setattr(dispatch.subprocess, "run", lambda *_args, **_kwargs: _Proc())
+    monkeypatch.setattr(dispatch, "_remove_container_and_wait", lambda runner, name: None)
+    monkeypatch.setattr(dispatch, "_shred_run_secret", lambda runner, sha: True)
+    monkeypatch.setattr(dispatch, "_restore_tailscale_serve", lambda runner, sha="": None)
+
+    out = dispatch.teardown(dispatch.Runner(dry_run=False), sha="s", run_id="")
+
+    assert out["serve_restored"] is False
+    assert out["serve_restore"]["ok"] is False
+    assert out["serve_restore"]["unexpected_return_type"] == "NoneType"
 
 
 def test_remote_collector_teardown_missing_manifest_must_prove_zero_residue(monkeypatch):

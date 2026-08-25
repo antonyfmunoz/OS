@@ -281,6 +281,7 @@ def _run_probe(code: str, timeout: int = _PROBE_TIMEOUT):
     """
     env = dict(os.environ)
     env.pop("UMH_ROOT", None)
+    env.pop("UMH_STATE_DIR", None)
     try:
         return subprocess.run(
             [sys.executable, "-c", code],
@@ -301,6 +302,7 @@ def _run_suite_bounded(args: list[str], timeout: int = _PROBE_TIMEOUT):
     """Run pytest on `args` in a fresh process, bounded. Raises on hang."""
     env = dict(os.environ)
     env.pop("UMH_ROOT", None)
+    env.pop("UMH_STATE_DIR", None)
     try:
         return subprocess.run(
             [sys.executable, "-m", "pytest", *args, "-q", "--no-header", "-p", "no:cacheprovider"],
@@ -331,6 +333,7 @@ def test_runtime_construction_inside_tests_resolves_to_an_isolated_path():
         "import os, sys, pathlib\n"
         f"sys.path.insert(0, {REPO_ROOT!r})\n"
         "os.environ.pop('UMH_ROOT', None)\n"
+        "os.environ.pop('UMH_STATE_DIR', None)\n"
         f"LIVE = pathlib.Path({str(_LIVE_PORTFOLIO_STORE)!r}).resolve()\n"
         # Reproduce the suite's isolation contract, then resolve what the runtime
         # would actually use. tmp_path-equivalent via tempfile keeps this hermetic.
@@ -347,6 +350,30 @@ def test_runtime_construction_inside_tests_resolves_to_an_isolated_path():
     assert proc.returncode == 0, (
         "runtime construction resolved to the LIVE production store instead of "
         f"an isolated path:\n{proc.stdout[-1200:]}"
+    )
+
+
+def test_windows_node_fresh_import_resolves_substrate_from_active_worktree():
+    """Fresh node-service imports must not prepend stale /opt/OS over this checkout."""
+    code = (
+        "import os, pathlib, sys\n"
+        f"root = pathlib.Path({REPO_ROOT!r}).resolve()\n"
+        "sys.path.insert(0, str(root))\n"
+        "os.environ.pop('UMH_ROOT', None)\n"
+        "import nodes.windows.umh_node.service\n"
+        "import substrate.execution.durable_remote_transport as durable\n"
+        "loaded = pathlib.Path(durable.__file__).resolve()\n"
+        "print('DURABLE_REMOTE_TRANSPORT=%s' % loaded)\n"
+        "try:\n"
+        "    ok = loaded.is_relative_to(root)\n"
+        "except AttributeError:\n"
+        "    ok = str(loaded).startswith(str(root) + os.sep)\n"
+        "sys.exit(0 if ok else 1)\n"
+    )
+    proc = _run_probe(code, timeout=300)
+    assert proc.returncode == 0, (
+        "fresh Windows node import did not resolve substrate from this worktree:\n"
+        f"stdout:\n{proc.stdout[-1200:]}\nstderr:\n{proc.stderr[-1200:]}"
     )
 
 

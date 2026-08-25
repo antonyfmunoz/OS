@@ -356,6 +356,33 @@ def _durable_fail_closed_reader_timeout_cleanup(
     return cleanup
 
 
+def _durable_post_exit_process_cleanup(
+    proc: subprocess.Popen[str],
+    last_tree_pids: list[int],
+) -> dict[str, Any]:
+    cleanup: dict[str, Any] = {
+        "root_pid": proc.pid,
+        "post_exit_process_check": True,
+        "forced": False,
+        "process_residue": [],
+    }
+    try:
+        observed = _durable_owned_process_tree_pids(proc.pid)
+    except Exception as exc:  # noqa: BLE001
+        cleanup["post_exit_process_check_error"] = f"{type(exc).__name__}: {exc}"
+        observed = []
+    candidates = sorted({pid for pid in [*last_tree_pids, *observed] if pid != proc.pid})
+    alive = _durable_alive_pids(candidates)
+    if not alive:
+        return cleanup
+    cleanup["forced"] = True
+    cleanup["process_residue_detected_after_exit"] = True
+    cleanup["force_stdout"] = "\n".join(_durable_force_exact_pids(alive))
+    remaining = _durable_alive_pids(alive)
+    cleanup["process_residue"] = [{"pid": pid, "state": "still_alive"} for pid in remaining]
+    return cleanup
+
+
 class _DurablePipeCollector:
     def __init__(self, proc: subprocess.Popen[str]) -> None:
         self._lock = threading.Lock()
@@ -2862,12 +2889,21 @@ class NodeClient:
                     "cleanup": cleanup,
                     **captured,
                 }
+            cleanup = _durable_post_exit_process_cleanup(proc, last_tree_pids)
+            if cleanup.get("process_residue"):
+                return {
+                    "success": False,
+                    "error": "durable success left process residue",
+                    "cleanup": cleanup,
+                    **captured,
+                }
             return {
                 "success": proc.returncode == 0,
                 "stdout": captured["stdout"],
                 "stderr": captured["stderr"],
                 "exit_code": proc.returncode,
                 "output_capture": captured["output_capture"],
+                "cleanup": cleanup,
             }
         except asyncio.CancelledError:
             cleanup: dict[str, Any] = {

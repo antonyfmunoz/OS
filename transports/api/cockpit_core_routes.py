@@ -8,21 +8,21 @@ Phase 25 prerequisite. UMH transport layer.
 
 from __future__ import annotations
 
-import json
 import asyncio
+import hashlib
+import hmac as _hmac
+import json
 import logging
 import os
-import hmac as _hmac
-import re
-import subprocess
 import time
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
 import psutil
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+
 from substrate.execution.cpu_gate import gated_subprocess_run
 from transports.api.governed import governed_mutation
 
@@ -56,6 +56,72 @@ _dex_conversation: Any = None
 push_chat_message: Any = None
 push_organism_event: Any = None
 push_mutation_event: Any = None
+
+
+class _CockpitAssetParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.module_scripts: list[str] = []
+        self.stylesheets: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr = {key: value or "" for key, value in attrs}
+        if tag == "script" and attr.get("type") == "module" and attr.get("src"):
+            self.module_scripts.append(attr["src"])
+        if tag == "link" and attr.get("rel") == "stylesheet" and attr.get("href"):
+            self.stylesheets.append(attr["href"])
+
+
+def _asset_name_from_ref(ref: str, suffix: str) -> str:
+    normalized = ref.split("?", 1)[0].split("#", 1)[0].lstrip("./")
+    prefix = "assets/"
+    if not normalized.startswith(prefix) or not normalized.endswith(suffix):
+        return ""
+    name = normalized[len(prefix) :]
+    if "/" in name or not name:
+        return ""
+    return name
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _cockpit_frontend_asset_info(root: Path | None = None) -> dict[str, Any]:
+    base = root or _ROOT
+    dist_web = base / "cockpit" / "dist-web"
+    index_html = dist_web / "index.html"
+    if not index_html.is_file():
+        return {"frontend_assets_ok": False, "frontend_asset_errors": ["index.html missing"]}
+    parser = _CockpitAssetParser()
+    parser.feed(index_html.read_text(encoding="utf-8"))
+    assets: dict[str, str] = {}
+    errors: list[str] = []
+    for key, refs, suffix in (
+        ("js", parser.module_scripts, ".js"),
+        ("css", parser.stylesheets, ".css"),
+    ):
+        names = [_asset_name_from_ref(ref, suffix) for ref in refs]
+        names = [name for name in names if name]
+        if len(names) != 1:
+            errors.append(f"expected exactly one {key} asset reference")
+            continue
+        asset_path = dist_web / "assets" / names[0]
+        if not asset_path.is_file():
+            errors.append(f"{key} asset missing: {names[0]}")
+            continue
+        assets[f"{key}_asset"] = names[0]
+        assets[f"{key}_hash"] = names[0]
+        assets[f"{key}_sha256"] = _sha256_file(asset_path)
+    return {
+        **assets,
+        "frontend_assets_ok": not errors,
+        "frontend_asset_errors": errors,
+    }
 
 
 def configure(
@@ -162,8 +228,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
     def _get_docker_containers() -> list[dict]:
         """Query Docker Engine API via unix socket for running containers."""
-        import socket as _socket
         import http.client
+        import socket as _socket
 
         try:
             if not os.path.exists(_DOCKER_SOCK):
@@ -232,17 +298,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 info["commit_time"] = ts.stdout.strip()
         except Exception:
             pass
-        import re as _re
-
-        index_html = _ROOT / "cockpit" / "dist-web" / "index.html"
-        if index_html.is_file():
-            html = index_html.read_text()
-            js_match = _re.search(r'src="[./]*assets/(index-[^"]+\.js)"', html)
-            css_match = _re.search(r'href="[./]*assets/(index-[^"]+\.css)"', html)
-            if js_match:
-                info["js_hash"] = js_match.group(1)
-            if css_match:
-                info["css_hash"] = css_match.group(1)
+        info.update(_cockpit_frontend_asset_info(_ROOT))
         return info
 
     _BUILD_INFO = _compute_build_info()
@@ -481,8 +537,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         if source in ("all", "conversation"):
             try:
-                from substrate.state.memory.memory import ConversationMemory
                 from substrate.state.context.context import try_load_context_from_env
+                from substrate.state.memory.memory import ConversationMemory
 
                 ctx = try_load_context_from_env()
                 if ctx:
@@ -776,6 +832,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
     @router.get("/settings")
     def settings():
+        from adapters.models.cc_sdk import query_cc_sync
         from adapters.models.model_router import (
             MODEL_REGISTRY,
             PROVIDER_PRIORITY,
@@ -785,8 +842,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             ROLE_SLOTS,
             ModelRouter,
         )
-        from adapters.models.cc_sdk import query_cc_sync
-        from substrate.contracts.agent_types import ModelProvider, ProviderRole
+        from substrate.contracts.agent_types import ModelProvider
 
         ModelRouter()
 
@@ -1044,8 +1100,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         pre_approved = payload.get("pre_approved", False)
 
         try:
-            from transports.api.app import _pipeline
             from substrate.governance.risk_classes import RiskClass
+            from transports.api.app import _pipeline
 
             risk = RiskClass[risk_class]
         except (ImportError, KeyError):
@@ -1113,8 +1169,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         def _do_trigger():
             try:
-                from transports.api.app import _pipeline
                 from substrate.governance.risk_classes import RiskClass
+                from transports.api.app import _pipeline
 
                 result = _pipeline.submit_signal(
                     content,
@@ -1140,9 +1196,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     async def update_settings(request: Request):
         """Update cockpit settings via mutation runtime — persisted + audited."""
         from transports.api.cockpit_settings_mutations import (
-            toggle_provider,
             set_purpose_chain,
             set_role_slot,
+            toggle_provider,
         )
 
         payload = await request.json()
@@ -1661,10 +1717,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         """Return the runtime portfolio — roles, slots, provider status, and purpose routing."""
         from adapters.models.model_router import (
             MODEL_REGISTRY,
-            ROLE_SLOTS,
             PURPOSE_ROUTING,
-            ROLE_FAILOVER,
-            ProviderRole,
+            ROLE_SLOTS,
             get_router,
         )
 
@@ -2032,7 +2086,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         try:
             from substrate.organism.executor_runtime import (
                 load_executor_preference,
-                preferred_executor,
             )
 
             pref = load_executor_preference()
@@ -2078,8 +2131,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         def _do_update():
             from substrate.organism.executor_runtime import (
-                save_executor_preference,
                 load_executor_preference,
+                save_executor_preference,
             )
 
             save_executor_preference(order)
@@ -2105,12 +2158,12 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     }
 
     from transports.api.cockpit_core_bootstrap_routes import register_bootstrap_routes
-    from transports.api.cockpit_core_session_routes import register_session_routes
+    from transports.api.cockpit_core_creatoros_routes import register_creatoros_routes
+    from transports.api.cockpit_core_eos_routes import register_eos_routes
     from transports.api.cockpit_core_feedback_routes import register_feedback_routes
     from transports.api.cockpit_core_governance_routes import register_governance_routes
-    from transports.api.cockpit_core_eos_routes import register_eos_routes
     from transports.api.cockpit_core_lyfeos_routes import register_lyfeos_routes
-    from transports.api.cockpit_core_creatoros_routes import register_creatoros_routes
+    from transports.api.cockpit_core_session_routes import register_session_routes
     from transports.api.cockpit_intent_loop_routes import register_intent_loop_routes
     from transports.api.cockpit_voice_consent_routes import register_voice_consent_routes
 

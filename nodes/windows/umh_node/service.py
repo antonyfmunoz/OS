@@ -17,12 +17,12 @@ import sys
 import threading
 from pathlib import Path
 
-_service_dir = Path(__file__).resolve().parent.parent.parent
-if str(_service_dir) not in sys.path:
-    sys.path.insert(0, str(_service_dir))
+_repo_root = Path(__file__).resolve().parents[3]
+if str(_repo_root) not in sys.path:
+    sys.path.insert(0, str(_repo_root))
 
-from nodes.windows.umh_node.client import NodeClient
-from nodes.windows.umh_node.config import DEFAULT_LOG_DIR, load_node_config
+from nodes.windows.umh_node.client import NodeClient  # noqa: E402
+from nodes.windows.umh_node.config import DEFAULT_LOG_DIR, load_node_config  # noqa: E402
 
 logger = logging.getLogger("umh_node")
 
