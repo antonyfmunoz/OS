@@ -869,7 +869,6 @@ def _validate_downstream_composition_proof(
         raise CompositionError(
             f"composed commit {composed_commit[:12]} tree cannot be verified: {err}"
         )
-    expected["tree_sha"] = expected_tree
     expected["run_id"] = run_id
     expected["candidate_sha"] = candidate
     mismatches = [
@@ -879,6 +878,10 @@ def _validate_downstream_composition_proof(
         raise CompositionError(
             f"Proof {getattr(durable, 'proof_id', '')} composition binding mismatch: "
             + ",".join(mismatches)
+        )
+    if str(action.get("tree_sha", "")) != expected_tree:
+        raise CompositionError(
+            f"Proof {getattr(durable, 'proof_id', '')} composition binding mismatch: tree_sha"
         )
 
     predecessor_commits = action.get("predecessor_commits")
