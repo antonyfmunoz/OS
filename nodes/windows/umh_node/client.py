@@ -2525,6 +2525,14 @@ class NodeClient:
             cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
             cleanup["cancel_reason"] = reason
             cleanup.update(req.cancellation_identity(claim_id=claim_id))
+        elif req.process_tree.get("root_pid"):
+            cleanup["process_residue"] = [
+                {
+                    "pid": req.process_tree.get("root_pid"),
+                    "state": "running_process_owner_lost_after_restart",
+                }
+            ]
+            cleanup["process_owner_lost_after_restart"] = True
         terminal = self._durable_store.publish_result(
             req.request_id,
             claim_id=claim_id,

@@ -318,6 +318,8 @@ def test_cancel_ack_rejects_late_success_but_preserves_evidence(tmp_path) -> Non
         },
     )
     assert cancelled.lifecycle_state == "CANCELLED"
+    request_path = store._request_path(req.request_id)
+    terminal_bytes = request_path.read_bytes()
 
     final = store.publish_result(
         req.request_id,
@@ -327,8 +329,8 @@ def test_cancel_ack_rejects_late_success_but_preserves_evidence(tmp_path) -> Non
     )
 
     assert final.lifecycle_state == "CANCELLED"
-    assert final.diagnostics["rejected_late_results"][0]["incoming_state"] == "SUCCEEDED"
     assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+    assert request_path.read_bytes() == terminal_bytes
 
 
 def test_cancel_ack_zero_generation_rejected_before_terminal_cancelled(tmp_path) -> None:
@@ -707,6 +709,8 @@ def test_terminal_result_is_idempotent_but_conflicting_replay_fails_closed(tmp_p
         cleanup={"process_residue": []},
     )
     assert first.lifecycle_state == "SUCCEEDED"
+    request_path = store._request_path(req.request_id)
+    terminal_bytes = request_path.read_bytes()
 
     same = store.publish_result(
         req.request_id,
@@ -724,8 +728,8 @@ def test_terminal_result_is_idempotent_but_conflicting_replay_fails_closed(tmp_p
         result={"success": False, "error": "different"},
     )
     assert conflict.lifecycle_state == "SUCCEEDED"
-    assert conflict.diagnostics["rejected_late_results"][0]["existing_state"] == "SUCCEEDED"
     assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+    assert request_path.read_bytes() == terminal_bytes
 
 
 def test_remove_request_refuses_terminal_evidence_without_explicit_force(tmp_path) -> None:
@@ -1165,7 +1169,6 @@ def test_terminal_replay_with_cleanup_conflict_preserves_terminal_lifecycle(tmp_
     )
 
     assert conflict.lifecycle_state == "CANCELLED"
-    assert conflict.diagnostics["terminal_cancel_cleanup_conflict"][0]["state"] == "still_alive"
     assert conflict.cleanup["process_residue"] == []
     observed = store.get_request(req.request_id)
     assert observed is not None
@@ -1173,3 +1176,6 @@ def test_terminal_replay_with_cleanup_conflict_preserves_terminal_lifecycle(tmp_
     assert observed.cleanup["process_residue"] == []
     rejected = list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
     assert rejected
+    rejected_payload = json.loads(rejected[0].read_text(encoding="utf-8"))
+    assert rejected_payload["rejected_reason"] == "terminal_cancel_cleanup_conflict"
+    assert rejected_payload["cleanup"]["process_residue"][0]["state"] == "still_alive"

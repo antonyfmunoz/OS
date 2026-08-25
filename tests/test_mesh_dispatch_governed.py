@@ -208,6 +208,21 @@ def test_default_dispatch_fail_closed_no_relay_secret(monkeypatch):
     assert res["status"] == "relay_secret_unset"
 
 
+def test_default_dispatch_fail_closed_whitespace_relay_secret(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_RELAY_SECRET", "   ")
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
+    from substrate.sockets.mesh_dispatch_port import mesh_dispatch
+
+    res = mesh_dispatch(
+        node_id="node-a",
+        capability="shell",
+        params={"command": "ls"},
+        risk_class="reversible_write",
+    )
+    assert res["ok"] is False
+    assert res["status"] == "relay_secret_unset"
+
+
 def test_default_dispatch_fail_closed_no_verdict_secret(monkeypatch):
     monkeypatch.setenv("UMH_MESH_RELAY_SECRET", "relay-secret")
     monkeypatch.delenv("UMH_MESH_VERDICT_SECRET", raising=False)
@@ -221,6 +236,25 @@ def test_default_dispatch_fail_closed_no_verdict_secret(monkeypatch):
     )
     assert res["ok"] is False
     assert res["status"] == "verdict_secret_unset"
+
+
+def test_verdict_secret_whitespace_fails_closed(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", "   ")
+
+    with pytest.raises(ValueError, match="not configured"):
+        sign_verdict(
+            verdict_id="v1",
+            node_id="node-a",
+            capability="shell",
+            risk_class="reversible_write",
+        )
+    check = verify_verdict(
+        "v1.payload.signature",
+        expected_node_id="node-a",
+        expected_capability="shell",
+    )
+    assert check.valid is False
+    assert "no verdict secret" in check.reason
 
 
 def test_default_dispatch_signs_verdict_and_authenticates(monkeypatch):
@@ -3719,6 +3753,34 @@ def test_durable_cancel_ack_includes_request_bound_generation(tmp_path):
     assert terminal.cleanup["cancellation_envelope_digest"] == req.cancellation_identity(
         claim_id="claim-1"
     )["cancellation_envelope_digest"]
+
+
+def test_durable_cancel_after_restart_with_root_pid_fails_closed(tmp_path):
+    client = _durable_node_client(tmp_path)
+    req = client._durable_store.put_request(_durable_request())
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    client._durable_store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"node_pid": 1, "root_pid": 4242, "running_at": time.time()},
+    )
+    req = client._durable_store.request_cancel(req.request_id)
+    client._durable_processes.clear()
+
+    terminal = asyncio.run(
+        client._cancel_durable_request(
+            req,
+            claim_id="claim-1",
+            reason="cancel requested after restart",
+        )
+    )
+
+    assert terminal.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert terminal.cleanup["process_residue"] == [
+        {"pid": 4242, "state": "running_process_owner_lost_after_restart"}
+    ]
+    assert terminal.cleanup["process_owner_lost_after_restart"] is True
+    assert client._durable_store.result_for(req.request_id) is None
 
 
 def test_durable_cancel_delivery_after_claim_uses_delivered_cancellation_identity(tmp_path):

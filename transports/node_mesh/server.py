@@ -640,7 +640,7 @@ class NodeMeshServer:
         if not auth_header or auth_header[:7].lower() != "bearer ":
             return None
         token = auth_header[7:].strip()
-        relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+        relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
         if relay_secret and hmac_compare(token, relay_secret):
             return "*"
         return self._node_id_for_token(token)
@@ -1715,7 +1715,7 @@ class NodeMeshServer:
         "no secret" is NEVER treated as "allow". A configured secret requires
         an exact constant-time match of the Authorization: Bearer header.
         """
-        relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+        relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
         if not relay_secret:
             logger.error("mesh relay fail-closed: UMH_MESH_RELAY_SECRET unset — refusing request")
             return False

@@ -354,7 +354,7 @@ async def _post_to_relay(payload: dict[str, Any], timeout: int) -> dict[str, Any
 
     relay_host = os.environ.get("UMH_MESH_RELAY_HOST", "localhost")
     relay_url = f"http://{relay_host}:8095/dispatch"
-    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
     req_headers: dict[str, str] = {}
     if relay_secret:
         req_headers["Authorization"] = f"Bearer {relay_secret}"

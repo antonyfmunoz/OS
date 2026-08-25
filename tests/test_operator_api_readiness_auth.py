@@ -98,6 +98,31 @@ def test_operator_api_pins_umh_root_before_substrate_import(tmp_path) -> None:
     assert "foreign substrate imported" not in result.stderr
 
 
+def test_operator_api_default_root_is_own_worktree_not_opt_os() -> None:
+    env = dict(os.environ)
+    env.pop("UMH_ROOT", None)
+    env["UMH_OPERATOR_API_KEY"] = "secret"
+    env["PYTHONPATH"] = str(ROOT)
+    script = (
+        "import json, services.operator_api as op; "
+        "print(json.dumps({'root': str(op.UMH_ROOT), 'file': op.__file__}))"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=str(ROOT),
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    payload = json.loads(result.stdout)
+    assert payload["root"] == str(ROOT)
+    assert payload["file"].startswith(str(ROOT))
+
+
 def test_operator_api_refuses_to_mount_stale_cockpit_dist(tmp_path) -> None:
     dist = tmp_path / "cockpit" / "dist-web"
     (dist / "assets").mkdir(parents=True)
@@ -144,6 +169,18 @@ def test_operator_api_auth_rejects_empty_wrong_and_accepts_exact_key(monkeypatch
         assert "secret-token" not in str(exc.value.detail)
 
     assert asyncio.run(operator_api.verify_api_key(_request("secret-token"))) is None
+
+
+def test_operator_websocket_auth_rejects_whitespace_configured_key(monkeypatch) -> None:
+    monkeypatch.setattr(operator_api, "_WS_TOKEN", "   ")
+    monkeypatch.setattr(operator_api, "_DEV_BYPASS", False)
+    ws = SimpleNamespace(
+        headers={},
+        query_params={"token": "   "},
+        client=SimpleNamespace(host="203.0.113.10"),
+    )
+
+    assert operator_api._validate_ws_auth(ws) is False
 
 
 def test_ready_distinguishes_required_startup_from_optional_voice_warmup(monkeypatch) -> None:

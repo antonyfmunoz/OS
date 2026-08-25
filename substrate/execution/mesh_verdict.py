@@ -49,7 +49,7 @@ def get_verdict_secret() -> str:
 
     Empty string when unset — callers MUST treat empty as fail-closed.
     """
-    return os.environ.get(_VERDICT_SECRET_ENV, "")
+    return os.environ.get(_VERDICT_SECRET_ENV, "").strip()
 
 
 def is_write_class(risk_class: str | None) -> bool:
@@ -107,7 +107,7 @@ def sign_verdict(
     Raises ValueError when no secret is configured — signing must never proceed
     without a secret (fail-closed).
     """
-    secret = secret if secret is not None else get_verdict_secret()
+    secret = secret.strip() if secret is not None else get_verdict_secret()
     if not secret:
         raise ValueError("cannot sign mesh verdict: UMH_MESH_VERDICT_SECRET is not configured")
     if not verdict_id or not node_id or not capability:
@@ -141,7 +141,7 @@ def verify_verdict(
     a malformed token, a bad signature, an expired token, or a node/capability
     mismatch. Only a fully-valid token yields valid=True.
     """
-    secret = secret if secret is not None else get_verdict_secret()
+    secret = secret.strip() if secret is not None else get_verdict_secret()
     if not secret:
         return VerdictCheck(False, "no verdict secret configured (fail-closed)")
     if not token or not isinstance(token, str):

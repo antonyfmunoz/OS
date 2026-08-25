@@ -68,7 +68,7 @@ def _default_governed_dispatch(
     """
     from substrate.execution.mesh_verdict import get_verdict_secret, is_write_class, sign_verdict
 
-    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
     if not relay_secret:
         return {
             "ok": False,

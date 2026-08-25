@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 _MESH_RELAY_HOST = os.environ.get("UMH_MESH_RELAY_HOST", "localhost")
 _MESH_RELAY_URL = f"http://{_MESH_RELAY_HOST}:8095/dispatch"
-_MESH_RELAY_SECRET = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+_MESH_RELAY_SECRET = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
 
 _ALLOWED_NODE_IDS = frozenset({"windows-desktop"})
 _ALLOWED_CWD_ROOTS = (
@@ -91,8 +91,9 @@ async def dispatch_plan_to_node(
         argv = ["claude", "-p", prompt, "--output-format", "json"]
 
         try:
-            from substrate.execution.mesh_verdict import get_verdict_secret, sign_verdict
             from uuid import uuid4
+
+            from substrate.execution.mesh_verdict import get_verdict_secret, sign_verdict
 
             req_headers = {}
             if _MESH_RELAY_SECRET:

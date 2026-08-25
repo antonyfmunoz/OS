@@ -11,7 +11,7 @@ from pathlib import Path
 faulthandler.enable()
 faulthandler.register(signal.SIGUSR1, all_threads=True)
 
-UMH_ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS")).resolve()
+UMH_ROOT = Path(os.getenv("UMH_ROOT") or Path(__file__).resolve().parents[1]).resolve()
 _umh_root_s = str(UMH_ROOT)
 if not sys.path or sys.path[0] != _umh_root_s:
     try:
@@ -52,7 +52,7 @@ from transports.api.governed import governed_mutation  # noqa: E402
 load_dotenv(UMH_ROOT / "services" / ".env")
 load_dotenv(UMH_ROOT / ".env", override=False)
 
-API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "")
+API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "").strip()
 
 logger = logging.getLogger("operator_api")
 logging.basicConfig(level=logging.INFO)
@@ -805,7 +805,7 @@ async def vision_analyze(request: Request) -> dict[str, Any]:
 
 
 # ─── WebSocket ─────────────────────────────────────────────────────────────────
-_WS_TOKEN = os.getenv("UMH_WS_TOKEN", "") or API_KEY
+_WS_TOKEN = os.getenv("UMH_WS_TOKEN", "").strip() or API_KEY.strip()
 _DEV_BYPASS = os.getenv("UMH_DEV_BYPASS", "").lower() in ("1", "true", "yes")
 
 import hmac as _hmac
@@ -852,7 +852,7 @@ def _validate_ws_auth(ws: WebSocket) -> bool:
     if not _WS_TOKEN:
         client_ip = _real_ws_client_ip(ws)
         return _DEV_BYPASS and _is_private_ip(client_ip)
-    token = _extract_ws_token(ws)
+    token = _extract_ws_token(ws).strip()
     if token and _hmac.compare_digest(token, _WS_TOKEN):
         return True
     client_ip = _real_ws_client_ip(ws)

@@ -12,6 +12,7 @@ Covers (WP-P0-002):
 
 Run: pytest tests/test_mesh_auth_binding.py -q
 """
+# ruff: noqa: E402
 
 from __future__ import annotations
 
@@ -143,6 +144,13 @@ def test_relay_auth_fail_closed_when_secret_unset(monkeypatch):
     monkeypatch.delenv("UMH_MESH_RELAY_SECRET", raising=False)
     # No secret → every request refused, even one carrying a bearer.
     assert NodeMeshServer._relay_auth_ok("") is False
+    assert NodeMeshServer._relay_auth_ok("Bearer anything") is False
+
+
+def test_relay_auth_fail_closed_when_secret_is_whitespace(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_RELAY_SECRET", "   ")
+
+    assert NodeMeshServer._relay_auth_ok("Bearer    ") is False
     assert NodeMeshServer._relay_auth_ok("Bearer anything") is False
 
 

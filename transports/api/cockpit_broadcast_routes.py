@@ -7,11 +7,11 @@ Node-aware: every mutating endpoint accepts an optional `target_node`
 query param.  "local" (default) runs FFmpeg on the VPS; any other value
 dispatches to that mesh node via the HTTP relay on port 8095.
 """
+# ruff: noqa: E402, I001
 
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import sys
@@ -136,7 +136,7 @@ async def _dispatch_remote(
     full_cap = f"broadcast.{capability}"
     risk_class = "read_only" if capability in ("health", "status") else "reversible_write"
 
-    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
     if not relay_secret:
         raise HTTPException(status_code=503, detail="mesh relay secret unset (fail-closed)")
     req_headers = {"Authorization": f"Bearer {relay_secret}"}
@@ -493,7 +493,7 @@ async def list_broadcast_nodes(_user=Depends(require_clerk_auth)):
 
     nodes = [{"node_id": _LOCAL, "status": "available", "local": True}]
 
-    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
     if not relay_secret:
         # /nodes now requires relay auth (fail-closed) — return local only.
         return {"nodes": nodes, "active_node": _active_node}
@@ -592,7 +592,7 @@ async def _get_remote_health(node_id: str) -> dict[str, Any]:
 
     import aiohttp
 
-    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
     if not relay_secret:
         return {"state": "unknown", "error": "mesh relay secret unset (fail-closed)"}
     req_headers = {"Authorization": f"Bearer {relay_secret}"}

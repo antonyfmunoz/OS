@@ -977,10 +977,6 @@ class DurableRemoteStore:
                     cleanup=cleanup,
                     reason="terminal_cancel_cleanup_conflict",
                 )
-                req.diagnostics["terminal_cancel_cleanup_conflict"] = cleanup.get(
-                    "process_residue"
-                )
-                self._update_request_locked(req, "LATE_RESULT_REJECTED")
                 return req
             if (
                 existing
@@ -997,10 +993,6 @@ class DurableRemoteStore:
                 cleanup=cleanup,
                 reason="terminal_result_conflict",
             )
-            req.diagnostics.setdefault("rejected_late_results", []).append(
-                {"existing_state": req.lifecycle_state, "incoming_state": state, "digest": incoming_digest}
-            )
-            self._update_request_locked(req, "LATE_RESULT_REJECTED")
             return req
         if req.claim_id != claim_id:
             self._write_rejected_result_record(
