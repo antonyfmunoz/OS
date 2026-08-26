@@ -35,6 +35,7 @@ class SimState:
     sync_side_effects: int = 0
     sync_observations: int = 0
     canonical_request_for_key: dict[str, str] = field(default_factory=dict)
+    admitted_request_for_key: dict[str, str] = field(default_factory=dict)
     payload_for_key: dict[str, str] = field(default_factory=dict)
     execution_for_key: dict[str, int] = field(default_factory=dict)
     persisted_request_key: dict[str, str] = field(default_factory=dict)
@@ -106,8 +107,16 @@ def validate_idempotency_index(state: SimState, idempotency_key: str) -> bool:
     canonical = state.canonical_request_for_key.get(idempotency_key)
     if not canonical:
         return True
+    admitted = state.admitted_request_for_key.get(idempotency_key)
+    if admitted and admitted != canonical:
+        state.record(
+            f"idempotency_index_conflict:key={idempotency_key}:canonical={canonical}:admitted={admitted}"
+        )
+        fail_closed_ambiguous_idempotency(state, idempotency_key)
+        state.assert_invariants()
+        return False
     matches = requests_for_key_in_admission_order(state, idempotency_key)
-    if matches and matches[0] != canonical:
+    if not admitted and matches and matches[0] != canonical:
         state.record(
             f"idempotency_index_conflict:key={idempotency_key}:canonical={canonical}:first={matches[0]}"
         )
@@ -135,6 +144,7 @@ def admit_durable_request(
     canonical = state.canonical_request_for_key.get(idempotency_key)
     if not canonical:
         state.canonical_request_for_key[idempotency_key] = request_id
+        state.admitted_request_for_key.setdefault(idempotency_key, request_id)
         state.payload_for_key[idempotency_key] = payload_identity
         state.execution_for_key.setdefault(idempotency_key, 0)
         persist_request_file(state, request_id=request_id, idempotency_key=idempotency_key)

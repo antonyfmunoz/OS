@@ -1034,7 +1034,7 @@ def test_canonical_claim_state_rejects_wrong_index_duplicate_authority(tmp_path)
         idempotency_key="claim-state-wrong-index",
         ttl_seconds=60,
     )
-    duplicate.created_at = original.created_at + 1.0
+    duplicate.created_at = original.created_at - 1.0
     duplicate.lifecycle_state = "SUCCEEDED"
     duplicate.claim_id = "forged-claim"
     duplicate.lease_expires_at = 999.0
