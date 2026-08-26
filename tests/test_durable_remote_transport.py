@@ -214,6 +214,84 @@ def test_recovered_read_only_capability_cannot_be_promoted_as_durable_write(tmp_
     assert list((tmp_path / "idempotency").glob("*.json")) == []
 
 
+def test_recovered_payload_digest_mismatch_without_admission_evidence_fails_closed(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(idempotency_key="recovered-digest-mismatch")
+    recovered.payload_digest = "0" * 64
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    rejected = store.get_request(recovered.request_id)
+
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.diagnostics["canonical_material_rejected"]["reason"] == (
+        "durable request payload_digest mismatch"
+    )
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+
+def test_idempotency_index_write_rejects_invalid_recovered_material(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="index-write-invalid-material",
+        capability="unknown.execute",
+    )
+
+    with pytest.raises(ValueError, match="canonical consequential policy"):
+        store._write_idempotency_index(recovered)
+
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+
+def test_indexed_recovered_invalid_material_is_not_canonical(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="indexed-invalid-material",
+        capability="unknown.execute",
+    )
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    store._idempotency_index_path("indexed-invalid-material").write_text(
+        json.dumps(store._idempotency_binding(recovered), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert not store.is_canonical_request(recovered)
+    rejected = store.get_request(recovered.request_id)
+
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+
+
+def test_delivered_guard_rejects_invalid_material_if_recovery_check_is_bypassed(
+    tmp_path, monkeypatch
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="delivered-guard-invalid-material",
+        capability="unknown.execute",
+    )
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(store, "_reject_noncanonical_update_locked", lambda *_, **__: None)
+
+    delivered = store.mark_delivered(recovered.request_id)
+
+    assert delivered.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert delivered.delivery_attempts == 0
+
+
 def test_valid_recovered_request_rebuilds_missing_index_and_can_claim(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     original = store.put_request(_request(idempotency_key="valid-recovered-material"))
