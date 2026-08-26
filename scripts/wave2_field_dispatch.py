@@ -5392,6 +5392,7 @@ def teardown(runner: Runner, sha: str = "", run_id: str = "") -> dict[str, Any]:
         }
     )
     return {
+        "run_id": run_id,
         "torn_down": [_CANDIDATE_CONTAINER, _CANDIDATE_NGINX_CONTAINER],
         "collector": collector_stopped,
         "evidence_guard": evidence_guard,
@@ -6494,6 +6495,11 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
             )
 
     if command == "teardown":
+        run_id = out.get("run_id")
+        run_bound = isinstance(run_id, str) and bool(run_id.strip())
+        mandatory["teardown:run_id_bound"] = run_bound
+        if not run_bound:
+            reasons.append("teardown run binding not positively proven")
         collector = out.get("collector")
         collector_ok = isinstance(collector, dict) and collector.get("stopped") is True
         mandatory["teardown:collector_stopped"] = collector_ok

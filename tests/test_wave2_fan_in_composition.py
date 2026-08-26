@@ -1086,6 +1086,7 @@ def test_qualification_gate_fails_on_ref_residue():
     spec.loader.exec_module(mod)
 
     clean = {
+        "run_id": "r1",
         "torn_down": [],
         "collector": {"stopped": True},
         "run_secret_shredded": True,

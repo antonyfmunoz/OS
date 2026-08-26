@@ -172,6 +172,7 @@ def test_all_passed_false_alone_fails_even_if_passes_look_ok():
 # ─────────────────────────────────────────────────────────────────────────────
 def test_teardown_unshredded_secret_fails():
     out = {
+        "run_id": "r1",
         "torn_down": ["c1", "c2"],
         "run_secret_shredded": False,
         "serve_restored": True,
@@ -184,6 +185,7 @@ def test_teardown_unshredded_secret_fails():
 
 def test_teardown_missing_secret_shred_proof_fails():
     out = {
+        "run_id": "r1",
         "torn_down": ["c1", "c2"],
         "serve_restored": True,
     }
@@ -193,15 +195,29 @@ def test_teardown_missing_secret_shred_proof_fails():
     assert any("not positively proven" in r for r in v.reasons)
 
 
+def test_teardown_missing_run_binding_fails():
+    out = {
+        "torn_down": ["c1", "c2"],
+        "collector": {"stopped": True},
+        "run_secret_shredded": True,
+        "serve_restored": True,
+        "homes_swept": _zero_ref_proof(),
+    }
+    v = wd.qualification_verdict("teardown", out)
+    assert v.ok is False
+    assert v.mandatory.get("teardown:run_id_bound") is False
+    assert any("run binding" in r for r in v.reasons)
+
+
 def test_teardown_serve_not_restored_fails():
-    out = {"run_secret_shredded": True, "serve_restored": False}
+    out = {"run_id": "r1", "run_secret_shredded": True, "serve_restored": False}
     v = wd.qualification_verdict("teardown", out)
     assert v.ok is False
     assert v.mandatory.get("teardown:serve_restored") is False
 
 
 def test_teardown_unknown_serve_restore_fails():
-    out = {"run_secret_shredded": True}
+    out = {"run_id": "r1", "run_secret_shredded": True}
     v = wd.qualification_verdict("teardown", out)
     assert v.ok is False
     assert v.mandatory.get("teardown:serve_restored") is False
@@ -210,6 +226,7 @@ def test_teardown_unknown_serve_restore_fails():
 
 def test_teardown_clean_passes():
     out = {
+        "run_id": "r1",
         "torn_down": ["c1", "c2"],
         "collector": {"stopped": True},
         "run_secret_shredded": True,
@@ -224,6 +241,7 @@ def test_teardown_clean_passes():
 
 def test_teardown_zero_ref_boolean_without_inventory_fails():
     out = {
+        "run_id": "r1",
         "torn_down": ["c1", "c2"],
         "collector": {"stopped": True},
         "run_secret_shredded": True,
@@ -240,6 +258,7 @@ def test_teardown_with_home_residue_fails():
     # SEC-C1: a teardown that shredded the secret and restored serve but left
     # credential-home residue is STILL a security failure.
     out = {
+        "run_id": "r1",
         "run_secret_shredded": True,
         "serve_restored": True,
         "homes_swept": {"ok": False, "errors": ["SECURITY: worker home residue: [...]"]},
@@ -286,6 +305,7 @@ def test_teardown_after_failure_cannot_greenwash():
     tear = wd.qualification_verdict(
         "teardown",
         {
+            "run_id": "r1",
             "collector": {"stopped": True},
             "run_secret_shredded": True,
             "serve_restored": True,
@@ -342,6 +362,7 @@ def test_main_returns_0_on_clean_teardown(monkeypatch):
         monkeypatch,
         "teardown",
         {
+            "run_id": "r1",
             "collector": {"stopped": True},
             "run_secret_shredded": True,
             "serve_restored": True,
@@ -406,7 +427,7 @@ def test_mutation_teardown_ignoring_shred_would_pass():
                 return True
         return bool(out.get("refused") or out.get("invalid_reason"))
 
-    unshredded = {"run_secret_shredded": False, "serve_restored": True}
+    unshredded = {"run_id": "r1", "run_secret_shredded": False, "serve_restored": True}
     assert old_result_declares_failure(unshredded) is False  # old = false green
     assert wd.qualification_verdict("teardown", unshredded).ok is False  # new = caught
 
@@ -417,11 +438,12 @@ def test_backcompat_wrapper_agrees_with_verdict():
     cases = [
         ("reconcile", {"passes": [], "all_passed": False}),
         ("reconcile", {"passes": [{"passed": True}], "all_passed": True}),
-        ("teardown", {"run_secret_shredded": False, "serve_restored": True}),
-        ("teardown", {"run_secret_shredded": True, "serve_restored": True}),
+        ("teardown", {"run_id": "r1", "run_secret_shredded": False, "serve_restored": True}),
+        ("teardown", {"run_id": "r1", "run_secret_shredded": True, "serve_restored": True}),
         (
             "teardown",
             {
+            "run_id": "r1",
             "run_secret_shredded": True,
             "serve_restored": True,
             "homes_swept": _zero_ref_proof(),

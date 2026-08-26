@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -40,6 +41,46 @@ def _selfcheck():
     assert spec and spec.loader
     spec.loader.exec_module(module)
     return module
+
+
+def test_clerk_origin_uses_tailnet_status_not_env_override(monkeypatch):
+    module = _selfcheck()
+    monkeypatch.setenv("UMH_CANDIDATE_ORIGIN", "https://bypass.example:1234")
+
+    def fake_run(cmd, **_kwargs):
+        assert cmd == ["tailscale", "status", "--json"]
+        return type(
+            "Proc",
+            (),
+            {
+                "returncode": 0,
+                "stdout": json.dumps({"Self": {"DNSName": "srv1500858.tail6b4aa2.ts.net."}}),
+                "stderr": "",
+            },
+        )()
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = module.check_clerk_origin()
+
+    assert result["status"] == "PASS"
+    assert result["evidence"] == "https://srv1500858.tail6b4aa2.ts.net:10443"
+    assert "bypass.example" not in result["detail"]
+
+
+def test_clerk_origin_override_cannot_greenlight_selfcheck(monkeypatch):
+    module = _selfcheck()
+    monkeypatch.setenv("UMH_CANDIDATE_ORIGIN", "https://bypass.example:1234")
+
+    def fake_run(_cmd, **_kwargs):
+        raise RuntimeError("tailscale unavailable")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    result = module.check_clerk_origin()
+
+    assert result["status"] == "FAIL"
+    assert "tailscale status" in result["detail"]
 
 
 # ── the canonical minting path ───────────────────────────────────────────────

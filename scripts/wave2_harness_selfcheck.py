@@ -84,7 +84,9 @@ def check_fixture(tmp: Path) -> dict:
             timeout=120,
         )
         if "passed" in (t.stdout + t.stderr):
-            passed_line = [l for l in (t.stdout + t.stderr).splitlines() if "passed" in l]
+            passed_line = [
+                line for line in (t.stdout + t.stderr).splitlines() if "passed" in line
+            ]
             return _result(
                 "fixture_generation",
                 "PASS",
@@ -280,7 +282,7 @@ def check_rehearsal() -> dict:
             timeout=180,
         )
         out = r.stdout + r.stderr
-        line = [l for l in out.splitlines() if "passed" in l or "failed" in l]
+        line = [line for line in out.splitlines() if "passed" in line or "failed" in line]
         status = "PASS" if r.returncode == 0 else "FAIL"
         return _result("control_plane_rehearsal", status, line[-1] if line else "")
     except Exception as exc:  # noqa: BLE001
@@ -359,9 +361,6 @@ def check_clerk_origin() -> dict:
     """The candidate origin resolves (read-only) — reuses the Wave-1 dev Clerk
     instance + JWKS. READY if it resolves; owner-gated ONLY if HTTPS certs must
     be enabled (that check happens at deploy-candidate)."""
-    override = os.environ.get("UMH_CANDIDATE_ORIGIN", "")
-    if override and "selfcheck.example" not in override:
-        return _result("clerk_origin", "PASS", f"origin override set: {override}", override)
     try:
         import subprocess
 
@@ -370,20 +369,21 @@ def check_clerk_origin() -> dict:
         )
         dns = json.loads(out.stdout)["Self"]["DNSName"].rstrip(".")
         if dns:
+            origin = f"https://{dns}:10443"
             return _result(
                 "clerk_origin",
                 "PASS",
                 "candidate origin resolves via tailnet DNS (reuses Wave-1 dev "
                 "Clerk instance + JWKS; no new provisioning)",
-                f"https://{dns}:10443",
+                origin,
             )
     except Exception as exc:  # noqa: BLE001
         return _result(
             "clerk_origin",
-            "OWNER_GATED",
-            f"tailnet DNS unresolved — set UMH_CANDIDATE_ORIGIN ({exc})",
+            "FAIL",
+            f"tailnet DNS unresolved from tailscale status --json ({exc})",
         )
-    return _result("clerk_origin", "OWNER_GATED", "candidate origin unresolved")
+    return _result("clerk_origin", "FAIL", "candidate origin unresolved from tailscale status")
 
 
 def check_beast() -> dict:
@@ -438,8 +438,8 @@ def check_beast() -> dict:
 def check_model_executor_readiness() -> dict:
     """Selected provider-neutral model executor is authenticated and ready."""
     try:
-        from substrate.execution.attempts.model_executor_selection import build_model_executor
         from substrate.execution.attempts.host_isolation import scrub_worker_env
+        from substrate.execution.attempts.model_executor_selection import build_model_executor
         from substrate.execution.attempts.worker_credential_boundary import (
             close_attempt_credential_home,
             open_attempt_credential_home,
