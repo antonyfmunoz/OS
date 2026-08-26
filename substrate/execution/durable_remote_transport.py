@@ -19,6 +19,11 @@ from pathlib import Path
 from typing import Any, Iterator
 from uuid import uuid4
 
+from substrate.execution.mesh_verdict import (
+    CONSEQUENTIAL_WRITE_EFFECT,
+    canonical_sync_effect_policy,
+)
+
 TERMINAL_STATES = frozenset({"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"})
 ACTIVE_STATES = frozenset({"QUEUED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"})
 RECOVERY_STATES = frozenset({"RECONCILIATION_REQUIRED"})
@@ -284,6 +289,12 @@ class DurableRemoteStore:
             fh.write(json.dumps(payload, sort_keys=True) + "\n")
 
     def put_request(self, request: DurableRemoteRequest) -> DurableRemoteRequest:
+        effect_policy = canonical_sync_effect_policy(
+            request.capability,
+            declared_effect_class=CONSEQUENTIAL_WRITE_EFFECT,
+        )
+        if effect_policy.authoritative_effect_class != CONSEQUENTIAL_WRITE_EFFECT:
+            raise ValueError("durable request capability has no canonical consequential policy")
         with self._request_lock(request.request_id):
             existing = self._get_request_raw(request.request_id)
             if existing is not None:

@@ -310,9 +310,6 @@ def _consequential_write_durable_remote_duplicate_delivery(state: SimState) -> N
 
 def _unknown_durable_policy_denied(state: SimState) -> None:
     state.durable_canonical_effect = "UNKNOWN"
-    deliver(state)
-    claim_write(state)
-    canonical_read(state)
     announce_running_and_execute(state)
 
 

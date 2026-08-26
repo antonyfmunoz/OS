@@ -148,7 +148,6 @@ MeshRestart ==
 
 DurableRemoteRejectUnknownPolicy ==
     /\ state = "QUEUED"
-    /\ delivered
     /\ durableCanonicalEffect # "CONSEQUENTIAL_WRITE"
     /\ state' = "RECONCILIATION_REQUIRED"
     /\ terminalSeen' = TRUE

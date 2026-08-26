@@ -45,6 +45,17 @@ def test_request_is_persisted_before_delivery_and_claimed_idempotently(tmp_path)
     assert again.claim_id == "claim-1"
 
 
+def test_store_rejects_unknown_capability_before_queue_persistence(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = _request(capability="unknown.execute")
+
+    with pytest.raises(ValueError, match="canonical consequential policy"):
+        store.put_request(req)
+
+    assert store.get_request(req.request_id) is None
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
 def test_same_claim_claimed_replay_does_not_regress_running_state(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
