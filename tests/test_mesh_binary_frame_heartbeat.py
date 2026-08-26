@@ -1425,6 +1425,7 @@ async def _duplicate_terminal_result_ack_reports_rejection(tmp_path) -> dict:
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "first"},
+        cleanup={"process_residue": []},
     )
 
     class Ws:

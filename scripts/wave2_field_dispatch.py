@@ -3061,15 +3061,27 @@ def _durable_remote_shell(
         "timeout": command_timeout,
         "budgets": budgets,
     }
+    candidate_identity = candidate_sha or _candidate_sha("")
+    executable_digest = sha256_json(
+        {
+            "operation_type": operation_type,
+            "capability": "shell",
+            "params": executable_params,
+            "candidate_sha": candidate_identity,
+            "correlation_id": correlation_id,
+            "node_id": _MESH_NODE_ID,
+        }
+    )
     request = make_request(
         correlation_id=correlation_id,
-        candidate_sha=candidate_sha or _candidate_sha(""),
+        candidate_sha=candidate_identity,
         node_id=_MESH_NODE_ID,
         operation_type=operation_type,
         capability="shell",
         params=dict(executable_params),
         risk_class="reversible_write",
         ttl_seconds=int(caller_wait_timeout_s + 60),
+        idempotency_key=f"wave2:{executable_digest}",
     )
     from substrate.execution.mesh_verdict import canonical_sync_effect_policy, effect_policy_id
 
@@ -3099,7 +3111,7 @@ def _durable_remote_shell(
         {
             "operation_type": request.operation_type,
             "capability": request.capability,
-            "params": request.params,
+            "params": executable_params,
             "candidate_sha": request.candidate_sha,
             "correlation_id": request.correlation_id,
             "authority_id": request.authority_id,

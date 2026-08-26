@@ -76,6 +76,37 @@ def sha256_json(value: Any) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
+def _normalized_idempotency_key(value: str) -> str:
+    return str(value or "").strip()
+
+
+def _derive_idempotency_key(
+    *,
+    correlation_id: str,
+    candidate_sha: str,
+    node_id: str,
+    operation_type: str,
+    capability: str,
+    risk_class: str,
+    authority_id: str,
+    payload_digest: str,
+) -> str:
+    digest = sha256_json(
+        {
+            "version": 1,
+            "correlation_id": correlation_id,
+            "candidate_sha": candidate_sha,
+            "node_id": node_id,
+            "operation_type": operation_type,
+            "capability": capability,
+            "risk_class": risk_class,
+            "authority_id": authority_id,
+            "payload_digest": payload_digest,
+        }
+    )
+    return f"durable:{digest}"
+
+
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + f".tmp-{uuid4().hex}")
@@ -127,8 +158,6 @@ class DurableRemoteRequest:
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if not self.idempotency_key:
-            self.idempotency_key = self.request_id
         if not self.payload_digest:
             self.payload_digest = sha256_json(
                 {
@@ -139,6 +168,20 @@ class DurableRemoteRequest:
                     "correlation_id": self.correlation_id,
                     "authority_id": self.authority_id,
                 }
+            )
+        normalized_key = _normalized_idempotency_key(self.idempotency_key)
+        if normalized_key:
+            self.idempotency_key = normalized_key
+        else:
+            self.idempotency_key = _derive_idempotency_key(
+                correlation_id=self.correlation_id,
+                candidate_sha=self.candidate_sha,
+                node_id=self.node_id,
+                operation_type=self.operation_type,
+                capability=self.capability,
+                risk_class=self.risk_class,
+                authority_id=self.authority_id,
+                payload_digest=self.payload_digest,
             )
 
     def to_dict(self) -> dict[str, Any]:
@@ -231,9 +274,11 @@ class DurableRemoteStore:
         self.root = Path(root) if root is not None else default_controller_root()
         self.requests_dir = self.root / "requests"
         self.results_dir = self.root / "results"
+        self.idempotency_dir = self.root / "idempotency"
         self.events_path = self.root / "events.jsonl"
         self.requests_dir.mkdir(parents=True, exist_ok=True)
         self.results_dir.mkdir(parents=True, exist_ok=True)
+        self.idempotency_dir.mkdir(parents=True, exist_ok=True)
 
     def _request_path(self, request_id: str) -> Path:
         return self.requests_dir / f"{request_id}.json"
@@ -247,9 +292,18 @@ class DurableRemoteStore:
     def _lock_path(self, request_id: str) -> Path:
         return self.root / "locks" / f"{request_id}.lock"
 
+    def _idempotency_index_path(self, idempotency_key: str) -> Path:
+        return self.idempotency_dir / f"{hashlib.sha256(idempotency_key.encode()).hexdigest()}.json"
+
+    def _idempotency_lock_path(self, idempotency_key: str) -> Path:
+        return (
+            self.root
+            / "locks"
+            / f"idempotency-{hashlib.sha256(idempotency_key.encode()).hexdigest()}.lock"
+        )
+
     @contextmanager
-    def _request_lock(self, request_id: str, *, timeout_s: float = 10.0) -> Iterator[None]:
-        lock_path = self._lock_path(request_id)
+    def _file_lock(self, lock_path: Path, *, label: str, timeout_s: float = 10.0) -> Iterator[None]:
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         deadline = now_s() + timeout_s
         fd: int | None = None
@@ -265,7 +319,7 @@ class DurableRemoteStore:
                 except FileNotFoundError:
                     continue
                 if now_s() >= deadline:
-                    raise TimeoutError(f"timed out acquiring durable request lock: {request_id}")
+                    raise TimeoutError(f"timed out acquiring durable lock: {label}")
                 time.sleep(0.05)
         try:
             yield
@@ -276,6 +330,26 @@ class DurableRemoteStore:
                 lock_path.unlink()
             except FileNotFoundError:
                 pass
+
+    @contextmanager
+    def _request_lock(self, request_id: str, *, timeout_s: float = 10.0) -> Iterator[None]:
+        with self._file_lock(
+            self._lock_path(request_id),
+            label=f"request:{request_id}",
+            timeout_s=timeout_s,
+        ):
+            yield
+
+    @contextmanager
+    def _idempotency_lock(
+        self, idempotency_key: str, *, timeout_s: float = 10.0
+    ) -> Iterator[None]:
+        with self._file_lock(
+            self._idempotency_lock_path(idempotency_key),
+            label=f"idempotency:{hashlib.sha256(idempotency_key.encode()).hexdigest()}",
+            timeout_s=timeout_s,
+        ):
+            yield
 
     def _event(self, request_id: str, event: str, data: dict[str, Any] | None = None) -> None:
         self.events_path.parent.mkdir(parents=True, exist_ok=True)
@@ -288,27 +362,174 @@ class DurableRemoteStore:
         with self.events_path.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(payload, sort_keys=True) + "\n")
 
+    def _idempotency_binding(self, request: DurableRemoteRequest) -> dict[str, Any]:
+        return {
+            "version": 1,
+            "idempotency_scope": "durable_remote_store",
+            "idempotency_key": request.idempotency_key,
+            "canonical_request_id": request.request_id,
+            "correlation_id": request.correlation_id,
+            "candidate_sha": request.candidate_sha,
+            "node_id": request.node_id,
+            "capability": request.capability,
+            "operation_type": request.operation_type,
+            "risk_class": request.risk_class,
+            "authority_id": request.authority_id,
+            "effect_class": CONSEQUENTIAL_WRITE_EFFECT,
+            "payload_digest": request.payload_digest,
+            "created_at": request.created_at,
+            "lifecycle_state": request.lifecycle_state,
+        }
+
+    def _write_idempotency_index(self, request: DurableRemoteRequest) -> None:
+        if not request.idempotency_key:
+            return
+        _atomic_write_json(
+            self._idempotency_index_path(request.idempotency_key),
+            self._idempotency_binding(request),
+        )
+
+    def _validate_idempotent_replay(
+        self,
+        existing: DurableRemoteRequest,
+        incoming: DurableRemoteRequest,
+    ) -> None:
+        fields = (
+            "idempotency_key",
+            "candidate_sha",
+            "node_id",
+            "capability",
+            "operation_type",
+            "risk_class",
+            "authority_id",
+            "correlation_id",
+            "payload_digest",
+        )
+        for field_name in fields:
+            if getattr(existing, field_name) != getattr(incoming, field_name):
+                raise ValueError(
+                    f"idempotency conflict: {field_name} differs for key "
+                    f"{incoming.idempotency_key}"
+                )
+
+    def _find_request_by_idempotency_key_locked(
+        self, idempotency_key: str
+    ) -> DurableRemoteRequest | None:
+        matches: list[DurableRemoteRequest] = []
+        for path in sorted(self.requests_dir.glob("*.json")):
+            data = _read_json(path)
+            if not data:
+                continue
+            req = DurableRemoteRequest.from_dict(data)
+            if req.idempotency_key == idempotency_key:
+                matches.append(req)
+        if not matches:
+            return None
+        matches.sort(key=lambda req: (req.created_at, req.request_id))
+        canonical = matches[0]
+        if len(matches) > 1:
+            canonical.diagnostics.setdefault("idempotency_duplicate_legacy_records", []).append(
+                {
+                    "request_ids": [req.request_id for req in matches[1:]],
+                    "detected_at": now_s(),
+                }
+            )
+        return canonical
+
+    def _record_idempotent_replay_locked(
+        self,
+        existing: DurableRemoteRequest,
+        incoming: DurableRemoteRequest,
+    ) -> DurableRemoteRequest:
+        if existing.request_id == incoming.request_id:
+            return existing
+        replays = existing.diagnostics.setdefault("idempotent_replays", [])
+        if not isinstance(replays, list):
+            replays = []
+            existing.diagnostics["idempotent_replays"] = replays
+        replays.append(
+            {
+                "incoming_transport_request_id": incoming.request_id,
+                "incoming_correlation_id": incoming.correlation_id,
+                "payload_digest": incoming.payload_digest,
+                "observed_at": now_s(),
+                "disposition": "canonical_request_reused",
+            }
+        )
+        if len(replays) > 20:
+            del replays[: len(replays) - 20]
+        self._update_request_locked(
+            existing,
+            "IDEMPOTENT_REPLAY",
+            event_data={"incoming_request_id": incoming.request_id},
+        )
+        return existing
+
+    def _existing_request_from_idempotency_index_locked(
+        self, incoming: DurableRemoteRequest
+    ) -> DurableRemoteRequest | None:
+        index = _read_json(self._idempotency_index_path(incoming.idempotency_key))
+        if not index:
+            recovered = self._find_request_by_idempotency_key_locked(incoming.idempotency_key)
+            if recovered is None:
+                return None
+            self._validate_idempotent_replay(recovered, incoming)
+            with self._request_lock(recovered.request_id):
+                current = self._get_request_raw(recovered.request_id) or recovered
+                self._write_idempotency_index(current)
+                return self._record_idempotent_replay_locked(current, incoming)
+        canonical_request_id = str(index.get("canonical_request_id", ""))
+        if not canonical_request_id:
+            raise ValueError("idempotency index missing canonical request id")
+        existing = self._get_request_raw(canonical_request_id)
+        if existing is None:
+            raise ValueError("idempotency index points to missing canonical request")
+        self._validate_idempotent_replay(existing, incoming)
+        with self._request_lock(existing.request_id):
+            current = self._get_request_raw(existing.request_id)
+            if current is None:
+                raise ValueError("idempotency index points to missing canonical request")
+            current = self._maybe_converge_recovery_locked(current)
+            return self._record_idempotent_replay_locked(current, incoming)
+
     def put_request(self, request: DurableRemoteRequest) -> DurableRemoteRequest:
+        request.idempotency_key = _normalized_idempotency_key(request.idempotency_key)
+        if not request.idempotency_key:
+            request.idempotency_key = _derive_idempotency_key(
+                correlation_id=request.correlation_id,
+                candidate_sha=request.candidate_sha,
+                node_id=request.node_id,
+                operation_type=request.operation_type,
+                capability=request.capability,
+                risk_class=request.risk_class,
+                authority_id=request.authority_id,
+                payload_digest=request.payload_digest,
+            )
         effect_policy = canonical_sync_effect_policy(
             request.capability,
             declared_effect_class=CONSEQUENTIAL_WRITE_EFFECT,
         )
         if effect_policy.authoritative_effect_class != CONSEQUENTIAL_WRITE_EFFECT:
             raise ValueError("durable request capability has no canonical consequential policy")
-        with self._request_lock(request.request_id):
-            existing = self._get_request_raw(request.request_id)
-            if existing is not None:
-                if existing.idempotency_key != request.idempotency_key:
-                    raise ValueError("request_id exists with different idempotency key")
-                if existing.payload_digest != request.payload_digest:
-                    raise ValueError("request_id exists with different payload digest")
-                return existing
-            self._update_request_locked(
-                request,
-                "QUEUED",
-                event_data={"node_id": request.node_id},
-            )
-            return request
+        with self._idempotency_lock(request.idempotency_key):
+            existing_by_key = self._existing_request_from_idempotency_index_locked(request)
+            if existing_by_key is not None:
+                return existing_by_key
+            with self._request_lock(request.request_id):
+                existing = self._get_request_raw(request.request_id)
+                if existing is not None:
+                    self._validate_idempotent_replay(existing, request)
+                    self._write_idempotency_index(existing)
+                    return existing
+                self._update_request_locked(
+                    request,
+                    "QUEUED",
+                    event_data={
+                        "node_id": request.node_id,
+                        "idempotency_key": request.idempotency_key,
+                    },
+                )
+                return request
 
     def _get_request_raw(self, request_id: str) -> DurableRemoteRequest | None:
         data = _read_json(self._request_path(request_id))
@@ -393,6 +614,7 @@ class DurableRemoteStore:
         if request.lifecycle_state in TERMINAL_STATES and not request.terminalized_at:
             request.terminalized_at = request.updated_at
         _atomic_write_json(self._request_path(request.request_id), request.to_dict())
+        self._write_idempotency_index(request)
         if event:
             data = {"state": request.lifecycle_state}
             if event_data:
@@ -1246,6 +1468,14 @@ class DurableRemoteStore:
                 path.unlink()
             except FileNotFoundError:
                 pass
+        if current is not None and current.idempotency_key:
+            index_path = self._idempotency_index_path(current.idempotency_key)
+            index = _read_json(index_path)
+            if str(index.get("canonical_request_id", "")) == request_id:
+                try:
+                    index_path.unlink()
+                except FileNotFoundError:
+                    pass
         self._event(request_id, "REMOVED")
 
 
@@ -1273,6 +1503,6 @@ def make_request(
         params=params,
         risk_class=risk_class,
         authority_id=authority_id,
-        idempotency_key=idempotency_key or request_id,
+        idempotency_key=idempotency_key,
         expires_at=now_s() + ttl_seconds,
     )

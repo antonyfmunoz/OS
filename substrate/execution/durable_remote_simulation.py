@@ -34,6 +34,10 @@ class SimState:
     canonical_sync_effect: str = "UNKNOWN"
     sync_side_effects: int = 0
     sync_observations: int = 0
+    canonical_request_for_key: dict[str, str] = field(default_factory=dict)
+    payload_for_key: dict[str, str] = field(default_factory=dict)
+    execution_for_key: dict[str, int] = field(default_factory=dict)
+    idempotency_conflict: bool = False
     log: list[str] = field(default_factory=list)
 
     def record(self, event: str) -> None:
@@ -57,6 +61,35 @@ class SimState:
             assert self.sync_observations == 0, self.log
         if self.durable_canonical_effect != "CONSEQUENTIAL_WRITE":
             assert self.executed == 0, self.log
+        for key, execution_count in self.execution_for_key.items():
+            assert self.canonical_request_for_key.get(key), self.log
+            assert execution_count <= 1, self.log
+
+
+def admit_durable_request(
+    state: SimState,
+    *,
+    request_id: str,
+    idempotency_key: str,
+    payload_identity: str,
+) -> str | None:
+    state.record(
+        f"admit:request={request_id}:key={idempotency_key}:payload={payload_identity}"
+    )
+    canonical = state.canonical_request_for_key.get(idempotency_key)
+    if not canonical:
+        state.canonical_request_for_key[idempotency_key] = request_id
+        state.payload_for_key[idempotency_key] = payload_identity
+        state.execution_for_key.setdefault(idempotency_key, 0)
+        state.assert_invariants()
+        return request_id
+    if state.payload_for_key.get(idempotency_key) != payload_identity:
+        state.idempotency_conflict = True
+        state.fail_closed = True
+        state.assert_invariants()
+        return None
+    state.assert_invariants()
+    return canonical
 
 
 def sync_mesh_receive(
@@ -153,6 +186,9 @@ def announce_running_and_execute(state: SimState, claim_id: str = "claim-1") -> 
         state.lifecycle = "RUNNING"
         state.running_announced = True
         state.executed += 1
+        for key in state.execution_for_key:
+            state.execution_for_key[key] += 1
+            break
     elif state.lifecycle == "RUNNING":
         state.running_announced = True
     state.assert_invariants()
@@ -209,6 +245,7 @@ Scenario = Callable[[SimState], None]
 
 
 def _normal_success(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     deliver(state)
     claim_write(state)
     canonical_read(state)
@@ -217,6 +254,7 @@ def _normal_success(state: SimState) -> None:
 
 
 def _ambiguous_claimed_success(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     deliver(state)
     claim_write(state)
     ack_lost(state)
@@ -226,6 +264,7 @@ def _ambiguous_claimed_success(state: SimState) -> None:
 
 
 def _fallback_unavailable(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     deliver(state)
     claim_write(state)
     ack_lost(state)
@@ -234,6 +273,7 @@ def _fallback_unavailable(state: SimState) -> None:
 
 
 def _claimed_to_running_race(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     deliver(state)
     claim_write(state)
     state.lifecycle = "RUNNING"
@@ -242,6 +282,7 @@ def _claimed_to_running_race(state: SimState) -> None:
 
 
 def _same_request_duplicates(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     deliver(state)
     deliver(state, duplicate=True)
     deliver(state, duplicate=True)
@@ -253,6 +294,7 @@ def _same_request_duplicates(state: SimState) -> None:
 
 
 def _post_handler_stale_delivery(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     deliver(state)
     claim_write(state)
     canonical_read(state, available=False)
@@ -262,6 +304,7 @@ def _post_handler_stale_delivery(state: SimState) -> None:
 
 
 def _redelivery_amplification_bounded(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     deliver(state)
     for _ in range(4):
         deliver(state, duplicate=True)
@@ -272,6 +315,7 @@ def _redelivery_amplification_bounded(state: SimState) -> None:
 
 
 def _delayed_return_path(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     deliver(state)
     claim_write(state)
     ack_lost(state)
@@ -281,6 +325,7 @@ def _delayed_return_path(state: SimState) -> None:
 
 
 def _cancel_during_acquisition(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     deliver(state)
     cancel(state)
     claim_write(state)
@@ -299,6 +344,7 @@ def _duplicate_consequential_sync_denied(state: SimState) -> None:
 
 
 def _consequential_write_durable_remote_duplicate_delivery(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     deliver(state)
     deliver(state, duplicate=True)
     claim_write(state)
@@ -309,6 +355,7 @@ def _consequential_write_durable_remote_duplicate_delivery(state: SimState) -> N
 
 
 def _unknown_durable_policy_denied(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     state.durable_canonical_effect = "UNKNOWN"
     announce_running_and_execute(state)
 
@@ -342,6 +389,65 @@ def _caller_changes_declared_effect_no_authority_change(state: SimState) -> None
     sync_mesh_receive(state, "CONSEQUENTIAL_WRITE", canonical_effect="READ_ONLY")
 
 
+def _same_key_two_request_ids_sequential_converge(state: SimState) -> None:
+    first = admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    second = admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+    assert first == second == "A", state.log
+
+
+def _same_key_two_request_ids_concurrent_converge(state: SimState) -> None:
+    second = admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+    first = admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    assert second == first == "B", state.log
+
+
+def _same_key_different_payload_conflicts(state: SimState) -> None:
+    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P1")
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P2") is None
+    assert state.idempotency_conflict, state.log
+
+
+def _duplicate_after_running_same_trajectory(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    canonical_read(state)
+    announce_running_and_execute(state)
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") == "A"
+    assert state.execution_for_key["K"] == 1
+
+
+def _duplicate_after_succeeded_no_second_execution(state: SimState) -> None:
+    _normal_success(state)
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") == "A"
+    assert state.execution_for_key["K"] == 1
+
+
+def _restart_after_admission_duplicate_recovers(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    restart_mesh(state)
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") == "A"
+
+
+def _lost_admission_response_retry_new_request_id_recovers(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    state.record("admission_response_lost")
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") == "A"
+
+
+def _partial_persistence_reconciliation_prevents_fork(state: SimState) -> None:
+    state.canonical_request_for_key["K"] = "A"
+    state.record("partial_index_without_request")
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert state.fail_closed
+
+
+def _adapter_retry_preserves_stable_key(state: SimState) -> None:
+    first = admit_durable_request(state, request_id="A", idempotency_key="adapter:stable", payload_identity="P")
+    retry = admit_durable_request(state, request_id="B", idempotency_key="adapter:stable", payload_identity="P")
+    assert first == retry == "A", state.log
+
+
 def _stale_operation_bound_verdict_rejected(state: SimState) -> None:
     assert not verify_operation_bound_verdict(state, request_id_matches=False)
 
@@ -373,6 +479,15 @@ SCENARIOS: dict[str, Scenario] = {
     "sync_policy_lookup_unavailable_denied": _policy_lookup_unavailable_denied,
     "sync_stale_effect_policy_verdict_rejected": _stale_effect_policy_verdict_rejected,
     "sync_caller_effect_change_no_authority_change": _caller_changes_declared_effect_no_authority_change,
+    "idempotency_same_key_two_request_ids_sequential": _same_key_two_request_ids_sequential_converge,
+    "idempotency_same_key_two_request_ids_concurrent": _same_key_two_request_ids_concurrent_converge,
+    "idempotency_same_key_different_payload_conflict": _same_key_different_payload_conflicts,
+    "idempotency_duplicate_after_running": _duplicate_after_running_same_trajectory,
+    "idempotency_duplicate_after_succeeded": _duplicate_after_succeeded_no_second_execution,
+    "idempotency_restart_after_admission": _restart_after_admission_duplicate_recovers,
+    "idempotency_lost_admission_response_retry": _lost_admission_response_retry_new_request_id_recovers,
+    "idempotency_partial_persistence_fail_closed": _partial_persistence_reconciliation_prevents_fork,
+    "idempotency_adapter_retry_preserves_key": _adapter_retry_preserves_stable_key,
 }
 
 
@@ -380,7 +495,7 @@ def run_scenario(name: str) -> SimState:
     state = SimState(scenario=name)
     SCENARIOS[name](state)
     state.assert_invariants()
-    if name != "fallback_unavailable" and not name.startswith("sync_"):
+    if name != "fallback_unavailable" and not name.startswith(("sync_", "idempotency_")):
         assert state.lifecycle in {"RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}, state.log
     return state
 

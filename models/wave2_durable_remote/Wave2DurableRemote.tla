@@ -9,18 +9,25 @@ Scope:
 - canonical lifecycle and claim ownership
 - transport duplication/loss/delay/restart as nondeterministic interleavings
 - execution marker and cancellation
+- logical idempotency admission distinct from transport request ids
 
 This model intentionally excludes Docker, Windows process management, frontend
 activation, and model-provider behavior. Those are adapter/lifecycle concerns
 outside the critical durable authority protocol.
 *)
 
-VARIABLES state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects
+VARIABLES state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, idempotencyConflict
 
-vars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+protocolVars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+idemVars == <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, idempotencyConflict>>
+vars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, idempotencyConflict>>
 
 Terminal == {"SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}
 ClaimedLike == {"CLAIMED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"}
+Keys == {"key1", "key2"}
+Payloads == {"payload1", "payload2"}
+Requests == {"none", "A", "B"}
+HasCanonicalIdempotency == \E k \in Keys: canonicalRequestForKey[k] # "none"
 
 Init ==
     /\ state = "QUEUED"
@@ -42,11 +49,54 @@ Init ==
     /\ syncExecutionPath = "NONE"
     /\ syncExecuted = 0
     /\ syncConsequentialEffects = 0
+    /\ requestAAdmitted = FALSE
+    /\ requestBAdmitted = FALSE
+    /\ requestAKey = "key1"
+    /\ requestBKey \in Keys
+    /\ requestAPayload = "payload1"
+    /\ requestBPayload \in Payloads
+    /\ canonicalRequestForKey = [k \in Keys |-> "none"]
+    /\ canonicalPayloadForKey = [k \in Keys |-> "none"]
+    /\ idempotencyConflict = FALSE
+
+AdmitRequestA ==
+    /\ ~requestAAdmitted
+    /\ requestAAdmitted' = TRUE
+    /\ IF canonicalRequestForKey[requestAKey] = "none"
+        THEN
+            /\ canonicalRequestForKey' = [canonicalRequestForKey EXCEPT ![requestAKey] = "A"]
+            /\ canonicalPayloadForKey' = [canonicalPayloadForKey EXCEPT ![requestAKey] = requestAPayload]
+            /\ idempotencyConflict' = idempotencyConflict
+        ELSE
+            /\ canonicalRequestForKey' = canonicalRequestForKey
+            /\ canonicalPayloadForKey' = canonicalPayloadForKey
+            /\ idempotencyConflict' =
+                (idempotencyConflict \/ (canonicalPayloadForKey[requestAKey] # requestAPayload))
+    /\ UNCHANGED <<requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload>>
+    /\ UNCHANGED protocolVars
+
+AdmitRequestB ==
+    /\ ~requestBAdmitted
+    /\ requestBAdmitted' = TRUE
+    /\ IF canonicalRequestForKey[requestBKey] = "none"
+        THEN
+            /\ canonicalRequestForKey' = [canonicalRequestForKey EXCEPT ![requestBKey] = "B"]
+            /\ canonicalPayloadForKey' = [canonicalPayloadForKey EXCEPT ![requestBKey] = requestBPayload]
+            /\ idempotencyConflict' = idempotencyConflict
+        ELSE
+            /\ canonicalRequestForKey' = canonicalRequestForKey
+            /\ canonicalPayloadForKey' = canonicalPayloadForKey
+            /\ idempotencyConflict' =
+                (idempotencyConflict \/ (canonicalPayloadForKey[requestBKey] # requestBPayload))
+    /\ UNCHANGED <<requestAAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload>>
+    /\ UNCHANGED protocolVars
 
 Deliver ==
+    /\ HasCanonicalIdempotency
     /\ state = "QUEUED"
     /\ delivered' = TRUE
     /\ UNCHANGED <<state, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+    /\ UNCHANGED idemVars
 
 DuplicateDelivery ==
     /\ delivered
@@ -61,6 +111,7 @@ CanonicalClaimWrite ==
     /\ state' = "CLAIMED"
     /\ claim' = "claim1"
     /\ UNCHANGED <<delivered, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+    /\ UNCHANGED idemVars
 
 LostAck ==
     /\ state = "CLAIMED"
@@ -76,6 +127,7 @@ CanonicalReadProof ==
     /\ candidate = expectedCandidate
     /\ proof' = TRUE
     /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+    /\ UNCHANGED idemVars
 
 CanonicalReadUnavailable ==
     /\ state \in {"QUEUED", "CLAIMED"}
@@ -84,10 +136,12 @@ CanonicalReadUnavailable ==
     /\ state' = "RECONCILIATION_REQUIRED"
     /\ terminalSeen' = TRUE
     /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+    /\ UNCHANGED idemVars
 
 Run ==
     /\ state = "CLAIMED"
     /\ proof
+    /\ HasCanonicalIdempotency
     /\ ~cancelled
     /\ claim = "claim1"
     /\ candidate = expectedCandidate
@@ -97,6 +151,7 @@ Run ==
     /\ authorityAtLaunch' = TRUE
     /\ durableExecutionPath' = "DurableRemote"
     /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, proof, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+    /\ UNCHANGED idemVars
 
 RunningReadReconcile ==
     /\ state = "RUNNING"
@@ -108,6 +163,7 @@ Terminalize ==
     /\ state' \in {"SUCCEEDED", "FAILED"}
     /\ terminalSeen' = TRUE
     /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+    /\ UNCHANGED idemVars
 
 CancelBeforeLaunch ==
     /\ state \in {"QUEUED", "CLAIMED"}
@@ -116,6 +172,7 @@ CancelBeforeLaunch ==
     /\ state' = "CANCELLED"
     /\ terminalSeen' = TRUE
     /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+    /\ UNCHANGED idemVars
 
 ForeignClaim ==
     /\ state \in {"QUEUED", "CLAIMED"}
@@ -124,6 +181,7 @@ ForeignClaim ==
     /\ state' = "RECONCILIATION_REQUIRED"
     /\ terminalSeen' = TRUE
     /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+    /\ UNCHANGED idemVars
 
 CandidateMismatch ==
     /\ state \in {"QUEUED", "CLAIMED"}
@@ -132,6 +190,7 @@ CandidateMismatch ==
     /\ state' = "RECONCILIATION_REQUIRED"
     /\ terminalSeen' = TRUE
     /\ UNCHANGED <<delivered, claim, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+    /\ UNCHANGED idemVars
 
 LateForeignRunningAfterTerminal ==
     /\ state \in Terminal
@@ -141,17 +200,21 @@ NodeRestart ==
     /\ nodeUp' = ~nodeUp
     /\ proof' = FALSE
     /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, authorityAtLaunch, terminalSeen, meshUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+    /\ UNCHANGED idemVars
 
 MeshRestart ==
     /\ meshUp' = ~meshUp
     /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+    /\ UNCHANGED idemVars
 
 DurableRemoteRejectUnknownPolicy ==
     /\ state = "QUEUED"
+    /\ HasCanonicalIdempotency
     /\ durableCanonicalEffect # "CONSEQUENTIAL_WRITE"
     /\ state' = "RECONCILIATION_REQUIRED"
     /\ terminalSeen' = TRUE
     /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED idemVars
 
 SyncMeshExecuteReadOnly ==
     /\ declaredSyncEffect = "READ_ONLY"
@@ -161,12 +224,15 @@ SyncMeshExecuteReadOnly ==
     /\ syncExecutionPath' = "SyncMesh"
     /\ syncConsequentialEffects' = 0
     /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath>>
+    /\ UNCHANGED idemVars
 
 SyncMeshRejectUnsafeOrMismatched ==
     /\ canonicalSyncEffect # "READ_ONLY" \/ declaredSyncEffect # canonicalSyncEffect
     /\ UNCHANGED vars
 
 Next ==
+    \/ AdmitRequestA
+    \/ AdmitRequestB
     \/ Deliver
     \/ DuplicateDelivery
     \/ CanonicalClaimWrite
@@ -199,6 +265,7 @@ delivery with no forward progress.
 *)
 FairSpec ==
     /\ Spec
+    /\ WF_vars(AdmitRequestA)
     /\ WF_vars(Deliver)
     /\ WF_vars(CanonicalClaimWrite)
     /\ WF_vars(DurableRemoteRejectUnknownPolicy)
@@ -220,6 +287,16 @@ DeclaredRiskCannotDowngradeCanonicalRisk == canonicalSyncEffect = "CONSEQUENTIAL
 SyncExecutionRequiresCanonicalReadOnlyPolicy == syncExecuted > 0 => canonicalSyncEffect = "READ_ONLY" /\ declaredSyncEffect = "READ_ONLY"
 ConsequentialExecutionImpliesDurableRemotePath == executed > 0 => durableExecutionPath = "DurableRemote"
 DurableRemoteExecutionRequiresCanonicalConsequentialPolicy == executed > 0 => durableCanonicalEffect = "CONSEQUENTIAL_WRITE"
+AtMostOneCanonicalRequestPerIdempotencyKey == \A k \in Keys: canonicalRequestForKey[k] \in Requests
+SameLogicalOperationConvergesToSameCanonicalRequest ==
+    requestAAdmitted /\ requestBAdmitted /\ requestAKey = requestBKey /\ requestAPayload = requestBPayload
+    => canonicalRequestForKey[requestAKey] \in {"A", "B"}
+IdempotencyKeyCannotAuthorizeDifferentPayload ==
+    requestAAdmitted /\ requestBAdmitted /\ requestAKey = requestBKey /\ requestAPayload # requestBPayload
+    => idempotencyConflict
+IdempotencyKeyCannotForkTerminalTrajectory == terminalSeen => \A k \in Keys: canonicalRequestForKey[k] \in Requests
+AtMostOneExecutionPerIdempotencyKey == executed <= 1
+ConsequentialExecutionRequiresStableIdempotencyIdentity == executed > 0 => HasCanonicalIdempotency
 
 EventuallyHealthy == <>[](meshUp /\ nodeUp)
 

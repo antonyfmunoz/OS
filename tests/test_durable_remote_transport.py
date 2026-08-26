@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
+from uuid import uuid4
 
 import pytest
 
@@ -20,6 +22,7 @@ def _request(**overrides: object) -> DurableRemoteRequest:
         "capability": "shell",
         "params": {"command": "echo ok", "timeout": 5},
         "ttl_seconds": 60,
+        "idempotency_key": f"test-idem-{uuid4().hex}",
     }
     data.update(overrides)
     return make_request(**data)  # type: ignore[arg-type]
@@ -88,8 +91,172 @@ def test_duplicate_request_id_with_different_payload_fails_closed(tmp_path) -> N
     duplicate.payload_digest = ""
     duplicate.__post_init__()
 
-    with pytest.raises(ValueError, match="different payload digest"):
+    with pytest.raises(ValueError, match="idempotency conflict: payload_digest"):
         store.put_request(duplicate)
+
+
+def test_different_request_id_same_idempotency_key_returns_canonical_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    first = store.put_request(_request(idempotency_key="logical-key"))
+    replay = _request(idempotency_key="logical-key")
+
+    returned = store.put_request(replay)
+
+    assert returned.request_id == first.request_id
+    assert returned.request_id != replay.request_id
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+    stored = store.get_request(first.request_id)
+    assert stored is not None
+    assert stored.diagnostics["idempotent_replays"][0]["incoming_transport_request_id"] == (
+        replay.request_id
+    )
+
+
+def test_same_idempotency_key_different_payload_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="conflict-key"))
+    conflicting = _request(
+        idempotency_key="conflict-key",
+        params={"command": "echo different", "timeout": 5},
+    )
+
+    with pytest.raises(ValueError, match="idempotency conflict: payload_digest"):
+        store.put_request(conflicting)
+
+    assert store.get_request(original.request_id).request_id == original.request_id  # type: ignore[union-attr]
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+@pytest.mark.parametrize(
+    ("field_name", "override"),
+    [
+        ("capability", {"capability": "terminal.create"}),
+        ("operation_type", {"operation_type": "different_operation"}),
+        ("candidate_sha", {"candidate_sha": "different-sha"}),
+        ("node_id", {"node_id": "different-node"}),
+        ("risk_class", {"risk_class": "write"}),
+        ("authority_id", {"authority_id": "different-authority"}),
+        ("correlation_id", {"correlation_id": "different-correlation"}),
+    ],
+)
+def test_same_idempotency_key_different_operation_identity_fails_closed(
+    tmp_path,
+    field_name: str,
+    override: dict[str, object],
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    store.put_request(_request(idempotency_key=f"conflict-{field_name}"))
+
+    with pytest.raises(ValueError, match=f"idempotency conflict: {field_name}"):
+        store.put_request(_request(idempotency_key=f"conflict-{field_name}", **override))
+
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+def test_concurrent_same_key_admission_creates_one_canonical_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+
+    def admit() -> str:
+        return store.put_request(_request(idempotency_key="concurrent-key")).request_id
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        request_ids = list(pool.map(lambda _: admit(), range(2)))
+
+    assert len(set(request_ids)) == 1
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+@pytest.mark.parametrize("state", ["RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"])
+def test_duplicate_after_existing_lifecycle_returns_same_trajectory(tmp_path, state: str) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key=f"terminal-{state.lower()}"))
+    if state == "RUNNING":
+        store.mark_claimed(original.request_id, claim_id="claim-1")
+        store.mark_running(original.request_id, claim_id="claim-1")
+    elif state == "SUCCEEDED":
+        store.mark_claimed(original.request_id, claim_id="claim-1")
+        store.mark_running(original.request_id, claim_id="claim-1")
+        store.publish_result(
+            original.request_id,
+            claim_id="claim-1",
+            state="SUCCEEDED",
+            result={"ok": True},
+            cleanup={"process_residue": []},
+        )
+    elif state == "FAILED":
+        store.mark_claimed(original.request_id, claim_id="claim-1")
+        store.mark_running(original.request_id, claim_id="claim-1")
+        store.publish_result(
+            original.request_id,
+            claim_id="claim-1",
+            state="FAILED",
+            result={"ok": False},
+            cleanup={"process_residue": []},
+        )
+    elif state == "CANCELLED":
+        store.request_cancel(original.request_id)
+    else:
+        store.mark_claimed(original.request_id, claim_id="claim-1")
+        store.mark_claimed(original.request_id, claim_id="claim-2")
+
+    replay = store.put_request(_request(idempotency_key=f"terminal-{state.lower()}"))
+
+    assert replay.request_id == original.request_id
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+def test_missing_idempotency_key_derives_stable_logical_key(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    first = store.put_request(
+        make_request(
+            correlation_id="derived",
+            candidate_sha="abc123",
+            node_id="windows-desktop",
+            operation_type="codex_probe",
+            capability="shell",
+            params={"command": "echo ok", "timeout": 5},
+            ttl_seconds=60,
+        )
+    )
+    second = store.put_request(
+        make_request(
+            correlation_id="derived",
+            candidate_sha="abc123",
+            node_id="windows-desktop",
+            operation_type="codex_probe",
+            capability="shell",
+            params={"command": "echo ok", "timeout": 5},
+            ttl_seconds=60,
+        )
+    )
+
+    assert first.idempotency_key.startswith("durable:")
+    assert second.request_id == first.request_id
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+def test_missing_idempotency_index_is_recovered_from_request_scan(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="scan-recovery"))
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+
+    replay = store.put_request(_request(idempotency_key="scan-recovery"))
+
+    assert replay.request_id == original.request_id
+    assert len(list((tmp_path / "idempotency").glob("*.json"))) == 1
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+def test_idempotency_index_pointing_nowhere_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="dangling-index"))
+    (tmp_path / "requests" / f"{original.request_id}.json").unlink()
+
+    with pytest.raises(ValueError, match="points to missing canonical request"):
+        store.put_request(_request(idempotency_key="dangling-index"))
+
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 0
 
 
 def test_claim_conflict_requires_reconciliation(tmp_path) -> None:
