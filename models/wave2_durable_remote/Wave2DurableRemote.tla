@@ -16,11 +16,11 @@ activation, and model-provider behavior. Those are adapter/lifecycle concerns
 outside the critical durable authority protocol.
 *)
 
-VARIABLES state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted
+VARIABLES state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt
 
 protocolVars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
-idemVars == <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted>>
-vars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted>>
+idemVars == <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
+vars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
 
 Terminal == {"SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}
 ClaimedLike == {"CLAIMED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"}
@@ -66,6 +66,12 @@ Init ==
     /\ noncanonicalDuplicateDeliverable = FALSE
     /\ duplicateRecoveryDone = FALSE
     /\ noncanonicalDuplicateExecuted = 0
+    /\ recoveredFromPersistence = FALSE
+    /\ indexPresent = FALSE
+    /\ indexRecovered = FALSE
+    /\ recoveredMaterialValid = TRUE
+    /\ recoveredDeliverable = FALSE
+    /\ invalidRecoveredResultAttempt = FALSE
 
 AdmitRequestA ==
     /\ ~requestAAdmitted
@@ -84,14 +90,19 @@ AdmitRequestA ==
                 THEN [admittedRequestForKey EXCEPT ![requestAKey] = "A"]
                 ELSE admittedRequestForKey
             /\ canonicalPayloadForKey' = [canonicalPayloadForKey EXCEPT ![requestAKey] = requestAPayload]
+            /\ indexPresent' = TRUE
             /\ idempotencyConflict' = idempotencyConflict
         ELSE
             /\ canonicalRequestForKey' = canonicalRequestForKey
             /\ admittedRequestForKey' = admittedRequestForKey
             /\ canonicalPayloadForKey' = canonicalPayloadForKey
+            /\ indexPresent' = indexPresent
             /\ idempotencyConflict' =
                 (idempotencyConflict \/ (canonicalPayloadForKey[requestAKey] # requestAPayload))
-    /\ UNCHANGED <<requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted>>
+    /\ IF requestAKey = "none"
+        THEN indexPresent' = indexPresent
+        ELSE TRUE
+    /\ UNCHANGED <<requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
     /\ UNCHANGED protocolVars
 
 AdmitRequestB ==
@@ -111,14 +122,19 @@ AdmitRequestB ==
                 THEN [admittedRequestForKey EXCEPT ![requestBKey] = "B"]
                 ELSE admittedRequestForKey
             /\ canonicalPayloadForKey' = [canonicalPayloadForKey EXCEPT ![requestBKey] = requestBPayload]
+            /\ indexPresent' = TRUE
             /\ idempotencyConflict' = idempotencyConflict
         ELSE
             /\ canonicalRequestForKey' = canonicalRequestForKey
             /\ admittedRequestForKey' = admittedRequestForKey
             /\ canonicalPayloadForKey' = canonicalPayloadForKey
+            /\ indexPresent' = indexPresent
             /\ idempotencyConflict' =
                 (idempotencyConflict \/ (canonicalPayloadForKey[requestBKey] # requestBPayload))
-    /\ UNCHANGED <<requestAAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted>>
+    /\ IF requestBKey = "none"
+        THEN indexPresent' = indexPresent
+        ELSE TRUE
+    /\ UNCHANGED <<requestAAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
     /\ UNCHANGED protocolVars
 
 InjectNoncanonicalDuplicateFile ==
@@ -133,7 +149,7 @@ InjectNoncanonicalDuplicateFile ==
     /\ noncanonicalDuplicateDeliverable' = TRUE
     /\ duplicateRecoveryDone' = FALSE
     /\ noncanonicalDuplicateExecuted' = noncanonicalDuplicateExecuted
-    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
     /\ UNCHANGED protocolVars
 
 CorruptIndexToBDetected ==
@@ -146,7 +162,7 @@ CorruptIndexToBDetected ==
     /\ idempotencyConflict' = TRUE
     /\ noncanonicalDuplicateDeliverable' = FALSE
     /\ duplicateRecoveryDone' = TRUE
-    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateExecuted>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
     /\ UNCHANGED protocolVars
 
 CorruptIndexToADetected ==
@@ -159,7 +175,7 @@ CorruptIndexToADetected ==
     /\ idempotencyConflict' = TRUE
     /\ noncanonicalDuplicateDeliverable' = FALSE
     /\ duplicateRecoveryDone' = TRUE
-    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateExecuted>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
     /\ UNCHANGED protocolVars
 
 DropAdmissionEvidence ==
@@ -167,7 +183,7 @@ DropAdmissionEvidence ==
     /\ \E k \in Keys:
         /\ admittedRequestForKey[k] # "none"
         /\ admittedRequestForKey' = [admittedRequestForKey EXCEPT ![k] = "none"]
-    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
     /\ UNCHANGED protocolVars
 
 CorruptIndexWithoutAdmissionEvidenceDetected ==
@@ -181,7 +197,7 @@ CorruptIndexWithoutAdmissionEvidenceDetected ==
     /\ noncanonicalDuplicateDeliverable' = FALSE
     /\ duplicateRecoveryDone' = TRUE
     /\ noncanonicalDuplicateExecuted' = noncanonicalDuplicateExecuted
-    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
     /\ UNCHANGED protocolVars
 
 MutateCanonicalIdentity ==
@@ -189,7 +205,7 @@ MutateCanonicalIdentity ==
     /\ canonicalMaterialValid
     /\ executed = 0
     /\ canonicalMaterialValid' = FALSE
-    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
     /\ UNCHANGED protocolVars
 
 CanonicalIdentityDriftDetected ==
@@ -198,8 +214,72 @@ CanonicalIdentityDriftDetected ==
     /\ idempotencyConflict' = TRUE
     /\ noncanonicalDuplicateDeliverable' = FALSE
     /\ duplicateRecoveryDone' = TRUE
-    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateExecuted>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
     /\ UNCHANGED protocolVars
+
+LoseIdempotencyIndex ==
+    /\ HasCanonicalIdempotency
+    /\ indexPresent
+    /\ indexPresent' = FALSE
+    /\ indexRecovered' = FALSE
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
+    /\ UNCHANGED protocolVars
+
+RecoverValidMissingIndex ==
+    /\ HasCanonicalIdempotency
+    /\ ~indexPresent
+    /\ canonicalMaterialValid
+    /\ recoveredMaterialValid
+    /\ indexPresent' = TRUE
+    /\ indexRecovered' = TRUE
+    /\ recoveredFromPersistence' = TRUE
+    /\ recoveredDeliverable' = FALSE
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredMaterialValid, invalidRecoveredResultAttempt>>
+    /\ UNCHANGED protocolVars
+
+InjectInvalidRecoveredMaterial ==
+    /\ ~recoveredFromPersistence
+    /\ ~HasCanonicalIdempotency
+    /\ recoveredFromPersistence' = TRUE
+    /\ recoveredMaterialValid' = FALSE
+    /\ canonicalMaterialValid' = FALSE
+    /\ recoveredDeliverable' = FALSE
+    /\ indexPresent' = FALSE
+    /\ indexRecovered' = FALSE
+    /\ invalidRecoveredResultAttempt' = invalidRecoveredResultAttempt
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted>>
+    /\ UNCHANGED protocolVars
+
+RecoverInvalidMaterialDetected ==
+    /\ recoveredFromPersistence
+    /\ ~recoveredMaterialValid
+    /\ state' = "RECONCILIATION_REQUIRED"
+    /\ terminalSeen' = TRUE
+    /\ recoveredDeliverable' = FALSE
+    /\ idempotencyConflict' = TRUE
+    /\ indexPresent' = FALSE
+    /\ indexRecovered' = FALSE
+    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, recoveredMaterialValid, invalidRecoveredResultAttempt>>
+
+RecoveredInvalidClaimRejected ==
+    /\ recoveredFromPersistence
+    /\ ~recoveredMaterialValid
+    /\ state' = "RECONCILIATION_REQUIRED"
+    /\ terminalSeen' = TRUE
+    /\ recoveredDeliverable' = FALSE
+    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, invalidRecoveredResultAttempt>>
+
+RecoveredInvalidResultRejected ==
+    /\ recoveredFromPersistence
+    /\ ~recoveredMaterialValid
+    /\ invalidRecoveredResultAttempt' = TRUE
+    /\ state' = "RECONCILIATION_REQUIRED"
+    /\ terminalSeen' = TRUE
+    /\ recoveredDeliverable' = FALSE
+    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid>>
 
 Deliver ==
     /\ HasCanonicalIdempotency
@@ -213,7 +293,7 @@ Deliver ==
     /\ noncanonicalDuplicateKey' = noncanonicalDuplicateKey
     /\ noncanonicalDuplicateExecuted' = noncanonicalDuplicateExecuted
     /\ UNCHANGED <<state, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
-    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt>>
 
 DuplicateDelivery ==
     /\ delivered
@@ -361,6 +441,12 @@ Next ==
     \/ CorruptIndexWithoutAdmissionEvidenceDetected
     \/ MutateCanonicalIdentity
     \/ CanonicalIdentityDriftDetected
+    \/ LoseIdempotencyIndex
+    \/ RecoverValidMissingIndex
+    \/ InjectInvalidRecoveredMaterial
+    \/ RecoverInvalidMaterialDetected
+    \/ RecoveredInvalidClaimRejected
+    \/ RecoveredInvalidResultRejected
     \/ Deliver
     \/ DuplicateDelivery
     \/ CanonicalClaimWrite
@@ -399,6 +485,7 @@ FairSpec ==
     /\ WF_vars(DurableRemoteRejectUnknownPolicy)
     /\ WF_vars(CorruptIndexWithoutAdmissionEvidenceDetected)
     /\ WF_vars(CanonicalIdentityDriftDetected)
+    /\ WF_vars(RecoverInvalidMaterialDetected)
     /\ WF_vars(CanonicalReadProof)
     /\ WF_vars(Run)
     /\ WF_vars(Terminalize)
@@ -445,6 +532,19 @@ MissingAdmissionEvidenceWithMultipleRecordsFailsClosed ==
         /\ noncanonicalDuplicatePersisted /\ noncanonicalDuplicateKey = k
         => idempotencyConflict /\ ~noncanonicalDuplicateDeliverable
 CanonicalIdentityDriftNeverExecutes == ~canonicalMaterialValid => executed = 0
+RecoveredInvalidMaterialNeverExecutes ==
+    recoveredFromPersistence /\ ~recoveredMaterialValid => executed = 0
+RecoveredInvalidMaterialNeverBecomesDeliverable ==
+    recoveredFromPersistence /\ ~recoveredMaterialValid => ~recoveredDeliverable
+RecoveredInvalidMaterialNeverBecomesRunning ==
+    recoveredFromPersistence /\ ~recoveredMaterialValid => state # "RUNNING"
+IndexRecoveryRequiresValidMaterial ==
+    indexRecovered => recoveredMaterialValid
+ResultCannotLegitimizeInvalidRecoveredRequest ==
+    invalidRecoveredResultAttempt /\ recoveredFromPersistence /\ ~recoveredMaterialValid
+    => state = "RECONCILIATION_REQUIRED" /\ executed = 0
+ValidRecoveredRequestPreservesLogicalIdempotency ==
+    recoveredFromPersistence /\ recoveredMaterialValid /\ indexRecovered => HasCanonicalIdempotency
 
 EventuallyHealthy == <>[](meshUp /\ nodeUp)
 

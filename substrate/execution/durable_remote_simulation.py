@@ -40,6 +40,7 @@ class SimState:
     execution_for_key: dict[str, int] = field(default_factory=dict)
     persisted_request_key: dict[str, str] = field(default_factory=dict)
     persisted_request_payload: dict[str, str] = field(default_factory=dict)
+    persisted_request_material_valid: dict[str, bool] = field(default_factory=dict)
     persisted_request_order: dict[str, int] = field(default_factory=dict)
     deliverable_requests: set[str] = field(default_factory=set)
     idempotency_conflict: bool = False
@@ -74,15 +75,24 @@ class SimState:
             if not key.strip():
                 assert request_id not in self.deliverable_requests, self.log
                 continue
+            if not self.persisted_request_material_valid.get(request_id, True):
+                assert request_id not in self.deliverable_requests, self.log
+                continue
             canonical = self.canonical_request_for_key.get(key)
             if canonical and canonical != request_id:
                 assert request_id not in self.deliverable_requests, self.log
 
 
 def persist_request_file(
-    state: SimState, *, request_id: str, idempotency_key: str, payload_identity: str = ""
+    state: SimState,
+    *,
+    request_id: str,
+    idempotency_key: str,
+    payload_identity: str = "",
+    material_valid: bool = True,
 ) -> None:
     state.persisted_request_key[request_id] = idempotency_key
+    state.persisted_request_material_valid[request_id] = material_valid
     if payload_identity:
         state.persisted_request_payload[request_id] = payload_identity
     if request_id not in state.persisted_request_order:
@@ -108,10 +118,22 @@ def fail_closed_ambiguous_idempotency(state: SimState, idempotency_key: str) -> 
         state.deliverable_requests.discard(request_id)
 
 
+def fail_closed_invalid_material(state: SimState, request_id: str) -> None:
+    state.record(f"invalid_material_rejected:{request_id}")
+    state.fail_closed = True
+    if state.lifecycle not in TERMINAL:
+        state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.deliverable_requests.discard(request_id)
+
+
 def validate_idempotency_index(state: SimState, idempotency_key: str) -> bool:
     canonical = state.canonical_request_for_key.get(idempotency_key)
     if not canonical:
         return True
+    if not state.persisted_request_material_valid.get(canonical, True):
+        fail_closed_invalid_material(state, canonical)
+        state.assert_invariants()
+        return False
     admitted = state.admitted_request_for_key.get(idempotency_key)
     if admitted and admitted != canonical:
         state.record(
@@ -213,6 +235,10 @@ def recover_missing_idempotency_index(state: SimState, idempotency_key: str) -> 
     matches = requests_for_key_in_admission_order(state, idempotency_key)
     state.record(f"recover_missing_index:key={idempotency_key}:matches={','.join(matches)}")
     if len(matches) == 1:
+        if not state.persisted_request_material_valid.get(matches[0], True):
+            fail_closed_invalid_material(state, matches[0])
+            state.assert_invariants()
+            return None
         state.canonical_request_for_key[idempotency_key] = matches[0]
         state.execution_for_key.setdefault(idempotency_key, 0)
         state.assert_invariants()
@@ -263,6 +289,9 @@ def scan_deliverable_requests(state: SimState) -> None:
             state.deliverable_requests.discard(request_id)
             state.fail_closed = True
             continue
+        if not state.persisted_request_material_valid.get(request_id, True):
+            fail_closed_invalid_material(state, request_id)
+            continue
         validate_idempotency_index(state, key)
     state.assert_invariants()
 
@@ -311,6 +340,11 @@ def deliver(state: SimState, *, duplicate: bool = False) -> None:
 
 def claim_write(state: SimState, claim_id: str = "claim-1") -> None:
     state.record("claim_write")
+    for request_id in list(state.deliverable_requests):
+        if not state.persisted_request_material_valid.get(request_id, True):
+            fail_closed_invalid_material(state, request_id)
+            state.assert_invariants()
+            return
     if not (state.node_alive and state.mesh_alive and state.store_alive):
         state.pending_ack = True
         state.assert_invariants()
@@ -371,6 +405,11 @@ def announce_running_and_execute(state: SimState, claim_id: str = "claim-1") -> 
 
 def terminal(state: SimState, value: str = "SUCCEEDED") -> None:
     state.record(f"terminal:{value}")
+    for request_id, valid in state.persisted_request_material_valid.items():
+        if not valid:
+            fail_closed_invalid_material(state, request_id)
+            state.assert_invariants()
+            return
     if state.lifecycle == "RUNNING" and value in TERMINAL:
         state.lifecycle = value
     elif state.lifecycle in TERMINAL:
@@ -693,6 +732,96 @@ def _mutated_canonical_request_payload_fails_closed(state: SimState) -> None:
     assert "A" not in state.deliverable_requests, state.log
 
 
+def _valid_recovered_request_lost_index(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_valid=True,
+    )
+    assert recover_missing_idempotency_index(state, "K") == "A"
+    state.deliverable_requests.add("A")
+    scan_deliverable_requests(state)
+    assert "A" in state.deliverable_requests, state.log
+
+
+def _invalid_unknown_operation_lost_index_fails_closed(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_valid=False,
+    )
+    assert recover_missing_idempotency_index(state, "K") is None
+    assert state.fail_closed, state.log
+    assert "A" not in state.deliverable_requests, state.log
+
+
+def _invalid_effect_mismatch_recovery_fails_closed(state: SimState) -> None:
+    _invalid_unknown_operation_lost_index_fails_closed(state)
+
+
+def _recovered_invalid_request_scan_blocked(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_valid=False,
+    )
+    state.deliverable_requests.add("A")
+    scan_deliverable_requests(state)
+    assert "A" not in state.deliverable_requests, state.log
+    assert state.fail_closed, state.log
+
+
+def _recovered_invalid_request_claim_blocked(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_valid=False,
+    )
+    state.deliverable_requests.add("A")
+    claim_write(state)
+    assert state.lifecycle == "RECONCILIATION_REQUIRED", state.log
+    assert state.executed == 0, state.log
+    assert state.fail_closed, state.log
+
+
+def _late_success_after_invalid_recovery_rejected(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_valid=False,
+    )
+    state.lifecycle = "RUNNING"
+    terminal(state)
+    assert state.lifecycle == "RECONCILIATION_REQUIRED", state.log
+    assert state.executed == 0, state.log
+    assert state.fail_closed, state.log
+
+
+def _restart_after_invalid_recovery_still_blocked(state: SimState) -> None:
+    _recovered_invalid_request_scan_blocked(state)
+    restart_mesh(state)
+    scan_deliverable_requests(state)
+    assert state.fail_closed, state.log
+    assert "A" not in state.deliverable_requests, state.log
+
+
+def _valid_duplicate_after_index_loss_converges(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    state.canonical_request_for_key.pop("K")
+    assert recover_missing_idempotency_index(state, "K") == "A"
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") == "A"
+
+
 def _keyless_persisted_request_file_not_deliverable(state: SimState) -> None:
     inject_duplicate_request_file(state, request_id="A", idempotency_key="")
     assert "A" in state.deliverable_requests, state.log
@@ -766,6 +895,20 @@ SCENARIOS: dict[str, Scenario] = {
     "idempotency_mutated_canonical_request_payload_fails_closed": (
         _mutated_canonical_request_payload_fails_closed
     ),
+    "recovery_valid_request_lost_index": _valid_recovered_request_lost_index,
+    "recovery_unknown_operation_lost_index_fails_closed": (
+        _invalid_unknown_operation_lost_index_fails_closed
+    ),
+    "recovery_effect_mismatch_fails_closed": _invalid_effect_mismatch_recovery_fails_closed,
+    "recovery_invalid_scan_blocked": _recovered_invalid_request_scan_blocked,
+    "recovery_invalid_claim_blocked": _recovered_invalid_request_claim_blocked,
+    "recovery_late_success_after_invalid_rejected": (
+        _late_success_after_invalid_recovery_rejected
+    ),
+    "recovery_restart_after_invalid_still_blocked": _restart_after_invalid_recovery_still_blocked,
+    "recovery_valid_duplicate_after_index_loss_converges": (
+        _valid_duplicate_after_index_loss_converges
+    ),
     "idempotency_keyless_persisted_request_file_not_deliverable": (
         _keyless_persisted_request_file_not_deliverable
     ),
@@ -777,7 +920,7 @@ def run_scenario(name: str) -> SimState:
     state = SimState(scenario=name)
     SCENARIOS[name](state)
     state.assert_invariants()
-    if name != "fallback_unavailable" and not name.startswith(("sync_", "idempotency_")):
+    if name != "fallback_unavailable" and not name.startswith(("sync_", "idempotency_", "recovery_")):
         assert state.lifecycle in {"RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}, state.log
     return state
 

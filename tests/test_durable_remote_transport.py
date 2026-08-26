@@ -60,6 +60,106 @@ def test_store_rejects_unknown_capability_before_queue_persistence(tmp_path) -> 
     assert store.deliverable_for_node("windows-desktop") == []
 
 
+def test_recovered_unknown_capability_cannot_bypass_admission_policy(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="recovered-unknown-capability",
+        capability="unknown.execute",
+    )
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    current = store.get_request(recovered.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert current.claim_id == ""
+    assert current.process_tree == {}
+    assert current.diagnostics["canonical_material_rejected"]["reason"] == (
+        "durable request capability has no canonical consequential policy"
+    )
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+    claimed = store.mark_claimed(recovered.request_id, claim_id="claim-1")
+    running = store.mark_running(recovered.request_id, claim_id="claim-1")
+
+    assert claimed.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert running.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert running.claim_id == ""
+    assert running.process_tree == {}
+    assert store.result_for(recovered.request_id) is None
+
+
+def test_late_result_cannot_legitimize_invalid_recovered_material(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="invalid-recovered-result",
+        capability="unknown.execute",
+    )
+    recovered.lifecycle_state = "RUNNING"
+    recovered.claim_id = "claim-1"
+    recovered.process_tree = {"root_pid": 4242}
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    rejected = store.publish_result(
+        recovered.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"ok": True},
+        cleanup={"process_residue": []},
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+    assert rejected.process_tree == {}
+    assert store.result_for(recovered.request_id) is None
+
+
+def test_recovered_read_only_capability_cannot_be_promoted_as_durable_write(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="recovered-read-only-capability",
+        capability="terminal.capture",
+        risk_class="read_only",
+    )
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    rejected = store.mark_claimed(recovered.request_id, claim_id="claim-1")
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+    assert rejected.diagnostics["canonical_material_rejected"]["reason"] == (
+        "durable request capability has no canonical consequential policy"
+    )
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+
+def test_valid_recovered_request_rebuilds_missing_index_and_can_claim(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="valid-recovered-material"))
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+
+    deliverable = store.deliverable_for_node("windows-desktop")
+    claimed = store.mark_claimed(original.request_id, claim_id="claim-1")
+
+    assert [item.request_id for item in deliverable] == [original.request_id]
+    assert claimed.lifecycle_state == "CLAIMED"
+    assert claimed.claim_id == "claim-1"
+    index = json.loads(store._idempotency_index_path("valid-recovered-material").read_text())
+    assert index["canonical_request_id"] == original.request_id
+    assert index["payload_digest"] == original.payload_digest
+
+
 def test_same_claim_claimed_replay_does_not_regress_running_state(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())

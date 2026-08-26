@@ -472,9 +472,91 @@ class DurableRemoteStore:
             )
         request.payload_digest = computed
 
+    def _validate_canonical_request_material(
+        self,
+        request: DurableRemoteRequest,
+        *,
+        strict_payload_digest: bool = True,
+    ) -> None:
+        request.idempotency_key = _normalized_idempotency_key(request.idempotency_key)
+        if not request.request_id.strip():
+            raise ValueError("durable request requires request_id")
+        if not request.idempotency_key:
+            raise ValueError("consequential durable request requires idempotency_key")
+        computed = _request_payload_digest(
+            operation_type=request.operation_type,
+            capability=request.capability,
+            params=request.params,
+            candidate_sha=request.candidate_sha,
+            authority_id=request.authority_id,
+        )
+        if strict_payload_digest and request.payload_digest and request.payload_digest != computed:
+            raise ValueError("durable request payload_digest mismatch")
+        request.payload_digest = computed
+        effect_policy = canonical_sync_effect_policy(
+            request.capability,
+            declared_effect_class=CONSEQUENTIAL_WRITE_EFFECT,
+        )
+        if effect_policy.authoritative_effect_class != CONSEQUENTIAL_WRITE_EFFECT:
+            raise ValueError("durable request capability has no canonical consequential policy")
+
+    def _mark_invalid_canonical_material_locked(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        event: str,
+        reason: str,
+    ) -> DurableRemoteRequest:
+        req.diagnostics.setdefault(
+            "canonical_material_rejected",
+            {
+                "event": event,
+                "reason": reason,
+                "observed_at": now_s(),
+            },
+        )
+        req.diagnostics.setdefault("noncanonical_event_rejected", []).append(
+            {"event": event, "observed_at": now_s()}
+        )
+        req.diagnostics.setdefault("reconciliation_reasons", []).append(
+            "canonical_material_invalid"
+        )
+        self._strip_noncanonical_authority_fields(req)
+        if req.lifecycle_state not in TERMINAL_STATES:
+            req.lifecycle_state = "RECONCILIATION_REQUIRED"
+            if not req.reconciliation_requested_at:
+                req.reconciliation_requested_at = now_s()
+            req.reconciliation_deadline_at = max(
+                req.reconciliation_deadline_at,
+                req.reconciliation_requested_at + 15.0,
+            )
+        self._update_request_locked(
+            req,
+            "CANONICAL_MATERIAL_REJECTED",
+            write_idempotency_index=False,
+        )
+        return req
+
+    def _reject_invalid_canonical_material_locked(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        event: str,
+    ) -> DurableRemoteRequest | None:
+        try:
+            self._validate_canonical_request_material(req)
+        except ValueError as exc:
+            return self._mark_invalid_canonical_material_locked(
+                req,
+                event=event,
+                reason=str(exc),
+            )
+        return None
+
     def _write_idempotency_index(self, request: DurableRemoteRequest) -> None:
         if not request.idempotency_key:
             return
+        self._validate_canonical_request_material(request)
         existing = _read_json(self._idempotency_index_path(request.idempotency_key))
         existing_request_id = str(existing.get("canonical_request_id", "")) if existing else ""
         if existing_request_id and existing_request_id != request.request_id:
@@ -808,8 +890,20 @@ class DurableRemoteStore:
                 admission_bindings[0],
                 matches=matches,
             )
+            invalid = self._reject_invalid_canonical_material_locked(
+                canonical,
+                event="IDEMPOTENCY_RECOVERY_REJECTED",
+            )
+            if invalid is not None:
+                raise ValueError("durable request canonical material invalid")
             return canonical
         if len(matches) == 1:
+            invalid = self._reject_invalid_canonical_material_locked(
+                matches[0],
+                event="IDEMPOTENCY_RECOVERY_REJECTED",
+            )
+            if invalid is not None:
+                raise ValueError("durable request canonical material invalid")
             return matches[0]
         if len(matches) > 1:
             self._fail_ambiguous_idempotency_recovery_locked(
@@ -855,6 +949,12 @@ class DurableRemoteStore:
         canonical = by_id.get(canonical_request_id)
         if canonical is None:
             raise ValueError("idempotency index points to missing canonical request")
+        invalid = self._reject_invalid_canonical_material_locked(
+            canonical,
+            event="IDEMPOTENCY_INDEX_RECOVERY_REJECTED",
+        )
+        if invalid is not None:
+            raise ValueError("durable request canonical material invalid")
         index = _read_json(self._idempotency_index_path(idempotency_key))
         if index:
             self._canonicalize_request_payload_identity(canonical)
@@ -1046,16 +1146,7 @@ class DurableRemoteStore:
         return result
 
     def put_request(self, request: DurableRemoteRequest) -> DurableRemoteRequest:
-        self._canonicalize_request_payload_identity(request)
-        request.idempotency_key = _normalized_idempotency_key(request.idempotency_key)
-        if not request.idempotency_key:
-            raise ValueError("consequential durable request requires idempotency_key")
-        effect_policy = canonical_sync_effect_policy(
-            request.capability,
-            declared_effect_class=CONSEQUENTIAL_WRITE_EFFECT,
-        )
-        if effect_policy.authoritative_effect_class != CONSEQUENTIAL_WRITE_EFFECT:
-            raise ValueError("durable request capability has no canonical consequential policy")
+        self._validate_canonical_request_material(request, strict_payload_digest=False)
         with self._idempotency_lock(request.idempotency_key):
             existing_by_key = self._existing_request_from_idempotency_index_locked(request)
             if existing_by_key is not None:
@@ -1087,6 +1178,9 @@ class DurableRemoteStore:
         req = self._get_request_raw(request_id)
         if req is None:
             return None
+        if req.lifecycle_state not in TERMINAL_STATES and req.lifecycle_state not in RECOVERY_STATES:
+            if not self._request_is_canonical_for_idempotency(req):
+                return self._get_request_raw(request_id)
         if (
             req.lifecycle_state not in TERMINAL_STATES
             and not self._recovery_due(req)
@@ -1496,6 +1590,9 @@ class DurableRemoteStore:
             noncanonical = self._reject_noncanonical_update_locked(req, event="DELIVERED")
             if noncanonical is not None:
                 return noncanonical
+            invalid = self._reject_invalid_canonical_material_locked(req, event="DELIVERED")
+            if invalid is not None:
+                return invalid
             req = self._maybe_converge_recovery_locked(req)
             if req.lifecycle_state in {"QUEUED", "CANCEL_REQUESTED"}:
                 req.delivered_at = now_s()
@@ -1518,6 +1615,9 @@ class DurableRemoteStore:
             noncanonical = self._reject_noncanonical_update_locked(req, event="CLAIMED")
             if noncanonical is not None:
                 return noncanonical
+            invalid = self._reject_invalid_canonical_material_locked(req, event="CLAIMED")
+            if invalid is not None:
+                return invalid
             req = self._maybe_converge_recovery_locked(req)
             if req.lifecycle_state in TERMINAL_STATES or req.lifecycle_state in RECOVERY_STATES:
                 return req
@@ -1547,6 +1647,9 @@ class DurableRemoteStore:
             noncanonical = self._reject_noncanonical_update_locked(req, event="RUNNING")
             if noncanonical is not None:
                 return noncanonical
+            invalid = self._reject_invalid_canonical_material_locked(req, event="RUNNING")
+            if invalid is not None:
+                return invalid
             req = self._maybe_converge_recovery_locked(req)
             if req.lifecycle_state in TERMINAL_STATES or req.lifecycle_state in RECOVERY_STATES:
                 self._event(
@@ -1779,6 +1882,17 @@ class DurableRemoteStore:
         noncanonical = self._reject_noncanonical_update_locked(req, event=state)
         if noncanonical is not None:
             return noncanonical
+        invalid = self._reject_invalid_canonical_material_locked(req, event=state)
+        if invalid is not None:
+            self._write_rejected_result_record(
+                invalid,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+                reason="canonical_material_invalid",
+            )
+            return invalid
         req = self._maybe_converge_recovery_locked(req)
         if not req.claim_id:
             self._write_rejected_result_record(
