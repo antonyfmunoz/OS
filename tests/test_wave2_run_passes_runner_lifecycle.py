@@ -225,7 +225,7 @@ def test_smoke_scenario_does_not_start_runner(dispatch_mod):
 
 
 def test_full_scenario_stops_runner_on_poll_failure(dispatch_mod):
-    """Runner must be stopped even if _poll_status raises."""
+    """Runner must be stopped, and the pass must fail, if _poll_status raises."""
     stopped = []
 
     patches = _full_scenario_patches(
@@ -236,10 +236,28 @@ def test_full_scenario_stops_runner_on_poll_failure(dispatch_mod):
 
     runner = _FakeRunner()
     with _apply(patches):
-        with pytest.raises(RuntimeError):
-            dispatch_mod.run_passes(runner, sha="abc123", scenario="full", passes=1)
+        result = dispatch_mod.run_passes(runner, sha="abc123", scenario="full", passes=1)
 
     assert len(stopped) == 1, "Runner must be stopped even on poll failure"
+    assert result["results"][0]["ok"] is False
+    assert "poll_status failed" in result["results"][0]["error"]
+
+
+def test_full_scenario_fails_closed_when_runner_stop_not_proven(dispatch_mod):
+    patches = _full_scenario_patches(
+        dispatch_mod,
+        stop_runner=lambda runner, sha, run_id: {"stopped": False, "reason": "still running"},
+    )
+
+    runner = _FakeRunner()
+    with _apply(patches):
+        result = dispatch_mod.run_passes(runner, sha="abc123", scenario="full", passes=1)
+
+    item = result["results"][0]
+    assert item["ok"] is False
+    assert item["runner_stop"] == {"stopped": False, "reason": "still running"}
+    assert "stop_runner" in item["error"]
+    assert dispatch_mod.qualification_verdict("run", result).ok is False
 
 
 def test_full_scenario_fails_closed_on_seed_failure(dispatch_mod):

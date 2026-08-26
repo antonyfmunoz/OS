@@ -212,6 +212,44 @@ def render_env_file(env: dict[str, str]) -> str:
     return header + body + "\n"
 
 
+def _write_secret_env_file(path: Path, content: str) -> None:
+    """Atomically write a candidate env file without exposing secret bytes.
+
+    The file must be private before any secret material is written. A later
+    chmod is too late under a permissive umask and a failed chmod must not be
+    ignored.
+    """
+    tmp = path.with_name(f".{path.name}.tmp-{os.getpid()}")
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(tmp, flags, 0o600)
+    try:
+        os.fchmod(fd, 0o600)
+        mode = os.fstat(fd).st_mode & 0o777
+        if mode != 0o600:
+            raise RuntimeError(f"candidate env temp file mode is {mode:o}, not 600")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fd = -1
+            fh.write(content)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+        final_mode = path.stat().st_mode & 0o777
+        if final_mode != 0o600:
+            try:
+                path.unlink()
+            finally:
+                raise RuntimeError(f"candidate env file mode is {final_mode:o}, not 600")
+    finally:
+        if fd != -1:
+            os.close(fd)
+        try:
+            tmp.unlink()
+        except FileNotFoundError:
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate the Wave-1 candidate env by allowlist")
     parser.add_argument(
@@ -270,11 +308,7 @@ def main(argv: list[str] | None = None) -> int:
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(render_env_file(env), encoding="utf-8")
-    try:
-        os.chmod(out_path, 0o600)
-    except OSError:
-        pass
+    _write_secret_env_file(out_path, render_env_file(env))
 
     if args.audit_out:
         Path(args.audit_out).write_text(json.dumps(audit, indent=2), encoding="utf-8")

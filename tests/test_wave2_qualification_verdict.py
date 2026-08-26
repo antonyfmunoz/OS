@@ -109,6 +109,14 @@ def test_reconcile_all_passed_true_but_no_passes_still_fails():
     assert v.ok is False
 
 
+def test_reconcile_malformed_pass_entry_cannot_qualify():
+    v = wd.qualification_verdict("reconcile", {"passes": [None], "all_passed": True})
+    assert v.ok is False
+    assert v.mandatory.get("reconcile:passes_well_formed") is False
+    assert v.mandatory.get("reconcile:every_pass_passed") is False
+    assert any("malformed pass" in r for r in v.reasons)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 3 — reconciliation below threshold is failure
 # ─────────────────────────────────────────────────────────────────────────────
@@ -386,6 +394,30 @@ def test_main_returns_0_on_clean_teardown(monkeypatch):
             "homes_swept": _zero_ref_proof(),
         },
     )
+    assert rc == 0
+
+
+def test_main_teardown_does_not_resolve_candidate_origin_before_cleanup(monkeypatch):
+    def fail_resolve():
+        raise AssertionError("teardown must not resolve candidate origin before cleanup")
+
+    monkeypatch.setattr(wd, "_resolve_env", fail_resolve)
+    monkeypatch.setattr(wd, "_candidate_sha", lambda s: "deadbeefcafe0000")
+    monkeypatch.setattr(wd, "_load_serve_snapshot_path", lambda sha="": None)
+    monkeypatch.setattr(
+        wd,
+        "teardown",
+        lambda runner, sha="", run_id="": {
+            "run_id": run_id,
+            "collector": {"stopped": True},
+            "run_secret_shredded": True,
+            "serve_restored": True,
+            "homes_swept": _zero_ref_proof(),
+        },
+    )
+
+    rc = wd.main(["--sha", "deadbeefcafe0000", "--run-id", "run-1", "teardown"])
+
     assert rc == 0
 
 

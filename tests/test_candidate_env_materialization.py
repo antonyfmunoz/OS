@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -72,6 +73,29 @@ def test_candidate_env_cli_fails_closed_without_required_secret(tmp_path: Path) 
     assert not out.exists()
     payload = json.loads(result.stdout)
     assert "UMH_OPERATOR_API_KEY" in payload["audit"]["required_missing"]
+
+
+def test_candidate_env_cli_writes_secret_file_private_under_permissive_umask(
+    tmp_path: Path, capsys
+) -> None:
+    secret = "candidate-secret-value"
+    source = tmp_path / "source.env"
+    out = tmp_path / "candidate.env"
+    source.write_text(f"UMH_OPERATOR_API_KEY={secret}\n", encoding="utf-8")
+
+    old_umask = os.umask(0)
+    try:
+        rc = make_candidate_env.main(["--source", str(source), "--out", str(out)])
+    finally:
+        os.umask(old_umask)
+
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert out.exists()
+    assert out.stat().st_mode & 0o777 == 0o600
+    assert secret in out.read_text(encoding="utf-8")
+    assert secret not in captured.out
+    assert secret not in captured.err
 
 
 def test_candidate_env_reads_allowlisted_secret_from_docker_source(monkeypatch) -> None:

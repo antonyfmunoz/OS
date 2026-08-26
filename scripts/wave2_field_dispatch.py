@@ -4805,19 +4805,31 @@ def run_passes(runner: Runner, *, sha: str, scenario: str, passes: int) -> dict[
                 )
                 continue
 
-            # Step 5: poll for collector completion
+            # Step 5: poll for collector completion. Runner teardown is part of
+            # the pass result: a collector PASS with an unproven runner stop is
+            # not a qualified pass because consequential work may still be live.
+            result: dict[str, Any] = {
+                "ok": False,
+                "run_id": run_id,
+            }
             try:
                 terminal = _poll_status(runner, run_id, i, candidate_sha=sha)
-                results.append(
+                result.update(
                     {
                         "ok": terminal.get("state") == "passed",
                         "terminal": terminal,
-                        "run_id": run_id,
                     }
                 )
+            except Exception as exc:
+                result["error"] = f"poll_status failed: {type(exc).__name__}: {exc}"
             finally:
                 if runner_started.get("started", False):
-                    stop_runner(runner, sha, run_id)
+                    runner_stop = stop_runner(runner, sha, run_id)
+                    result["runner_stop"] = runner_stop
+                    if runner_stop.get("stopped") is not True:
+                        result["ok"] = False
+                        result["error"] = "stop_runner did not prove stopped"
+                results.append(result)
             continue
 
         try:
@@ -6271,9 +6283,12 @@ def main(argv: list[str] | None = None) -> int:
     sha = _candidate_sha(args.sha)
     run_id = args.run_id or _run_id_default()
 
-    # Resolve the network + origin globals now (a real command needs them); this
-    # is where a resolution failure legitimately fails loudly — never at import.
-    _resolve_env()
+    # Resolve network + origin globals only for commands that actually need the
+    # candidate/origin path. Teardown must not be blocked by origin discovery:
+    # cleanup, secret shredding, and state restoration are the fail-closed path
+    # precisely when deployment/origin state is broken.
+    if args.cmd != "teardown":
+        _resolve_env()
 
     if args.cmd == "preflight":
         _ensure_mesh_secrets()
@@ -6447,7 +6462,13 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
         if not has_passes:
             reasons.append("reconciliation scored ZERO passes — nothing was proven")
         else:
-            each_passed = all(bool(p.get("passed")) for p in passes if isinstance(p, dict))
+            entries_well_formed = all(isinstance(p, dict) for p in passes)
+            mandatory["reconcile:passes_well_formed"] = entries_well_formed
+            if not entries_well_formed:
+                reasons.append("reconciliation contains malformed pass result(s)")
+            each_passed = entries_well_formed and all(
+                p.get("passed") is True for p in passes
+            )
             mandatory["reconcile:every_pass_passed"] = each_passed
             if not each_passed:
                 failed_tags = [
