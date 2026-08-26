@@ -1068,8 +1068,7 @@ def test_candidate_readiness_wait_uses_semantic_ready_endpoint(monkeypatch) -> N
     dispatch = load_wave2_script("wave2_field_dispatch")
     calls: list[tuple[str, set[int] | None]] = []
 
-    monkeypatch.setenv("UMH_CANDIDATE_ORIGIN", "https://candidate.example:10443")
-    monkeypatch.setattr(dispatch, "_ORIGIN", "https://candidate.example:10443")
+    monkeypatch.setattr(dispatch, "_candidate_origin", lambda: "https://candidate.example:10443")
     monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
     ticks = chain([0.0, 0.1, 0.2], repeat(0.2))
     monkeypatch.setattr(dispatch.time, "time", lambda: next(ticks))
@@ -1086,6 +1085,23 @@ def test_candidate_readiness_wait_uses_semantic_ready_endpoint(monkeypatch) -> N
 
     assert result["ready"] is True
     assert calls == [("https://candidate.example:10443/ready", {200})]
+
+
+def test_candidate_origin_uses_tailnet_identity_not_env_override(monkeypatch) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    monkeypatch.setenv("UMH_CANDIDATE_ORIGIN", "https://bypass.example:1234")
+
+    def fake_run(cmd, **_kwargs):
+        assert cmd == ["tailscale", "status", "--json"]
+        return SimpleNamespace(
+            returncode=0,
+            stdout=json.dumps({"Self": {"DNSName": "srv1500858.tail6b4aa2.ts.net."}}),
+            stderr="",
+        )
+
+    monkeypatch.setattr(dispatch.subprocess, "run", fake_run)
+
+    assert dispatch._candidate_origin() == "https://srv1500858.tail6b4aa2.ts.net:10443"
 
 
 def test_candidate_nginx_routes_ready_to_operator_api_not_spa() -> None:

@@ -176,14 +176,12 @@ _CANDIDATE_TLS_PORT = 10443
 # domain (universalmetaharness.tech) resolves to Fly PRODUCTION and is
 # untouched by tailscale serve — using it here would have "qualified"
 # production instead of the candidate (adversarial finding, 2026-07-22).
-# Resolved at runtime; override with UMH_CANDIDATE_ORIGIN only for explicit
-# lab setups.
+# Resolved at runtime from Tailscale identity. Do not accept a caller-supplied
+# origin override: final candidate-origin and served-byte proofs must traverse
+# the ratified :10443 Tailscale path rather than a lab/local substitute.
 
 
 def _candidate_origin() -> str:
-    override = os.environ.get("UMH_CANDIDATE_ORIGIN", "").strip()
-    if override:
-        return override.rstrip("/")
     try:
         out = subprocess.run(
             ["tailscale", "status", "--json"], capture_output=True, text=True, timeout=15
@@ -193,7 +191,7 @@ def _candidate_origin() -> str:
             return f"https://{dns_name}:{_CANDIDATE_TLS_PORT}"
     except Exception as exc:  # noqa: BLE001 — preflight will fail loudly anyway
         print(f"[warn] candidate origin resolution failed: {exc}")
-    raise SystemExit("cannot resolve the candidate tailnet origin — set UMH_CANDIDATE_ORIGIN")
+    raise SystemExit("cannot resolve the candidate tailnet origin from tailscale status")
 
 
 def _origin_host() -> str:
@@ -6424,9 +6422,10 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
     ``passed=False`` in ``reconcile()`` (``score >= 0.90 and not orphan_5xx and
     all_gating_matched``), so below-threshold is caught here too.
 
-    ``teardown`` — the run-scoped dispatch secret MUST be shredded and the serve
-    MUST be positively restored. ``run_secret_shredded is False`` or
-    ``serve_restored is not True`` is a FAILURE. Teardown still runs on the
+    ``teardown`` — the run-scoped dispatch secret MUST be positively proven
+    shredded and the serve MUST be positively restored.
+    ``run_secret_shredded is not True`` or ``serve_restored is not True`` is a
+    FAILURE. Teardown still runs on the
     failure path (main() calls it after a failed run), but a failed or unknown
     teardown cannot be reported as success.
 
@@ -6502,9 +6501,11 @@ def qualification_verdict(command: str, out: dict[str, Any]) -> QualificationVer
             detail = collector.get("reason") if isinstance(collector, dict) else "no collector result"
             reasons.append(f"collector tree not proven stopped: {detail}")
         shredded = out.get("run_secret_shredded")
-        mandatory["teardown:secret_shredded"] = shredded is not False
-        if shredded is False:
-            reasons.append("run secret was NOT shredded — a run secret must never persist")
+        mandatory["teardown:secret_shredded"] = shredded is True
+        if shredded is not True:
+            reasons.append(
+                f"run secret shredding not positively proven: {shredded!r}"
+            )
         serve = out.get("serve_restored")
         mandatory["teardown:serve_restored"] = serve is True
         if serve is not True:
