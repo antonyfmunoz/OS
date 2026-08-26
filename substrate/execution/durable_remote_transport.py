@@ -208,19 +208,7 @@ class DurableRemoteRequest:
                 authority_id=self.authority_id,
             )
         normalized_key = _normalized_idempotency_key(self.idempotency_key)
-        if normalized_key:
-            self.idempotency_key = normalized_key
-        else:
-            self.idempotency_key = _derive_idempotency_key(
-                correlation_id=self.correlation_id,
-                candidate_sha=self.candidate_sha,
-                node_id=self.node_id,
-                operation_type=self.operation_type,
-                capability=self.capability,
-                risk_class=self.risk_class,
-                authority_id=self.authority_id,
-                payload_digest=self.payload_digest,
-            )
+        self.idempotency_key = normalized_key
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -503,6 +491,24 @@ class DurableRemoteStore:
                     f"{incoming.idempotency_key}"
                 )
 
+    def _immutable_request_mutation_fields(
+        self,
+        current: DurableRemoteRequest,
+        incoming: DurableRemoteRequest,
+    ) -> list[str]:
+        mismatched = [
+            field_name
+            for field_name in _IDEMPOTENCY_IDENTITY_FIELDS
+            if getattr(current, field_name) != getattr(incoming, field_name)
+        ]
+        if current.params != incoming.params:
+            mismatched.append("params")
+        current_verdict_digest = current.diagnostics.get("verdict_payload_digest")
+        incoming_verdict_digest = incoming.diagnostics.get("verdict_payload_digest")
+        if current_verdict_digest != incoming_verdict_digest:
+            mismatched.append("diagnostics.verdict_payload_digest")
+        return mismatched
+
     def _quarantine_duplicate_idempotency_record_locked(
         self, duplicate: DurableRemoteRequest, *, canonical_request_id: str
     ) -> None:
@@ -740,16 +746,7 @@ class DurableRemoteStore:
         self._canonicalize_request_payload_identity(request)
         request.idempotency_key = _normalized_idempotency_key(request.idempotency_key)
         if not request.idempotency_key:
-            request.idempotency_key = _derive_idempotency_key(
-                correlation_id=request.correlation_id,
-                candidate_sha=request.candidate_sha,
-                node_id=request.node_id,
-                operation_type=request.operation_type,
-                capability=request.capability,
-                risk_class=request.risk_class,
-                authority_id=request.authority_id,
-                payload_digest=request.payload_digest,
-            )
+            raise ValueError("consequential durable request requires idempotency_key")
         effect_policy = canonical_sync_effect_policy(
             request.capability,
             declared_effect_class=CONSEQUENTIAL_WRITE_EFFECT,
@@ -804,11 +801,7 @@ class DurableRemoteStore:
             if current is not None:
                 self._canonicalize_request_payload_identity(current)
                 self._canonicalize_request_payload_identity(request)
-                mismatched_identity = [
-                    field_name
-                    for field_name in _IDEMPOTENCY_IDENTITY_FIELDS
-                    if getattr(current, field_name) != getattr(request, field_name)
-                ]
+                mismatched_identity = self._immutable_request_mutation_fields(current, request)
                 if mismatched_identity:
                     current.diagnostics.setdefault("identity_mutation_rejected", []).append(
                         {
@@ -1676,6 +1669,9 @@ class DurableRemoteStore:
         *,
         reason: str = "bounded_reconciliation",
     ) -> DurableRemoteRequest:
+        noncanonical = self._reject_noncanonical_update_locked(req, event="RECONCILE_REJECTED")
+        if noncanonical is not None:
+            return noncanonical
         if req.lifecycle_state in TERMINAL_STATES:
             return req
         if req.lifecycle_state != "RECONCILIATION_REQUIRED":
@@ -1710,6 +1706,12 @@ class DurableRemoteStore:
             req = self._get_request_raw(request_id)
             if req is None:
                 raise KeyError(request_id)
+            noncanonical = self._reject_noncanonical_update_locked(
+                req,
+                event="UNRESOLVED_REJECTED",
+            )
+            if noncanonical is not None:
+                return noncanonical
             req = self._maybe_converge_recovery_locked(req)
             if req.lifecycle_state in TERMINAL_STATES:
                 return req

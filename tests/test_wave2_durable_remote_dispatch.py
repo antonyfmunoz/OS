@@ -1741,6 +1741,7 @@ def test_same_claim_cancel_ack_can_recover_reconciliation_window(monkeypatch, tm
         },
         risk_class="read_only",
         ttl_seconds=120,
+        idempotency_key="test:same-claim-cancel-recovery",
     )
     store.put_request(req)
     store.mark_claimed(req.request_id, claim_id="node-claim")
@@ -1903,6 +1904,7 @@ def test_durable_store_does_not_immediately_reconcile_process_residue(
         params={"command": "sleep", "timeout": 60},
         risk_class="read_only",
         ttl_seconds=120,
+        idempotency_key="test:process-residue-recovery",
     )
     store.put_request(req)
     store.mark_claimed(req.request_id, claim_id="claim-1")

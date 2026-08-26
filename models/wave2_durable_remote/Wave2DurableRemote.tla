@@ -25,6 +25,7 @@ vars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, exec
 Terminal == {"SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}
 ClaimedLike == {"CLAIMED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"}
 Keys == {"key1", "key2"}
+MaybeKey == Keys \cup {"none"}
 Payloads == {"payload1", "payload2"}
 Requests == {"none", "A", "B"}
 HasCanonicalIdempotency == \E k \in Keys: canonicalRequestForKey[k] # "none"
@@ -51,8 +52,8 @@ Init ==
     /\ syncConsequentialEffects = 0
     /\ requestAAdmitted = FALSE
     /\ requestBAdmitted = FALSE
-    /\ requestAKey = "key1"
-    /\ requestBKey \in Keys
+    /\ requestAKey \in MaybeKey
+    /\ requestBKey \in MaybeKey
     /\ requestAPayload = "payload1"
     /\ requestBPayload \in Payloads
     /\ canonicalRequestForKey = [k \in Keys |-> "none"]
@@ -66,7 +67,12 @@ Init ==
 AdmitRequestA ==
     /\ ~requestAAdmitted
     /\ requestAAdmitted' = TRUE
-    /\ IF canonicalRequestForKey[requestAKey] = "none"
+    /\ IF requestAKey = "none"
+        THEN
+            /\ canonicalRequestForKey' = canonicalRequestForKey
+            /\ canonicalPayloadForKey' = canonicalPayloadForKey
+            /\ idempotencyConflict' = TRUE
+        ELSE IF canonicalRequestForKey[requestAKey] = "none"
         THEN
             /\ canonicalRequestForKey' = [canonicalRequestForKey EXCEPT ![requestAKey] = "A"]
             /\ canonicalPayloadForKey' = [canonicalPayloadForKey EXCEPT ![requestAKey] = requestAPayload]
@@ -82,7 +88,12 @@ AdmitRequestA ==
 AdmitRequestB ==
     /\ ~requestBAdmitted
     /\ requestBAdmitted' = TRUE
-    /\ IF canonicalRequestForKey[requestBKey] = "none"
+    /\ IF requestBKey = "none"
+        THEN
+            /\ canonicalRequestForKey' = canonicalRequestForKey
+            /\ canonicalPayloadForKey' = canonicalPayloadForKey
+            /\ idempotencyConflict' = TRUE
+        ELSE IF canonicalRequestForKey[requestBKey] = "none"
         THEN
             /\ canonicalRequestForKey' = [canonicalRequestForKey EXCEPT ![requestBKey] = "B"]
             /\ canonicalPayloadForKey' = [canonicalPayloadForKey EXCEPT ![requestBKey] = requestBPayload]
@@ -308,20 +319,25 @@ ConsequentialExecutionImpliesDurableRemotePath == executed > 0 => durableExecuti
 DurableRemoteExecutionRequiresCanonicalConsequentialPolicy == executed > 0 => durableCanonicalEffect = "CONSEQUENTIAL_WRITE"
 AtMostOneCanonicalRequestPerIdempotencyKey == \A k \in Keys: canonicalRequestForKey[k] \in Requests
 SameLogicalOperationConvergesToSameCanonicalRequest ==
-    requestAAdmitted /\ requestBAdmitted /\ requestAKey = requestBKey /\ requestAPayload = requestBPayload
+    requestAAdmitted /\ requestBAdmitted /\ requestAKey \in Keys
+    /\ requestAKey = requestBKey /\ requestAPayload = requestBPayload
     => canonicalRequestForKey[requestAKey] \in {"A", "B"}
 IdempotencyKeyCannotAuthorizeDifferentPayload ==
-    requestAAdmitted /\ requestBAdmitted /\ requestAKey = requestBKey /\ requestAPayload # requestBPayload
+    requestAAdmitted /\ requestBAdmitted /\ requestAKey \in Keys
+    /\ requestAKey = requestBKey /\ requestAPayload # requestBPayload
     => idempotencyConflict
 IdempotencyKeyCannotForkTerminalTrajectory == terminalSeen => \A k \in Keys: canonicalRequestForKey[k] \in Requests
 AtMostOneExecutionPerIdempotencyKey == executed <= 1
 ConsequentialExecutionRequiresStableIdempotencyIdentity == executed > 0 => HasCanonicalIdempotency
+MissingIdempotencyKeyNeverAdmitted ==
+    ((requestAAdmitted /\ requestAKey = "none") \/ (requestBAdmitted /\ requestBKey = "none"))
+    => idempotencyConflict
 NoncanonicalDuplicateNeverExecutes == noncanonicalDuplicateExecuted = 0
 DeliveryScanQuarantinesNoncanonicalDuplicate == duplicateRecoveryDone => ~noncanonicalDuplicateDeliverable
 
 EventuallyHealthy == <>[](meshUp /\ nodeUp)
 
 EventualGovernedResolution ==
-    EventuallyHealthy => <>(state \in {"RUNNING"} \cup Terminal)
+    (EventuallyHealthy /\ <>HasCanonicalIdempotency) => <>(state \in {"RUNNING"} \cup Terminal)
 
 ====

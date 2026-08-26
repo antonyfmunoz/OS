@@ -22,10 +22,16 @@ import json
 import socket
 import struct
 import time
+from uuid import uuid4
 
 import pytest
 
-from substrate.execution.durable_remote_transport import DurableRemoteStore, make_request
+from substrate.execution.durable_remote_transport import (
+    DurableRemoteStore,
+)
+from substrate.execution.durable_remote_transport import (
+    make_request as _make_request,
+)
 from substrate.execution.executor import WorkPacketExecutor
 from substrate.sockets.capability_socket import CapabilitySocket
 from substrate.sockets.outcome_socket import OutcomeSocket
@@ -35,6 +41,11 @@ from transports.node_mesh.config import MeshConfig, NodeTokenEntry
 from transports.node_mesh.integration.types import ConnectedNode
 from transports.node_mesh.registry import NodeRegistry
 from transports.node_mesh.server import NodeMeshServer
+
+
+def make_request(**kwargs):
+    kwargs.setdefault("idempotency_key", f"test-idem-{uuid4().hex}")
+    return _make_request(**kwargs)
 
 
 @pytest.fixture(autouse=True)

@@ -228,7 +228,32 @@ def test_update_request_cannot_mutate_admitted_operation_identity(tmp_path) -> N
     assert stored.lifecycle_state == "QUEUED"
     assert stored.claim_id == ""
     rejected = stored.diagnostics["identity_mutation_rejected"][0]
-    assert set(rejected["fields"]) == {"candidate_sha", "payload_digest"}
+    assert set(rejected["fields"]) == {"candidate_sha", "payload_digest", "params"}
+
+
+def test_update_request_cannot_mutate_admitted_verdict_material(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = _request(
+        idempotency_key="immutable-verdict",
+        params={"command": "echo ok", "timeout": 5, "governance_verdict_id": "verdict-A"},
+    )
+    original.diagnostics["verdict_payload_digest"] = "digest-A"
+    original = store.put_request(original)
+    mutated = DurableRemoteRequest.from_dict(original.to_dict())
+    mutated.params["governance_verdict_id"] = "verdict-B"
+    mutated.diagnostics["verdict_payload_digest"] = "digest-B"
+    mutated.lifecycle_state = "CLAIMED"
+    mutated.claim_id = "claim-1"
+
+    store.update_request(mutated, "MUTATED_VERDICT_UPDATE")
+
+    stored = store.get_request(original.request_id)
+    assert stored is not None
+    assert stored.params["governance_verdict_id"] == "verdict-A"
+    assert stored.diagnostics["verdict_payload_digest"] == "digest-A"
+    assert stored.lifecycle_state == "QUEUED"
+    rejected = stored.diagnostics["identity_mutation_rejected"][0]
+    assert set(rejected["fields"]) == {"params", "diagnostics.verdict_payload_digest"}
 
 
 def test_missing_index_recovery_quarantines_duplicate_same_key_records(tmp_path) -> None:
@@ -394,6 +419,53 @@ def test_noncanonical_duplicate_result_is_rejected_without_index_takeover(tmp_pa
     assert stored_original.lifecycle_state == "QUEUED"
 
 
+def test_noncanonical_duplicate_reconcile_cannot_write_terminal_result(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="stale-reconcile-duplicate"))
+    duplicate = _request(idempotency_key="stale-reconcile-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    duplicate.lifecycle_state = "RECONCILIATION_REQUIRED"
+    duplicate.reconciliation_requested_at = 1.0
+    duplicate.reconciliation_deadline_at = 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    rejected = store.reconcile_request(duplicate.request_id, reason="duplicate-timeout")
+
+    assert rejected.request_id == duplicate.request_id
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.result_digest == ""
+    assert store.result_for(duplicate.request_id) is None
+    stored_original = store.get_request(original.request_id)
+    assert stored_original is not None
+    assert stored_original.lifecycle_state == "QUEUED"
+
+
+def test_noncanonical_duplicate_fail_unresolved_cannot_write_terminal_result(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="stale-unresolved-duplicate"))
+    duplicate = _request(idempotency_key="stale-unresolved-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    duplicate.lifecycle_state = "CLAIMED"
+    duplicate.claim_id = "stale-claim"
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    rejected = store.fail_unresolved_request(duplicate.request_id, reason="duplicate-timeout")
+
+    assert rejected.request_id == duplicate.request_id
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.result_digest == ""
+    assert store.result_for(duplicate.request_id) is None
+    stored_original = store.get_request(original.request_id)
+    assert stored_original is not None
+    assert stored_original.lifecycle_state == "QUEUED"
+
+
 def test_idempotency_index_write_cannot_take_over_existing_canonical_binding(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     original = store.put_request(_request(idempotency_key="index-takeover"))
@@ -447,34 +519,50 @@ def test_duplicate_after_existing_lifecycle_returns_same_trajectory(tmp_path, st
     assert len(list((tmp_path / "requests").glob("*.json"))) == 1
 
 
-def test_missing_idempotency_key_derives_stable_logical_key(tmp_path) -> None:
+def test_missing_idempotency_key_on_consequential_request_fails_closed(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
-    first = store.put_request(
-        make_request(
-            correlation_id="derived",
-            candidate_sha="abc123",
-            node_id="windows-desktop",
-            operation_type="codex_probe",
-            capability="shell",
-            params={"command": "echo ok", "timeout": 5},
-            ttl_seconds=60,
-        )
-    )
-    second = store.put_request(
-        make_request(
-            correlation_id="derived",
-            candidate_sha="abc123",
-            node_id="windows-desktop",
-            operation_type="codex_probe",
-            capability="shell",
-            params={"command": "echo ok", "timeout": 5},
-            ttl_seconds=60,
-        )
+    req = make_request(
+        correlation_id="missing-key",
+        candidate_sha="abc123",
+        node_id="windows-desktop",
+        operation_type="codex_probe",
+        capability="shell",
+        params={"command": "echo ok", "timeout": 5},
+        ttl_seconds=60,
     )
 
-    assert first.idempotency_key.startswith("durable:")
-    assert second.request_id == first.request_id
-    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+    with pytest.raises(ValueError, match="requires idempotency_key"):
+        store.put_request(req)
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
+
+
+def test_omitted_key_retry_with_new_correlation_cannot_fork_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    first = make_request(
+        correlation_id="retry-a",
+        candidate_sha="abc123",
+        node_id="windows-desktop",
+        operation_type="codex_probe",
+        capability="shell",
+        params={"command": "echo ok", "timeout": 5},
+        ttl_seconds=60,
+    )
+    second = make_request(
+        correlation_id="retry-b",
+        candidate_sha="abc123",
+        node_id="windows-desktop",
+        operation_type="codex_probe",
+        capability="shell",
+        params={"command": "echo ok", "timeout": 5},
+        ttl_seconds=60,
+    )
+
+    for req in (first, second):
+        with pytest.raises(ValueError, match="requires idempotency_key"):
+            store.put_request(req)
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
 
 
 def test_missing_idempotency_index_is_recovered_from_request_scan(tmp_path) -> None:

@@ -82,6 +82,11 @@ def admit_durable_request(
     state.record(
         f"admit:request={request_id}:key={idempotency_key}:payload={payload_identity}"
     )
+    if not idempotency_key.strip():
+        state.idempotency_conflict = True
+        state.fail_closed = True
+        state.assert_invariants()
+        return None
     canonical = state.canonical_request_for_key.get(idempotency_key)
     if not canonical:
         state.canonical_request_for_key[idempotency_key] = request_id
@@ -424,6 +429,12 @@ def _same_key_two_request_ids_sequential_converge(state: SimState) -> None:
     assert first == second == "A", state.log
 
 
+def _missing_idempotency_key_fails_closed(state: SimState) -> None:
+    assert admit_durable_request(state, request_id="A", idempotency_key="", payload_identity="P") is None
+    assert not state.canonical_request_for_key
+    assert state.idempotency_conflict, state.log
+
+
 def _same_key_two_request_ids_concurrent_converge(state: SimState) -> None:
     second = admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
     first = admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
@@ -517,6 +528,7 @@ SCENARIOS: dict[str, Scenario] = {
     "sync_stale_effect_policy_verdict_rejected": _stale_effect_policy_verdict_rejected,
     "sync_caller_effect_change_no_authority_change": _caller_changes_declared_effect_no_authority_change,
     "idempotency_same_key_two_request_ids_sequential": _same_key_two_request_ids_sequential_converge,
+    "idempotency_missing_key_fails_closed": _missing_idempotency_key_fails_closed,
     "idempotency_same_key_two_request_ids_concurrent": _same_key_two_request_ids_concurrent_converge,
     "idempotency_same_key_different_payload_conflict": _same_key_different_payload_conflicts,
     "idempotency_duplicate_after_running": _duplicate_after_running_same_trajectory,

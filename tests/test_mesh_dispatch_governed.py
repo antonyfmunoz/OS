@@ -23,6 +23,7 @@ import textwrap
 import time
 from collections import deque
 from types import SimpleNamespace
+from uuid import uuid4
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _REPO_ROOT)
@@ -892,6 +893,7 @@ def _durable_request(**overrides):
         "params": params,
         "risk_class": "read_only",
         "ttl_seconds": 60,
+        "idempotency_key": f"unit-durable:{uuid4().hex}",
     }
     data.update(overrides)
     req = make_request(**data)
@@ -1015,6 +1017,7 @@ req = make_request(
     },
     risk_class="read_only",
     ttl_seconds=60,
+    idempotency_key="test:mesh-pump-redelivery",
 )
 server._durable_store.put_request(req)
 
