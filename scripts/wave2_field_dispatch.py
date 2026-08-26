@@ -3117,7 +3117,7 @@ def _durable_remote_shell(
             "authority_id": request.authority_id,
         }
     )
-    store.put_request(request)
+    request = store.put_request(request)
     terminal_states = {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"}
 
     def _requires_residue_reconciliation(current: object) -> bool:

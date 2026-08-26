@@ -107,6 +107,33 @@ def _derive_idempotency_key(
     return f"durable:{digest}"
 
 
+def _logical_payload_params(params: dict[str, Any]) -> dict[str, Any]:
+    logical_params = dict(params)
+    logical_params.pop("governance_verdict_id", None)
+    return logical_params
+
+
+def _request_payload_digest(
+    *,
+    operation_type: str,
+    capability: str,
+    params: dict[str, Any],
+    candidate_sha: str,
+    correlation_id: str,
+    authority_id: str,
+) -> str:
+    return sha256_json(
+        {
+            "operation_type": operation_type,
+            "capability": capability,
+            "params": _logical_payload_params(params),
+            "candidate_sha": candidate_sha,
+            "correlation_id": correlation_id,
+            "authority_id": authority_id,
+        }
+    )
+
+
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + f".tmp-{uuid4().hex}")
@@ -159,15 +186,13 @@ class DurableRemoteRequest:
 
     def __post_init__(self) -> None:
         if not self.payload_digest:
-            self.payload_digest = sha256_json(
-                {
-                    "operation_type": self.operation_type,
-                    "capability": self.capability,
-                    "params": self.params,
-                    "candidate_sha": self.candidate_sha,
-                    "correlation_id": self.correlation_id,
-                    "authority_id": self.authority_id,
-                }
+            self.payload_digest = _request_payload_digest(
+                operation_type=self.operation_type,
+                capability=self.capability,
+                params=self.params,
+                candidate_sha=self.candidate_sha,
+                correlation_id=self.correlation_id,
+                authority_id=self.authority_id,
             )
         normalized_key = _normalized_idempotency_key(self.idempotency_key)
         if normalized_key:
@@ -381,6 +406,24 @@ class DurableRemoteStore:
             "lifecycle_state": request.lifecycle_state,
         }
 
+    def _canonicalize_request_payload_identity(self, request: DurableRemoteRequest) -> None:
+        computed = _request_payload_digest(
+            operation_type=request.operation_type,
+            capability=request.capability,
+            params=request.params,
+            candidate_sha=request.candidate_sha,
+            correlation_id=request.correlation_id,
+            authority_id=request.authority_id,
+        )
+        if request.payload_digest and request.payload_digest != computed:
+            request.diagnostics.setdefault("incoming_payload_digest_mismatch", []).append(
+                {
+                    "supplied_payload_digest": request.payload_digest,
+                    "computed_payload_digest": computed,
+                }
+            )
+        request.payload_digest = computed
+
     def _write_idempotency_index(self, request: DurableRemoteRequest) -> None:
         if not request.idempotency_key:
             return
@@ -394,6 +437,8 @@ class DurableRemoteStore:
         existing: DurableRemoteRequest,
         incoming: DurableRemoteRequest,
     ) -> None:
+        self._canonicalize_request_payload_identity(existing)
+        self._canonicalize_request_payload_identity(incoming)
         fields = (
             "idempotency_key",
             "candidate_sha",
@@ -493,6 +538,7 @@ class DurableRemoteStore:
             return self._record_idempotent_replay_locked(current, incoming)
 
     def put_request(self, request: DurableRemoteRequest) -> DurableRemoteRequest:
+        self._canonicalize_request_payload_identity(request)
         request.idempotency_key = _normalized_idempotency_key(request.idempotency_key)
         if not request.idempotency_key:
             request.idempotency_key = _derive_idempotency_key(

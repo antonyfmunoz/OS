@@ -127,6 +127,19 @@ def test_same_idempotency_key_different_payload_fails_closed(tmp_path) -> None:
     assert len(list((tmp_path / "requests").glob("*.json"))) == 1
 
 
+def test_same_key_tampered_params_with_copied_digest_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="copied-digest-key"))
+    tampered = _request(idempotency_key="copied-digest-key")
+    tampered.params = {"command": "echo tampered", "timeout": 5}
+    tampered.payload_digest = original.payload_digest
+
+    with pytest.raises(ValueError, match="idempotency conflict: payload_digest"):
+        store.put_request(tampered)
+
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
 @pytest.mark.parametrize(
     ("field_name", "override"),
     [
