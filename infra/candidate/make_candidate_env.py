@@ -114,6 +114,21 @@ def _is_denied(key: str) -> bool:
     return any(sub in up for sub in _DENY_SUBSTRINGS)
 
 
+def _clean_env_value(key: str, value: str) -> str:
+    cleaned = str(value).strip()
+    if any(ch in cleaned for ch in ("\n", "\r", "\0")):
+        raise ValueError(f"candidate env value for {key} contains forbidden control character")
+    return cleaned
+
+
+def _missing_required_keys(source: dict[str, str]) -> list[str]:
+    missing: list[str] = []
+    for key in _REQUIRED_KEYS:
+        if not _clean_env_value(key, source.get(key, "")):
+            missing.append(key)
+    return missing
+
+
 def build_candidate_env(
     source_env: Path | dict[str, str] | list[Path | dict[str, str]],
     *,
@@ -148,7 +163,7 @@ def build_candidate_env(
             # Should never happen (allowlist is curated), but fail-closed.
             audit["denied"].append(key)
             continue
-        val = src.get(key, "").strip()
+        val = _clean_env_value(key, src.get(key, ""))
         if val:
             included[key] = val
             audit["included"].append(key)
@@ -164,7 +179,7 @@ def build_candidate_env(
         if _is_denied(k):
             audit["denied"].append(k)
             continue
-        included[k] = v
+        included[k] = _clean_env_value(k, v)
         audit["included"].append(k)
 
     if audit["required_missing"]:
@@ -208,7 +223,13 @@ def render_env_file(env: dict[str, str]) -> str:
         "# Do not commit. Do not add keys here by hand — widen the allowlist with a\n"
         "# reason instead.\n"
     )
-    body = "\n".join(f"{k}={v}" for k, v in env.items())
+    lines: list[str] = []
+    for k, v in env.items():
+        if not k or any(ch in k for ch in ("=", "\n", "\r", "\0")):
+            raise ValueError(f"candidate env key {k!r} is not a single env-file binding")
+        value = _clean_env_value(k, v)
+        lines.append(f"{k}={value}")
+    body = "\n".join(lines)
     return header + body + "\n"
 
 
@@ -284,9 +305,23 @@ def main(argv: list[str] | None = None) -> int:
     umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
     sources = [Path(s) for s in (args.source or [os.path.join(umh_root, "services", ".env")])]
     source_maps: list[Path | dict[str, str]] = [*sources]
+    container_maps: list[dict[str, str]] = []
     for container in args.source_container or []:
-        source_maps.append(_parse_docker_container_env(container))
+        container_env = _parse_docker_container_env(container)
+        container_maps.append(container_env)
+        source_maps.append(container_env)
     try:
+        if args.source_container:
+            runtime_source: dict[str, str] = {}
+            for one in container_maps:
+                runtime_source.update(one)
+            runtime_missing = _missing_required_keys(runtime_source)
+            if runtime_missing:
+                missing = ", ".join(runtime_missing)
+                raise ValueError(
+                    "required candidate secret/config missing or empty in authoritative "
+                    f"runtime source: {missing}"
+                )
         env, audit = build_candidate_env(source_maps, extra_umh=extra_umh)
     except ValueError as exc:
         audit = {

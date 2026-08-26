@@ -49,6 +49,20 @@ def test_candidate_env_materializes_required_secret_without_audit_leak(tmp_path:
     assert "must-not-copy" not in encoded_audit
 
 
+def test_candidate_env_rejects_multiline_allowlisted_value() -> None:
+    secret = "ok\nUMH_MESH_RELAY_SECRET=leaked"
+
+    with pytest.raises(ValueError, match="UMH_OPERATOR_API_KEY"):
+        make_candidate_env.build_candidate_env({"UMH_OPERATOR_API_KEY": secret})
+
+
+def test_render_env_file_rejects_multiline_value() -> None:
+    secret = "ok\nUMH_MESH_RELAY_SECRET=leaked"
+
+    with pytest.raises(ValueError, match="UMH_OPERATOR_API_KEY"):
+        make_candidate_env.render_env_file({"UMH_OPERATOR_API_KEY": secret})
+
+
 def test_candidate_env_cli_fails_closed_without_required_secret(tmp_path: Path) -> None:
     out = tmp_path / "candidate.env"
     audit = tmp_path / "candidate.audit.json"
@@ -73,6 +87,31 @@ def test_candidate_env_cli_fails_closed_without_required_secret(tmp_path: Path) 
     assert not out.exists()
     payload = json.loads(result.stdout)
     assert "UMH_OPERATOR_API_KEY" in payload["audit"]["required_missing"]
+
+
+def test_candidate_env_cli_requires_operator_key_from_authoritative_runtime_source(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    file_secret = "file-secret-value"
+    source = tmp_path / "source.env"
+    out = tmp_path / "candidate.env"
+    source.write_text(f"UMH_OPERATOR_API_KEY={file_secret}\n", encoding="utf-8")
+
+    def fake_run(cmd, **_kwargs):
+        assert cmd[:3] == ["docker", "inspect", "os-operator"]
+        return subprocess.CompletedProcess(cmd, 0, stdout=json.dumps([]), stderr="")
+
+    monkeypatch.setattr(make_candidate_env.subprocess, "run", fake_run)
+
+    rc = make_candidate_env.main(
+        ["--source", str(source), "--source-container", "os-operator", "--out", str(out)]
+    )
+
+    assert rc == 2
+    assert not out.exists()
+    captured = capsys.readouterr()
+    assert file_secret not in captured.out
+    assert file_secret not in captured.err
 
 
 def test_candidate_env_cli_writes_secret_file_private_under_permissive_umask(
@@ -120,3 +159,22 @@ def test_candidate_env_reads_allowlisted_secret_from_docker_source(monkeypatch) 
 
     assert env == {"UMH_OPERATOR_API_KEY": "from-live-runtime"}
     assert audit["included"] == ["UMH_OPERATOR_API_KEY"]
+
+
+def test_candidate_env_rejects_multiline_docker_secret_source(monkeypatch) -> None:
+    secret = "ok\nUMH_MESH_RELAY_SECRET=leaked"
+
+    def fake_run(cmd, **_kwargs):
+        assert cmd[:3] == ["docker", "inspect", "os-operator"]
+        return subprocess.CompletedProcess(
+            cmd,
+            0,
+            stdout=json.dumps([f"UMH_OPERATOR_API_KEY={secret}"]),
+            stderr="",
+        )
+
+    monkeypatch.setattr(make_candidate_env.subprocess, "run", fake_run)
+
+    source = make_candidate_env._parse_docker_container_env("os-operator")
+    with pytest.raises(ValueError, match="UMH_OPERATOR_API_KEY"):
+        make_candidate_env.build_candidate_env(source)
