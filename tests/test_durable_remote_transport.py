@@ -578,6 +578,29 @@ def test_keyless_persisted_request_is_not_deliverable_claimable_or_runnable(tmp_
     assert running.process_tree == {}
 
 
+def test_keyless_persisted_request_direct_mutators_fail_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    keyless = _request(idempotency_key="")
+    keyless.claim_id = "forged-claim"
+    keyless.lease_expires_at = 999.0
+    keyless.process_tree = {"root_pid": 99999}
+    (tmp_path / "requests" / f"{keyless.request_id}.json").write_text(
+        json.dumps(keyless.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    delivered = store.mark_delivered(keyless.request_id)
+    claimed = store.mark_claimed(keyless.request_id, claim_id="claim-1")
+    running = store.mark_running(keyless.request_id, claim_id="claim-1")
+
+    for observed in (delivered, claimed, running):
+        assert observed.lifecycle_state == "RECONCILIATION_REQUIRED"
+        assert observed.claim_id == ""
+        assert observed.lease_expires_at == 0.0
+        assert observed.process_tree == {}
+        assert observed.diagnostics["missing_idempotency_key_rejected"]
+
+
 def test_noncanonical_duplicate_claim_is_rejected_without_prior_diagnostic(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     original = store.put_request(_request(idempotency_key="direct-stale-claim"))
