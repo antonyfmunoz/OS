@@ -254,6 +254,23 @@ def test_teardown_zero_ref_boolean_without_inventory_fails():
     assert any("enumerated=False" in r for r in v.reasons)
 
 
+def test_teardown_zero_ref_requires_positive_enumeration_flag():
+    proof = _zero_ref_proof()
+    proof["ref_enumeration_executed"] = False
+    out = {
+        "run_id": "r1",
+        "torn_down": ["c1", "c2"],
+        "collector": {"stopped": True},
+        "run_secret_shredded": True,
+        "serve_restored": True,
+        "homes_swept": proof,
+    }
+    v = wd.qualification_verdict("teardown", out)
+    assert v.ok is False
+    assert v.mandatory.get("teardown:zero_ref_residue") is False
+    assert any("enumerated=False" in r for r in v.reasons)
+
+
 def test_teardown_with_home_residue_fails():
     # SEC-C1: a teardown that shredded the secret and restored serve but left
     # credential-home residue is STILL a security failure.
