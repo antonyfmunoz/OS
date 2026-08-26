@@ -570,7 +570,9 @@ class DurableRemoteStore:
                         canonical_request_id="ambiguous_idempotency_recovery",
                         event=event,
                     )
-                canonical_request_id = matches[0].request_id
+                recovered = matches[0]
+                canonical_request_id = recovered.request_id
+                self._write_idempotency_index(recovered)
         if canonical_request_id and canonical_request_id != req.request_id:
             return self._mark_noncanonical_request_locked(
                 req,
@@ -780,15 +782,17 @@ class DurableRemoteStore:
     def update_request(self, request: DurableRemoteRequest, event: str = "") -> None:
         with self._request_lock(request.request_id):
             current = self._get_request_raw(request.request_id)
+            self._canonicalize_request_payload_identity(request)
+            noncanonical_probe = current or request
+            self._canonicalize_request_payload_identity(noncanonical_probe)
+            noncanonical = self._reject_noncanonical_update_locked(
+                noncanonical_probe,
+                event=event or "UPDATE_REQUEST",
+            )
+            if noncanonical is not None:
+                return
             if current is not None:
                 self._canonicalize_request_payload_identity(current)
-                self._canonicalize_request_payload_identity(request)
-                noncanonical = self._reject_noncanonical_update_locked(
-                    current,
-                    event=event or "UPDATE_REQUEST",
-                )
-                if noncanonical is not None:
-                    return
                 mismatched_identity = self._immutable_request_mutation_fields(current, request)
                 if mismatched_identity:
                     current.diagnostics.setdefault("identity_mutation_rejected", []).append(

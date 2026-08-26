@@ -428,6 +428,36 @@ def test_update_request_rejects_noncanonical_duplicate_before_lifecycle_write(tm
     assert index["canonical_request_id"] == original.request_id
 
 
+def test_update_request_cannot_admit_duplicate_when_index_missing(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="update-missing-index"))
+    store.mark_claimed(original.request_id, claim_id="claim-1")
+    store.mark_running(original.request_id, claim_id="claim-1", process_tree={"root_pid": 111})
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+    duplicate = _request(idempotency_key="update-missing-index")
+    duplicate.lifecycle_state = "QUEUED"
+
+    store.update_request(duplicate, "FORGED_UPDATE_ADMISSION")
+
+    rejected = store.get_request(duplicate.request_id)
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+    stored_original = store.get_request(original.request_id)
+    assert stored_original is not None
+    assert stored_original.lifecycle_state == "RUNNING"
+    assert stored_original.claim_id == "claim-1"
+    assert stored_original.process_tree["root_pid"] == 111
+    assert store.deliverable_for_node("windows-desktop") == []
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+
+
 def test_noncanonical_duplicate_claim_is_rejected_without_prior_diagnostic(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     original = store.put_request(_request(idempotency_key="direct-stale-claim"))

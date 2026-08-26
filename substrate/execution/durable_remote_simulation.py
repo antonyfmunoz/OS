@@ -149,6 +149,27 @@ def recover_missing_idempotency_index(state: SimState, idempotency_key: str) -> 
     return None
 
 
+def public_update_request(
+    state: SimState,
+    *,
+    request_id: str,
+    idempotency_key: str,
+) -> None:
+    state.record(f"public_update:request={request_id}:key={idempotency_key}")
+    canonical = state.canonical_request_for_key.get(idempotency_key)
+    if not canonical:
+        canonical = recover_missing_idempotency_index(state, idempotency_key)
+    if canonical and canonical != request_id:
+        state.persisted_request_key[request_id] = idempotency_key
+        state.deliverable_requests.discard(request_id)
+        state.fail_closed = True
+        state.assert_invariants()
+        return
+    state.persisted_request_key[request_id] = idempotency_key
+    state.deliverable_requests.add(request_id)
+    state.assert_invariants()
+
+
 def sync_mesh_receive(
     state: SimState,
     declared_effect: str,
@@ -522,6 +543,16 @@ def _missing_index_ambiguous_duplicate_files_fail_closed(state: SimState) -> Non
     assert "B" not in state.deliverable_requests, state.log
 
 
+def _public_update_missing_index_duplicate_cannot_take_over(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    state.canonical_request_for_key.pop("K")
+    state.record("idempotency_index_lost")
+    public_update_request(state, request_id="B", idempotency_key="K")
+    assert state.canonical_request_for_key["K"] == "A", state.log
+    assert "B" not in state.deliverable_requests, state.log
+    assert state.fail_closed, state.log
+
+
 def _adapter_retry_preserves_stable_key(state: SimState) -> None:
     first = admit_durable_request(state, request_id="A", idempotency_key="adapter:stable", payload_identity="P")
     retry = admit_durable_request(state, request_id="B", idempotency_key="adapter:stable", payload_identity="P")
@@ -571,6 +602,9 @@ SCENARIOS: dict[str, Scenario] = {
     "idempotency_partial_persistence_fail_closed": _partial_persistence_reconciliation_prevents_fork,
     "idempotency_missing_index_ambiguous_duplicate_files_fail_closed": (
         _missing_index_ambiguous_duplicate_files_fail_closed
+    ),
+    "idempotency_public_update_missing_index_duplicate_denied": (
+        _public_update_missing_index_duplicate_cannot_take_over
     ),
     "idempotency_adapter_retry_preserves_key": _adapter_retry_preserves_stable_key,
 }
