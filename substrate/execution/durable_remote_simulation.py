@@ -673,6 +673,17 @@ def _missing_admission_evidence_wrong_index_fails_closed(state: SimState) -> Non
     assert "B" not in state.deliverable_requests, state.log
 
 
+def _missing_admission_evidence_multiple_records_fails_closed(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    inject_duplicate_request_file(state, request_id="B", idempotency_key="K")
+    state.admitted_request_for_key.pop("K")
+    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") is None
+    assert state.fail_closed, state.log
+    assert state.idempotency_conflict, state.log
+    assert "A" not in state.deliverable_requests, state.log
+    assert "B" not in state.deliverable_requests, state.log
+
+
 def _mutated_canonical_request_payload_fails_closed(state: SimState) -> None:
     admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     state.persisted_request_payload["A"] = "P-mutated"
@@ -748,6 +759,9 @@ SCENARIOS: dict[str, Scenario] = {
     ),
     "idempotency_missing_admission_evidence_wrong_index_fails_closed": (
         _missing_admission_evidence_wrong_index_fails_closed
+    ),
+    "idempotency_missing_admission_evidence_multiple_records_fails_closed": (
+        _missing_admission_evidence_multiple_records_fails_closed
     ),
     "idempotency_mutated_canonical_request_payload_fails_closed": (
         _mutated_canonical_request_payload_fails_closed

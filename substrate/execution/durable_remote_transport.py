@@ -855,14 +855,28 @@ class DurableRemoteStore:
         canonical = by_id.get(canonical_request_id)
         if canonical is None:
             raise ValueError("idempotency index points to missing canonical request")
+        index = _read_json(self._idempotency_index_path(idempotency_key))
+        if index:
+            self._canonicalize_request_payload_identity(canonical)
+            try:
+                self._validate_binding_identity(
+                    self._idempotency_binding(canonical),
+                    index,
+                    reason="idempotency index binding drift",
+                )
+            except ValueError:
+                self._fail_ambiguous_idempotency_recovery_locked(
+                    matches,
+                    event="IDEMPOTENCY_INDEX_BINDING_DRIFT_REJECTED",
+                )
+                raise
         if admission_bindings:
             self._validate_request_matches_admission_binding_locked(
                 canonical,
                 admission_bindings[0],
                 matches=matches,
             )
-            index = _read_json(self._idempotency_index_path(idempotency_key))
-            if index:
+            if "payload_digest" in admission_bindings[0]:
                 try:
                     self._validate_binding_identity(
                         index,
