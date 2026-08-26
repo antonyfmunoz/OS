@@ -120,6 +120,77 @@ def test_late_result_cannot_legitimize_invalid_recovered_material(tmp_path) -> N
     assert store.result_for(recovered.request_id) is None
 
 
+def test_claim_guard_rejects_invalid_material_if_recovery_check_is_bypassed(
+    tmp_path, monkeypatch
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="claim-guard-invalid-material",
+        capability="unknown.execute",
+    )
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(store, "_reject_noncanonical_update_locked", lambda *_, **__: None)
+
+    claimed = store.mark_claimed(recovered.request_id, claim_id="claim-1")
+
+    assert claimed.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert claimed.claim_id == ""
+
+
+def test_running_guard_rejects_invalid_material_if_recovery_check_is_bypassed(
+    tmp_path, monkeypatch
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="running-guard-invalid-material",
+        capability="unknown.execute",
+    )
+    recovered.lifecycle_state = "CLAIMED"
+    recovered.claim_id = "claim-1"
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(store, "_reject_noncanonical_update_locked", lambda *_, **__: None)
+
+    running = store.mark_running(recovered.request_id, claim_id="claim-1")
+
+    assert running.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert running.claim_id == ""
+    assert running.process_tree == {}
+
+
+def test_result_guard_rejects_invalid_material_if_recovery_check_is_bypassed(
+    tmp_path, monkeypatch
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="result-guard-invalid-material",
+        capability="unknown.execute",
+    )
+    recovered.lifecycle_state = "RUNNING"
+    recovered.claim_id = "claim-1"
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(store, "_reject_noncanonical_update_locked", lambda *_, **__: None)
+
+    rejected = store.publish_result(
+        recovered.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"ok": True},
+        cleanup={"process_residue": []},
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert store.result_for(recovered.request_id) is None
+
+
 def test_recovered_read_only_capability_cannot_be_promoted_as_durable_write(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     recovered = _request(
