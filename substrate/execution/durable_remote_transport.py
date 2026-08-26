@@ -119,7 +119,6 @@ def _request_payload_digest(
     capability: str,
     params: dict[str, Any],
     candidate_sha: str,
-    correlation_id: str,
     authority_id: str,
 ) -> str:
     return sha256_json(
@@ -128,7 +127,6 @@ def _request_payload_digest(
             "capability": capability,
             "params": _logical_payload_params(params),
             "candidate_sha": candidate_sha,
-            "correlation_id": correlation_id,
             "authority_id": authority_id,
         }
     )
@@ -142,7 +140,6 @@ _IDEMPOTENCY_IDENTITY_FIELDS = (
     "operation_type",
     "risk_class",
     "authority_id",
-    "correlation_id",
     "payload_digest",
 )
 
@@ -204,7 +201,6 @@ class DurableRemoteRequest:
                 capability=self.capability,
                 params=self.params,
                 candidate_sha=self.candidate_sha,
-                correlation_id=self.correlation_id,
                 authority_id=self.authority_id,
             )
         normalized_key = _normalized_idempotency_key(self.idempotency_key)
@@ -453,7 +449,6 @@ class DurableRemoteStore:
             capability=request.capability,
             params=request.params,
             candidate_sha=request.candidate_sha,
-            correlation_id=request.correlation_id,
             authority_id=request.authority_id,
         )
         if request.payload_digest and request.payload_digest != computed:
@@ -1756,13 +1751,18 @@ class DurableRemoteStore:
             except FileNotFoundError:
                 pass
         if current is not None and current.idempotency_key:
-            index_path = self._idempotency_index_path(current.idempotency_key)
-            index = _read_json(index_path)
-            if str(index.get("canonical_request_id", "")) == request_id:
-                try:
-                    index_path.unlink()
-                except FileNotFoundError:
-                    pass
+            preserve_tombstone = (
+                current.lifecycle_state in TERMINAL_STATES
+                or current.lifecycle_state in RECOVERY_STATES
+            )
+            if not preserve_tombstone:
+                index_path = self._idempotency_index_path(current.idempotency_key)
+                index = _read_json(index_path)
+                if str(index.get("canonical_request_id", "")) == request_id:
+                    try:
+                        index_path.unlink()
+                    except FileNotFoundError:
+                        pass
         self._event(request_id, "REMOVED")
 
 

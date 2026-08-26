@@ -150,7 +150,6 @@ def test_same_key_tampered_params_with_copied_digest_fails_closed(tmp_path) -> N
         ("node_id", {"node_id": "different-node"}),
         ("risk_class", {"risk_class": "write"}),
         ("authority_id", {"authority_id": "different-authority"}),
-        ("correlation_id", {"correlation_id": "different-correlation"}),
     ],
 )
 def test_same_idempotency_key_different_operation_identity_fails_closed(
@@ -165,6 +164,21 @@ def test_same_idempotency_key_different_operation_identity_fails_closed(
         store.put_request(_request(idempotency_key=f"conflict-{field_name}", **override))
 
     assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+def test_same_idempotency_key_different_correlation_returns_canonical_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    first = store.put_request(_request(idempotency_key="correlation-replay", correlation_id="corr-a"))
+
+    replay = store.put_request(
+        _request(idempotency_key="correlation-replay", correlation_id="corr-b")
+    )
+
+    assert replay.request_id == first.request_id
+    stored = store.get_request(first.request_id)
+    assert stored is not None
+    assert stored.correlation_id == "corr-a"
+    assert stored.diagnostics["idempotent_replays"][0]["incoming_correlation_id"] == "corr-b"
 
 
 def test_concurrent_same_key_admission_creates_one_canonical_request(tmp_path) -> None:
@@ -1242,7 +1256,7 @@ def test_terminal_result_is_idempotent_but_conflicting_replay_fails_closed(tmp_p
 
 def test_remove_request_refuses_terminal_evidence_without_explicit_force(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
-    req = store.put_request(_request())
+    req = store.put_request(_request(idempotency_key="remove-terminal"))
     store.mark_claimed(req.request_id, claim_id="claim-1")
     store.publish_result(
         req.request_id,
@@ -1259,6 +1273,24 @@ def test_remove_request_refuses_terminal_evidence_without_explicit_force(tmp_pat
     assert store.result_for(req.request_id) is not None
     store.remove_request(req.request_id, force_terminal=True)
     assert store.get_request(req.request_id) is None
+    with pytest.raises(ValueError, match="points to missing canonical request"):
+        store.put_request(_request(idempotency_key="remove-terminal"))
+
+
+def test_remove_request_preserves_recovery_idempotency_tombstone(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request(idempotency_key="remove-recovery"))
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.mark_claimed(req.request_id, claim_id="claim-2")
+    current = store.get_request(req.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    store.remove_request(req.request_id)
+
+    assert store.get_request(req.request_id) is None
+    with pytest.raises(ValueError, match="points to missing canonical request"):
+        store.put_request(_request(idempotency_key="remove-recovery"))
 
 
 def test_expired_request_cannot_publish_success(tmp_path, monkeypatch) -> None:

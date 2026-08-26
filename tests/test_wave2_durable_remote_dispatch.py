@@ -1447,7 +1447,7 @@ def test_durable_remote_shell_omits_empty_cwd_for_default_shell_requests(
     assert req.params["cwd"] is None
 
 
-def test_mesh_read_identical_command_uses_fresh_observation_identity(
+def test_mesh_read_identical_command_reuses_stable_logical_idempotency(
     monkeypatch, tmp_path
 ) -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
@@ -1473,7 +1473,7 @@ def test_mesh_read_identical_command_uses_fresh_observation_identity(
 
     def put_and_succeed(req):
         admitted = original_put(req)
-        if admitted.request_id == req.request_id:
+        if admitted.request_id == req.request_id and store.result_for(admitted.request_id) is None:
             store.mark_claimed(admitted.request_id, claim_id="claim-1")
             store.mark_running(admitted.request_id, claim_id="claim-1")
             store.publish_result(
@@ -1497,9 +1497,14 @@ def test_mesh_read_identical_command_uses_fresh_observation_identity(
 
     assert first["ok"] is True
     assert second["ok"] is True
-    assert first["request_id"] != second["request_id"]
-    assert first["stdout"] != second["stdout"]
-    assert len(list((tmp_path / "requests").glob("*.json"))) == 2
+    assert first["request_id"] == second["request_id"]
+    assert first["stdout"] == second["stdout"]
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+    stored = store.get_request(str(first["request_id"]))
+    assert stored is not None
+    assert stored.diagnostics["idempotent_replays"][0]["incoming_correlation_id"] != (
+        stored.correlation_id
+    )
 
 
 def test_durable_remote_shell_replay_uses_canonical_admitted_request(

@@ -3071,7 +3071,6 @@ def _durable_remote_shell(
             "capability": "shell",
             "params": executable_params,
             "candidate_sha": candidate_identity,
-            "correlation_id": correlation_id,
             "node_id": _MESH_NODE_ID,
         }
     )
@@ -3116,7 +3115,6 @@ def _durable_remote_shell(
             "capability": request.capability,
             "params": executable_params,
             "candidate_sha": request.candidate_sha,
-            "correlation_id": request.correlation_id,
             "authority_id": request.authority_id,
         }
     )
