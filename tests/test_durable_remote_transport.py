@@ -471,6 +471,16 @@ def test_valid_recovered_request_rebuilds_missing_index_and_can_claim(tmp_path) 
     assert index["payload_digest"] == original.payload_digest
 
 
+def test_reconciliation_required_request_is_not_deliverable(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request(idempotency_key="reconciliation-not-deliverable"))
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    reconciled = store.mark_claimed(req.request_id, claim_id="claim-2")
+
+    assert reconciled.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert store.deliverable_for_node("windows-desktop", redelivery_after_s=0) == []
+
+
 def test_same_claim_claimed_replay_does_not_regress_running_state(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
