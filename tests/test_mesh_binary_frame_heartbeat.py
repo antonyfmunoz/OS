@@ -1010,6 +1010,68 @@ def test_canonical_claim_state_rejects_noncanonical_duplicate_request(tmp_path):
     assert quarantined.claim_id == ""
 
 
+def test_canonical_claim_state_rejects_wrong_index_duplicate_authority(tmp_path):
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    original = make_request(
+        correlation_id="claim-state-wrong-index",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        idempotency_key="claim-state-wrong-index",
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(original)
+    duplicate = make_request(
+        correlation_id="claim-state-wrong-index-duplicate",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        idempotency_key="claim-state-wrong-index",
+        ttl_seconds=60,
+    )
+    duplicate.created_at = original.created_at + 1.0
+    duplicate.lifecycle_state = "SUCCEEDED"
+    duplicate.claim_id = "forged-claim"
+    duplicate.lease_expires_at = 999.0
+    duplicate.process_tree = {"root_pid": 99999}
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    index_path = s._durable_store._idempotency_index_path("claim-state-wrong-index")
+    index_path.write_text(
+        json.dumps(s._durable_store._idempotency_binding(duplicate)),
+        encoding="utf-8",
+    )
+
+    response = s._canonical_durable_claim_state(
+        "n1",
+        {
+            "request_id": duplicate.request_id,
+            "correlation_id": duplicate.correlation_id,
+            "candidate_sha": duplicate.candidate_sha,
+            "node_id": "n1",
+            "claim_id": duplicate.claim_id,
+            "state": "SUCCEEDED",
+        },
+    )
+
+    assert response["ok"] is False
+    assert response["accepted"] is False
+    assert response["error"] == "request is not canonical for idempotency"
+    quarantined = s._durable_store.get_request(duplicate.request_id)
+    assert quarantined is not None
+    assert quarantined.lifecycle_state == "SUCCEEDED"
+    assert quarantined.claim_id == ""
+    assert quarantined.lease_expires_at == 0.0
+    assert quarantined.process_tree == {}
+
+
 async def _canonical_claim_state_http_relay_reads_store(tmp_path, monkeypatch) -> dict:
     monkeypatch.setenv("UMH_MESH_RELAY_BIND", "127.0.0.1")
     s = _server()

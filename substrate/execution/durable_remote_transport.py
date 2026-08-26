@@ -465,6 +465,10 @@ class DurableRemoteStore:
         req.lease_expires_at = 0.0
         req.process_tree = {}
 
+    @staticmethod
+    def _request_sort_key(req: DurableRemoteRequest) -> tuple[float, str]:
+        return (float(req.created_at or 0.0), req.request_id)
+
     def _immutable_request_mutation_fields(
         self,
         current: DurableRemoteRequest,
@@ -555,11 +559,40 @@ class DurableRemoteStore:
         )
         return req
 
+    def _mark_missing_idempotency_key_locked(
+        self, req: DurableRemoteRequest, *, event: str
+    ) -> DurableRemoteRequest:
+        req.diagnostics.setdefault(
+            "missing_idempotency_key_rejected",
+            {"event": event, "observed_at": now_s()},
+        )
+        req.diagnostics.setdefault("noncanonical_event_rejected", []).append(
+            {"event": event, "observed_at": now_s()}
+        )
+        self._strip_noncanonical_authority_fields(req)
+        if req.lifecycle_state in {"QUEUED", "DELIVERED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"}:
+            req.lifecycle_state = "RECONCILIATION_REQUIRED"
+            req.diagnostics.setdefault("reconciliation_reasons", []).append(
+                "missing_idempotency_key"
+            )
+            if not req.reconciliation_requested_at:
+                req.reconciliation_requested_at = now_s()
+            req.reconciliation_deadline_at = max(
+                req.reconciliation_deadline_at,
+                req.reconciliation_requested_at + 15.0,
+            )
+        self._update_request_locked(
+            req,
+            "MISSING_IDEMPOTENCY_KEY_REJECTED",
+            write_idempotency_index=False,
+        )
+        return req
+
     def _reject_noncanonical_update_locked(
         self, req: DurableRemoteRequest, *, event: str
     ) -> DurableRemoteRequest | None:
         if not req.idempotency_key:
-            return None
+            return self._mark_missing_idempotency_key_locked(req, event=event)
         index = _read_json(self._idempotency_index_path(req.idempotency_key))
         canonical_request_id = str(index.get("canonical_request_id", "")) if index else ""
         if not canonical_request_id:
@@ -592,6 +625,21 @@ class DurableRemoteStore:
     def _find_request_by_idempotency_key_locked(
         self, idempotency_key: str
     ) -> DurableRemoteRequest | None:
+        matches = self._requests_by_idempotency_key_locked(idempotency_key)
+        if not matches:
+            return None
+        if len(matches) > 1:
+            self._fail_ambiguous_idempotency_recovery_locked(
+                matches,
+                event="AMBIGUOUS_IDEMPOTENCY_RECOVERY_REJECTED",
+            )
+            raise ValueError("ambiguous idempotency recovery: multiple request records")
+        canonical = matches[0]
+        return canonical
+
+    def _requests_by_idempotency_key_locked(
+        self, idempotency_key: str
+    ) -> list[DurableRemoteRequest]:
         matches: list[DurableRemoteRequest] = []
         for path in sorted(self.requests_dir.glob("*.json")):
             data = _read_json(path)
@@ -600,27 +648,30 @@ class DurableRemoteStore:
             req = DurableRemoteRequest.from_dict(data)
             if req.idempotency_key == idempotency_key:
                 matches.append(req)
-        if not matches:
-            return None
-        if len(matches) > 1:
-            detected_at = now_s()
-            request_ids = sorted(req.request_id for req in matches)
-            for duplicate in matches:
-                duplicate.diagnostics.setdefault(
-                    "ambiguous_idempotency_recovery",
-                    {
-                        "request_ids": request_ids,
-                        "detected_at": detected_at,
-                    },
-                )
-                self._mark_noncanonical_request_locked(
-                    duplicate,
-                    canonical_request_id="ambiguous_idempotency_recovery",
-                    event="AMBIGUOUS_IDEMPOTENCY_RECOVERY_REJECTED",
-                )
-            raise ValueError("ambiguous idempotency recovery: multiple request records")
-        canonical = matches[0]
-        return canonical
+        matches.sort(key=self._request_sort_key)
+        return matches
+
+    def _fail_ambiguous_idempotency_recovery_locked(
+        self,
+        matches: list[DurableRemoteRequest],
+        *,
+        event: str,
+    ) -> None:
+        detected_at = now_s()
+        request_ids = sorted(req.request_id for req in matches)
+        for duplicate in matches:
+            duplicate.diagnostics.setdefault(
+                "ambiguous_idempotency_recovery",
+                {
+                    "request_ids": request_ids,
+                    "detected_at": detected_at,
+                },
+            )
+            self._mark_noncanonical_request_locked(
+                duplicate,
+                canonical_request_id="ambiguous_idempotency_recovery",
+                event=event,
+            )
 
     def _quarantine_noncanonical_idempotency_records_locked(
         self, idempotency_key: str, *, canonical_request_id: str
@@ -641,13 +692,27 @@ class DurableRemoteStore:
 
     def _request_is_canonical_for_idempotency(self, req: DurableRemoteRequest) -> bool:
         if not req.idempotency_key:
-            return True
+            with self._request_lock(req.request_id):
+                current = self._get_request_raw(req.request_id)
+                if current is not None and not current.idempotency_key:
+                    self._mark_missing_idempotency_key_locked(
+                        current,
+                        event="CANONICAL_IDEMPOTENCY_CHECK",
+                    )
+            return False
         with self._idempotency_lock(req.idempotency_key):
             index = _read_json(self._idempotency_index_path(req.idempotency_key))
             if index:
                 canonical_request_id = str(index.get("canonical_request_id", ""))
                 if not canonical_request_id:
                     raise ValueError("idempotency index missing canonical request id")
+                matches = self._requests_by_idempotency_key_locked(req.idempotency_key)
+                if matches and matches[0].request_id != canonical_request_id:
+                    self._fail_ambiguous_idempotency_recovery_locked(
+                        matches,
+                        event="IDEMPOTENCY_INDEX_CONFLICT_REJECTED",
+                    )
+                    return False
                 if canonical_request_id != req.request_id:
                     self._quarantine_duplicate_idempotency_record_locked(
                         req,
@@ -725,6 +790,13 @@ class DurableRemoteStore:
         existing = self._get_request_raw(canonical_request_id)
         if existing is None:
             raise ValueError("idempotency index points to missing canonical request")
+        matches = self._requests_by_idempotency_key_locked(incoming.idempotency_key)
+        if matches and matches[0].request_id != canonical_request_id:
+            self._fail_ambiguous_idempotency_recovery_locked(
+                matches,
+                event="IDEMPOTENCY_INDEX_CONFLICT_REJECTED",
+            )
+            raise ValueError("idempotency index conflicts with request records")
         self._validate_idempotent_replay(existing, incoming)
         with self._request_lock(existing.request_id):
             current = self._get_request_raw(existing.request_id)
