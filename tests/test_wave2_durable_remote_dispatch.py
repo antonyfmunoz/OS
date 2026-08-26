@@ -128,6 +128,7 @@ def test_candidate_frontend_artifact_success_emits_exact_sha_manifest(monkeypatc
     cockpit.mkdir(parents=True)
     (cockpit / "package-lock.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(dispatch, "_WORKTREE", worktree)
+    monkeypatch.setattr(dispatch, "_state_dir", lambda _sha: tmp_path / "candidate" / "state" / "umh")
 
     def fake_run(cmd, **_kwargs):
         if cmd[:2] == ["git", "rev-parse"] and cmd[-1] == "HEAD":
@@ -152,6 +153,9 @@ def test_candidate_frontend_artifact_success_emits_exact_sha_manifest(monkeypatc
     )
 
     assert proof["ok"] is True
+    assert Path(proof["artifact_root"]).is_dir()
+    assert Path(proof["artifact_root"]) != cockpit / "dist-web"
+    assert proof["build_dist_web"] == str(cockpit / "dist-web")
     manifest = json.loads((cockpit / "dist-web" / ".umh-wave2-artifact.json").read_text())
     assert manifest["candidate_sha"] == "b" * 40
     assert manifest["source_head"] == "b" * 40
@@ -160,7 +164,11 @@ def test_candidate_frontend_artifact_success_emits_exact_sha_manifest(monkeypatc
     assert manifest["assets"] == proof["assets"]
     assert manifest["build_status"] == "SUCCEEDED"
     assert manifest["manifest_sha256"] == dispatch._frontend_manifest_identity_digest(manifest)
-    assert dispatch._verify_candidate_frontend_artifact(cockpit / "dist-web", "b" * 40)["ok"]
+    assert dispatch._verify_candidate_frontend_artifact(Path(proof["artifact_root"]), "b" * 40)[
+        "ok"
+    ]
+    readability = dispatch._artifact_tree_readability_proof(Path(proof["artifact_root"]))
+    assert readability["ok"] is True
 
 
 def test_candidate_frontend_artifact_refuses_dirty_frontend_source(monkeypatch, tmp_path):
@@ -433,8 +441,34 @@ def test_deploy_candidate_result_fails_when_serve_command_fails_even_if_probes_p
         "_prepare_candidate_frontend_artifact",
         lambda _runner, *, sha, clerk_key: {
             "ok": True,
-            "dist_web": str(dist),
+            "build_dist_web": str(dist),
+            "artifact_root": str(tmp_path / "artifact-root"),
             "candidate_sha": sha,
+        },
+    )
+    _write_dist_web(tmp_path / "artifact-root")
+    _write_artifact_manifest(
+        dispatch,
+        tmp_path / "artifact-root",
+        "e" * 40,
+        {
+            "index_sha256": hashlib.sha256(
+                (tmp_path / "artifact-root" / "index.html").read_bytes()
+            ).hexdigest(),
+            "assets": {
+                "js": {
+                    "name": "main.js",
+                    "sha256": hashlib.sha256(
+                        (tmp_path / "artifact-root" / "assets" / "main.js").read_bytes()
+                    ).hexdigest(),
+                },
+                "css": {
+                    "name": "main.css",
+                    "sha256": hashlib.sha256(
+                        (tmp_path / "artifact-root" / "assets" / "main.css").read_bytes()
+                    ).hexdigest(),
+                },
+            },
         },
     )
     monkeypatch.setattr(
@@ -497,7 +531,14 @@ def test_deploy_candidate_prepares_frontend_before_operator_starts(monkeypatch, 
 
     def prepare(_runner, *, sha, clerk_key):
         events.append("frontend-proof")
-        return {"ok": True, "dist_web": str(dist), "candidate_sha": sha}
+        artifact_root = tmp_path / "artifact-root"
+        artifact_root.mkdir()
+        return {
+            "ok": True,
+            "build_dist_web": str(dist),
+            "artifact_root": str(artifact_root),
+            "candidate_sha": sha,
+        }
 
     monkeypatch.setattr(dispatch, "_prepare_candidate_frontend_artifact", prepare)
 
@@ -513,6 +554,104 @@ def test_deploy_candidate_prepares_frontend_before_operator_starts(monkeypatch, 
 
     assert events.index("frontend-proof") < events.index("docker:candidate-api")
     assert events.index("frontend-proof") < events.index("docker:candidate-nginx")
+
+
+def test_deploy_candidate_mounts_promoted_artifact_not_worktree_dist(monkeypatch, tmp_path) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    worktree = tmp_path / "repo"
+    build_dist = worktree / "cockpit" / "dist-web"
+    artifact_root = tmp_path / "candidate" / "state" / "frontend-artifacts" / ("1" * 64)
+    template = worktree / "infra" / "candidate" / "nginx.candidate.conf.template"
+    template.parent.mkdir(parents=True)
+    template.write_text("proxy_pass http://${CANDIDATE_UPSTREAM};\n", encoding="utf-8")
+    monkeypatch.setattr(dispatch, "_WORKTREE", worktree)
+    monkeypatch.setattr(dispatch, "_ROOT", tmp_path / "root")
+    monkeypatch.setattr(dispatch, "_proof_root", lambda: tmp_path / "proof")
+    monkeypatch.setattr(dispatch, "_state_dir", lambda _sha: tmp_path / "candidate" / "state" / "umh")
+    monkeypatch.setattr(dispatch, "_CANDIDATE_CONTAINER", "candidate-api")
+    monkeypatch.setattr(dispatch, "_CANDIDATE_NGINX_CONTAINER", "candidate-nginx")
+    monkeypatch.setattr(dispatch, "_OPERATOR_DOCKER_NETWORK", "candidate-net")
+    monkeypatch.setattr(dispatch, "_read_clerk_publishable_key", lambda: "pk_test")
+    monkeypatch.setattr(dispatch, "_smoke_workspace_scope", lambda: "app/**")
+    monkeypatch.setattr(dispatch, "_declared_lanes_json", lambda: "{}")
+    monkeypatch.setattr(dispatch, "_candidate_image_id", lambda _runner: "image")
+    monkeypatch.setattr(dispatch, "_remove_container_and_wait", lambda *_args, **_kw: None)
+    monkeypatch.setattr(dispatch, "_snapshot_tailscale_serve", lambda *_args, **_kw: tmp_path / "snap")
+    monkeypatch.setattr(dispatch, "_install_crash_handlers", lambda *_args, **_kw: None)
+    monkeypatch.setattr(dispatch, "_candidate_origin", lambda: "https://candidate.example:10443")
+    monkeypatch.setattr(dispatch, "_wait_candidate_ready", lambda _runner, **_kw: {"ready": True})
+    monkeypatch.setattr(
+        dispatch,
+        "_http_ok",
+        lambda _runner, url, expect_status=None: {"ok": True, "status": 200, "url": url},
+    )
+    monkeypatch.setattr(
+        dispatch,
+        "_served_candidate_frontend_artifact_proof",
+        lambda _runner, *, origin, local_artifact: {"ok": True, "origin": origin},
+    )
+    monkeypatch.setattr(
+        dispatch,
+        "_prepare_candidate_frontend_artifact",
+        lambda _runner, *, sha, clerk_key: {
+            "ok": True,
+            "build_dist_web": str(build_dist),
+            "artifact_root": str(artifact_root),
+            "candidate_sha": sha,
+        },
+    )
+    docker_runs: list[list[str]] = []
+
+    class Runner:
+        dry_run = False
+
+        def run(self, cmd, **_kwargs):
+            if cmd[:3] == ["docker", "run", "-d"]:
+                docker_runs.append(cmd)
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    dispatch.deploy_candidate(Runner(), "e" * 40)
+
+    flattened = "\n".join(" ".join(cmd) for cmd in docker_runs)
+    assert f"{artifact_root}:/usr/share/nginx/html:ro" in flattened
+    assert f"{artifact_root}:/frontend:ro" in flattened
+    assert f"{build_dist}:/usr/share/nginx/html:ro" not in flattened
+    assert "UMH_COCKPIT_DIST_WEB=/frontend" in flattened
+
+
+def test_deploy_candidate_requires_promoted_artifact_root(monkeypatch, tmp_path) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    worktree = tmp_path / "repo"
+    template = worktree / "infra" / "candidate" / "nginx.candidate.conf.template"
+    template.parent.mkdir(parents=True)
+    template.write_text("proxy_pass http://${CANDIDATE_UPSTREAM};\n", encoding="utf-8")
+    build_dist = worktree / "cockpit" / "dist-web"
+    monkeypatch.setattr(dispatch, "_WORKTREE", worktree)
+    monkeypatch.setattr(dispatch, "_ROOT", tmp_path / "root")
+    monkeypatch.setattr(dispatch, "_proof_root", lambda: tmp_path / "proof")
+    monkeypatch.setattr(dispatch, "_state_dir", lambda _sha: tmp_path / "candidate" / "state" / "umh")
+    monkeypatch.setattr(dispatch, "_OPERATOR_DOCKER_NETWORK", "candidate-net")
+    monkeypatch.setattr(dispatch, "_read_clerk_publishable_key", lambda: "pk_test")
+    monkeypatch.setattr(dispatch, "_candidate_image_id", lambda _runner: "image")
+    monkeypatch.setattr(dispatch, "_remove_container_and_wait", lambda *_args, **_kw: None)
+    monkeypatch.setattr(
+        dispatch,
+        "_prepare_candidate_frontend_artifact",
+        lambda _runner, *, sha, clerk_key: {
+            "ok": True,
+            "dist_web": str(build_dist),
+            "candidate_sha": sha,
+        },
+    )
+
+    class Runner:
+        dry_run = False
+
+        def run(self, _cmd, **_kwargs):
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+    with pytest.raises(SystemExit, match="not promoted"):
+        dispatch.deploy_candidate(Runner(), "e" * 40)
 
 
 def test_deploy_candidate_retires_stale_nginx_before_frontend_build_failure(

@@ -53,6 +53,7 @@ import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
+from itertools import chain
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -1057,6 +1058,7 @@ def _must(runner: Runner, step: str, result: subprocess.CompletedProcess | None)
 
 
 _FRONTEND_ARTIFACT_MANIFEST = ".umh-wave2-artifact.json"
+_CANDIDATE_FRONTEND_MOUNT = "/frontend"
 
 
 class _FrontendAssetParser(HTMLParser):
@@ -1191,10 +1193,103 @@ def _verify_candidate_frontend_artifact(dist_web: Path, sha: str) -> dict[str, A
         "candidate_sha": sha,
         "manifest": str(manifest_path),
         "dist_web": str(dist_web),
+        "artifact_root": str(dist_web),
+        "manifest_sha256": manifest.get("manifest_sha256"),
         "built_at": manifest.get("built_at"),
         "index_sha256": bytes_proof["index_sha256"],
         "assets": bytes_proof["assets"],
     }
+
+
+def _candidate_frontend_artifact_parent(sha: str) -> Path:
+    return _state_dir(sha).parent / "frontend-artifacts"
+
+
+def _make_artifact_tree_runtime_readable(path: Path) -> None:
+    for child in chain([path], path.rglob("*")):
+        if child.is_dir():
+            child.chmod(0o755)
+        elif child.is_file():
+            child.chmod(0o644)
+
+
+def _artifact_tree_readability_proof(path: Path) -> dict[str, Any]:
+    proof: dict[str, Any] = {"ok": False, "path": str(path), "errors": []}
+    errors: list[str] = proof["errors"]
+    manifest_path = path / _FRONTEND_ARTIFACT_MANIFEST
+    required = [manifest_path, path / "index.html"]
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            assets = manifest.get("assets", {})
+            if isinstance(assets, dict):
+                for item in assets.values():
+                    if isinstance(item, dict) and item.get("name"):
+                        required.append(path / "assets" / str(item["name"]))
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"artifact manifest unreadable: {type(exc).__name__}")
+    for current in chain([path], path.rglob("*")):
+        mode = current.stat().st_mode & 0o777
+        if current.is_dir() and mode & 0o005 != 0o005:
+            errors.append(f"directory not world-readable/executable: {current.relative_to(path)}")
+        if current.is_file() and mode & 0o004 != 0o004:
+            errors.append(f"file not world-readable: {current.relative_to(path)}")
+    for item in required:
+        if not item.is_file():
+            errors.append(f"required artifact file missing: {item.relative_to(path)}")
+    proof["checked_files"] = [str(item.relative_to(path)) for item in required if item.exists()]
+    proof["ok"] = not errors
+    return proof
+
+
+def _promote_candidate_frontend_artifact(build_dist: Path, *, sha: str) -> dict[str, Any]:
+    build_proof = _verify_candidate_frontend_artifact(build_dist, sha)
+    if not build_proof.get("ok"):
+        raise SystemExit(f"candidate frontend build artifact is not qualified: {build_proof}")
+    manifest_digest = str(build_proof.get("manifest_sha256") or "")
+    if not re.fullmatch(r"[0-9a-f]{64}", manifest_digest):
+        raise SystemExit("candidate frontend artifact manifest digest is missing or invalid")
+    parent = _candidate_frontend_artifact_parent(sha)
+    final = parent / manifest_digest
+    staging = parent / f".staging-{manifest_digest}-{os.getpid()}-{uuid4().hex}"
+    parent.mkdir(parents=True, exist_ok=True)
+    if staging.exists():
+        shutil.rmtree(staging)
+    if final.exists():
+        final_proof = _verify_candidate_frontend_artifact(final, sha)
+        readable = _artifact_tree_readability_proof(final)
+        if final_proof.get("ok") and readable.get("ok"):
+            final_proof.update(
+                {
+                    "artifact_root": str(final),
+                    "build_dist_web": str(build_dist),
+                    "promoted": False,
+                    "readability": readable,
+                }
+            )
+            return final_proof
+        raise SystemExit(f"existing candidate frontend artifact is invalid: {final_proof} {readable}")
+    shutil.copytree(build_dist, staging, symlinks=False)
+    _make_artifact_tree_runtime_readable(staging)
+    staged_proof = _verify_candidate_frontend_artifact(staging, sha)
+    readable = _artifact_tree_readability_proof(staging)
+    if not staged_proof.get("ok") or not readable.get("ok"):
+        shutil.rmtree(staging, ignore_errors=True)
+        raise SystemExit(f"promoted candidate frontend artifact is invalid: {staged_proof} {readable}")
+    staging.rename(final)
+    final_proof = _verify_candidate_frontend_artifact(final, sha)
+    final_readable = _artifact_tree_readability_proof(final)
+    if not final_proof.get("ok") or not final_readable.get("ok"):
+        raise SystemExit(f"candidate frontend artifact promotion failed verification: {final_proof} {final_readable}")
+    final_proof.update(
+        {
+            "artifact_root": str(final),
+            "build_dist_web": str(build_dist),
+            "promoted": True,
+            "readability": final_readable,
+        }
+    )
+    return final_proof
 
 
 def _prepare_candidate_frontend_artifact(
@@ -1211,7 +1306,9 @@ def _prepare_candidate_frontend_artifact(
         return {
             "ok": True,
             "planned": True,
-            "dist_web": str(dist_web),
+            "build_dist_web": str(dist_web),
+            "artifact_root": str(_candidate_frontend_artifact_parent(sha) / "<manifest-digest>"),
+            "dist_web": str(_candidate_frontend_artifact_parent(sha) / "<manifest-digest>"),
             "candidate_sha": sha,
         }
 
@@ -1307,7 +1404,7 @@ def _prepare_candidate_frontend_artifact(
     proof = _verify_candidate_frontend_artifact(dist_web, sha)
     if not proof.get("ok"):
         raise SystemExit(f"candidate frontend artifact is not exact-sha bound: {proof}")
-    return proof
+    return _promote_candidate_frontend_artifact(dist_web, sha=sha)
 
 
 def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
@@ -1342,6 +1439,8 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
                 str(_ROOT / "services" / ".env"),
                 "--source",
                 str(_ROOT / "infra" / "docker" / "umh.env"),
+                "--source-container",
+                "os-operator",
                 "--out",
                 str(env_out),
                 "--audit-out",
@@ -1364,9 +1463,16 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
     # (4) build the candidate frontend and prove the served artifact binds to this SHA
     # before the operator imports/configures its static routes and /api/umh/build info.
     artifact = _prepare_candidate_frontend_artifact(runner, sha=sha, clerk_key=clerk_key)
-    steps["dist_web"] = artifact.get("dist_web")
+    steps["dist_web"] = artifact.get("build_dist_web") or artifact.get("dist_web")
+    steps["artifact_root"] = artifact.get("artifact_root")
     steps["frontend_artifact"] = artifact
-    dist_web = Path(str(artifact.get("dist_web") or (_WORKTREE / "cockpit" / "dist-web")))
+    artifact_root_raw = str(artifact.get("artifact_root") or "")
+    build_dist_raw = str(artifact.get("build_dist_web") or artifact.get("dist_web") or "")
+    if not artifact_root_raw:
+        raise SystemExit("candidate frontend artifact was not promoted to an immutable root")
+    if build_dist_raw and Path(artifact_root_raw).resolve() == Path(build_dist_raw).resolve():
+        raise SystemExit("candidate frontend artifact root must not be the build workspace dist-web")
+    artifact_root = Path(artifact_root_raw)
 
     # (5) candidate operator container — SAME image, worktree mounted read-only,
     # candidate state dir mounted rw, allowlisted env only.
@@ -1385,6 +1491,8 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
                 "-v",
                 f"{_WORKTREE}:/app:ro",
                 "-v",
+                f"{artifact_root}:{_CANDIDATE_FRONTEND_MOUNT}:ro",
+                "-v",
                 f"{state_dir}:/state/umh",
                 "-e",
                 "UMH_STATE_DIR=/state/umh",
@@ -1396,6 +1504,8 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
                 "UMH_ROOT=/app",
                 "-e",
                 f"UMH_BUILD_COMMIT={sha}",
+                "-e",
+                f"UMH_COCKPIT_DIST_WEB={_CANDIDATE_FRONTEND_MOUNT}",
                 # The fixture workspace's DECLARED writable-path authority. The
                 # candidate materializes every Task of the fixture objective with
                 # exactly this least-privilege scope (see
@@ -1458,7 +1568,7 @@ def deploy_candidate(runner: Runner, sha: str) -> dict[str, Any]:
                 "--network",
                 _OPERATOR_DOCKER_NETWORK,
                 "-v",
-                f"{dist_web}:/usr/share/nginx/html:ro",
+                f"{artifact_root}:/usr/share/nginx/html:ro",
                 "-v",
                 f"{conf_out}:/etc/nginx/conf.d/default.conf:ro",
                 "-p",

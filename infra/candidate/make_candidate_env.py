@@ -29,14 +29,21 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
-# Auth: exactly what cockpit_auth.py reads to validate Clerk JWTs.
+# Auth/readiness: exactly what cockpit_auth.py and services.operator_api read to
+# validate protected routes and semantic readiness. The operator API key is a
+# required runtime secret; it is materialized into candidate.env but never into
+# artifacts or audit output.
 _AUTH_KEYS = (
+    "UMH_OPERATOR_API_KEY",
     "CLERK_JWKS_URL",
     "ALLOWED_CLERK_USER_IDS",
 )
+
+_REQUIRED_KEYS = ("UMH_OPERATOR_API_KEY",)
 
 # Planning LLM enhancement: model_router.py api_key_env names in the fallback
 # chain. Omitting them is safe (deterministic fallback) but degrades plan
@@ -108,14 +115,14 @@ def _is_denied(key: str) -> bool:
 
 
 def build_candidate_env(
-    source_env: Path | list[Path],
+    source_env: Path | dict[str, str] | list[Path | dict[str, str]],
     *,
     extra_umh: dict[str, str] | None = None,
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
     """Return (candidate_env, audit).
 
     candidate_env: the allowlisted KEY=VALUE map to write.
-    audit: {"included": [...names...], "skipped_absent": [...], "denied": [...]}.
+    audit: names/provenance only; never values.
     """
     # Multiple sources merge in order, later files winning — the same
     # precedence docker-compose applies to the production service's env_file
@@ -123,9 +130,18 @@ def build_candidate_env(
     sources = source_env if isinstance(source_env, list) else [source_env]
     src: dict[str, str] = {}
     for one in sources:
-        src.update(_parse_env_file(one))
+        if isinstance(one, dict):
+            src.update(one)
+        else:
+            src.update(_parse_env_file(one))
     included: dict[str, str] = {}
-    audit: dict[str, list[str]] = {"included": [], "skipped_absent": [], "denied": []}
+    audit: dict[str, list[str]] = {
+        "included": [],
+        "skipped_absent": [],
+        "denied": [],
+        "required_present": [],
+        "required_missing": [],
+    }
 
     for key in ALLOWLIST:
         if _is_denied(key):
@@ -136,8 +152,12 @@ def build_candidate_env(
         if val:
             included[key] = val
             audit["included"].append(key)
+            if key in _REQUIRED_KEYS:
+                audit["required_present"].append(key)
         else:
             audit["skipped_absent"].append(key)
+            if key in _REQUIRED_KEYS:
+                audit["required_missing"].append(key)
 
     # Explicit candidate-only UMH_* vars — provided by the dispatcher, not env.
     for k, v in (extra_umh or {}).items():
@@ -147,7 +167,37 @@ def build_candidate_env(
         included[k] = v
         audit["included"].append(k)
 
+    if audit["required_missing"]:
+        missing = ", ".join(audit["required_missing"])
+        raise ValueError(f"required candidate secret/config missing or empty: {missing}")
+
     return included, audit
+
+
+def _parse_docker_container_env(container: str) -> dict[str, str]:
+    """Read a live container env as a secret source without printing values."""
+    if not container:
+        return {}
+    result = subprocess.run(
+        ["docker", "inspect", container, "--format", "{{json .Config.Env}}"],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"docker env source {container!r} is unavailable")
+    raw = json.loads(result.stdout or "[]")
+    env: dict[str, str] = {}
+    if not isinstance(raw, list):
+        return env
+    for item in raw:
+        if not isinstance(item, str) or "=" not in item:
+            continue
+        key, _, value = item.partition("=")
+        if key:
+            env[key] = value
+    return env
 
 
 def render_env_file(env: dict[str, str]) -> str:
@@ -171,6 +221,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Source production env file (repeatable; later files win, "
         "mirroring compose env_file precedence)",
     )
+    parser.add_argument(
+        "--source-container",
+        action="append",
+        default=None,
+        help="Live Docker container env source (repeatable; values are allowlisted and never printed)",
+    )
     parser.add_argument("--out", required=True, help="Output candidate.env path")
     parser.add_argument("--audit-out", default="", help="Optional audit JSON path")
     parser.add_argument("--state-dir", default="/state/umh")
@@ -189,7 +245,24 @@ def main(argv: list[str] | None = None) -> int:
 
     umh_root = os.environ.get("UMH_ROOT", "/opt/OS")
     sources = [Path(s) for s in (args.source or [os.path.join(umh_root, "services", ".env")])]
-    env, audit = build_candidate_env(sources, extra_umh=extra_umh)
+    source_maps: list[Path | dict[str, str]] = [*sources]
+    for container in args.source_container or []:
+        source_maps.append(_parse_docker_container_env(container))
+    try:
+        env, audit = build_candidate_env(source_maps, extra_umh=extra_umh)
+    except ValueError as exc:
+        audit = {
+            "included": [],
+            "skipped_absent": [],
+            "denied": [],
+            "required_present": [],
+            "required_missing": list(_REQUIRED_KEYS),
+            "error": [str(exc)],
+        }
+        if args.audit_out:
+            Path(args.audit_out).write_text(json.dumps(audit, indent=2), encoding="utf-8")
+        print(json.dumps({"written": "", "audit": audit}, indent=2))
+        return 2
 
     if args.dry_run:
         print(json.dumps({"would_write": args.out, "audit": audit}, indent=2))

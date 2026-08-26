@@ -63,9 +63,11 @@ def test_operator_api_missing_key_import_initializes_not_ready() -> None:
     assert "not configured" in component["detail"]
 
 
-def test_operator_api_import_initializes_frontend_artifact_as_required() -> None:
+def test_operator_api_import_initializes_frontend_artifact_as_required(tmp_path) -> None:
     env = dict(os.environ)
     env["UMH_OPERATOR_API_KEY"] = "secret"
+    env["UMH_ROOT"] = str(tmp_path)
+    env.pop("UMH_COCKPIT_DIST_WEB", None)
     env["PYTHONPATH"] = str(ROOT)
     script = (
         "import json; "
