@@ -134,6 +134,19 @@ def _request_payload_digest(
     )
 
 
+_IDEMPOTENCY_IDENTITY_FIELDS = (
+    "idempotency_key",
+    "candidate_sha",
+    "node_id",
+    "capability",
+    "operation_type",
+    "risk_class",
+    "authority_id",
+    "correlation_id",
+    "payload_digest",
+)
+
+
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + f".tmp-{uuid4().hex}")
@@ -469,23 +482,36 @@ class DurableRemoteStore:
     ) -> None:
         self._canonicalize_request_payload_identity(existing)
         self._canonicalize_request_payload_identity(incoming)
-        fields = (
-            "idempotency_key",
-            "candidate_sha",
-            "node_id",
-            "capability",
-            "operation_type",
-            "risk_class",
-            "authority_id",
-            "correlation_id",
-            "payload_digest",
-        )
-        for field_name in fields:
+        for field_name in _IDEMPOTENCY_IDENTITY_FIELDS:
             if getattr(existing, field_name) != getattr(incoming, field_name):
                 raise ValueError(
                     f"idempotency conflict: {field_name} differs for key "
                     f"{incoming.idempotency_key}"
                 )
+
+    def _quarantine_duplicate_idempotency_record_locked(
+        self, duplicate: DurableRemoteRequest, *, canonical_request_id: str
+    ) -> None:
+        if duplicate.request_id == canonical_request_id:
+            return
+        with self._request_lock(duplicate.request_id):
+            current = self._get_request_raw(duplicate.request_id)
+            if current is None:
+                return
+            current.diagnostics.setdefault(
+                "duplicate_idempotency_noncanonical",
+                {
+                    "canonical_request_id": canonical_request_id,
+                    "detected_at": now_s(),
+                },
+            )
+            if current.lifecycle_state in {"QUEUED", "DELIVERED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"}:
+                self._enter_reconciliation(
+                    current,
+                    reason="duplicate_idempotency_noncanonical",
+                )
+            else:
+                self._update_request_locked(current, "")
 
     def _find_request_by_idempotency_key_locked(
         self, idempotency_key: str
@@ -509,6 +535,11 @@ class DurableRemoteStore:
                     "detected_at": now_s(),
                 }
             )
+            for duplicate in matches[1:]:
+                self._quarantine_duplicate_idempotency_record_locked(
+                    duplicate,
+                    canonical_request_id=canonical.request_id,
+                )
         return canonical
 
     def _record_idempotent_replay_locked(
@@ -632,6 +663,24 @@ class DurableRemoteStore:
     def update_request(self, request: DurableRemoteRequest, event: str = "") -> None:
         with self._request_lock(request.request_id):
             current = self._get_request_raw(request.request_id)
+            if current is not None:
+                self._canonicalize_request_payload_identity(current)
+                self._canonicalize_request_payload_identity(request)
+                mismatched_identity = [
+                    field_name
+                    for field_name in _IDEMPOTENCY_IDENTITY_FIELDS
+                    if getattr(current, field_name) != getattr(request, field_name)
+                ]
+                if mismatched_identity:
+                    current.diagnostics.setdefault("identity_mutation_rejected", []).append(
+                        {
+                            "fields": mismatched_identity,
+                            "event": event,
+                            "observed_at": now_s(),
+                        }
+                    )
+                    self._update_request_locked(current, "IDENTITY_MUTATION_REJECTED")
+                    return
             if current is not None and (
                 current.lifecycle_state in TERMINAL_STATES
                 or current.lifecycle_state in RECOVERY_STATES

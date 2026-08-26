@@ -194,6 +194,56 @@ def test_live_idempotency_lock_is_not_stolen_by_age(tmp_path) -> None:
     assert lock_path.exists()
 
 
+def test_update_request_cannot_mutate_admitted_operation_identity(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="immutable-identity"))
+    mutated = DurableRemoteRequest.from_dict(original.to_dict())
+    mutated.candidate_sha = "different-sha"
+    mutated.params = {"command": "echo altered", "timeout": 5}
+    mutated.payload_digest = original.payload_digest
+    mutated.lifecycle_state = "CLAIMED"
+    mutated.claim_id = "claim-1"
+
+    store.update_request(mutated, "MUTATED_UPDATE")
+
+    stored = store.get_request(original.request_id)
+    assert stored is not None
+    assert stored.request_id == original.request_id
+    assert stored.candidate_sha == original.candidate_sha
+    assert stored.params == original.params
+    assert stored.payload_digest == original.payload_digest
+    assert stored.lifecycle_state == "QUEUED"
+    assert stored.claim_id == ""
+    rejected = stored.diagnostics["identity_mutation_rejected"][0]
+    assert set(rejected["fields"]) == {"candidate_sha", "payload_digest"}
+
+
+def test_missing_index_recovery_quarantines_duplicate_same_key_records(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="legacy-duplicate"))
+    duplicate = _request(idempotency_key="legacy-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+
+    replay = store.put_request(_request(idempotency_key="legacy-duplicate"))
+
+    assert replay.request_id == original.request_id
+    assert [req.request_id for req in store.deliverable_for_node("windows-desktop", limit=10)] == [
+        original.request_id
+    ]
+    quarantined = store.get_request(duplicate.request_id)
+    assert quarantined is not None
+    assert quarantined.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert quarantined.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+
+
 @pytest.mark.parametrize("state", ["RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"])
 def test_duplicate_after_existing_lifecycle_returns_same_trajectory(tmp_path, state: str) -> None:
     store = DurableRemoteStore(tmp_path)
