@@ -459,6 +459,12 @@ class DurableRemoteStore:
                     f"{incoming.idempotency_key}"
                 )
 
+    @staticmethod
+    def _strip_noncanonical_authority_fields(req: DurableRemoteRequest) -> None:
+        req.claim_id = ""
+        req.lease_expires_at = 0.0
+        req.process_tree = {}
+
     def _immutable_request_mutation_fields(
         self,
         current: DurableRemoteRequest,
@@ -493,12 +499,9 @@ class DurableRemoteStore:
                     "detected_at": now_s(),
                 },
             )
+            self._strip_noncanonical_authority_fields(current)
             if current.lifecycle_state in {"QUEUED", "DELIVERED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"}:
                 current.lifecycle_state = "RECONCILIATION_REQUIRED"
-                current.claim_id = ""
-                current.claimed_at = 0.0
-                current.lease_expires_at = 0.0
-                current.process_tree = {}
                 current.diagnostics.setdefault("reconciliation_reasons", []).append(
                     "duplicate_idempotency_noncanonical"
                 )
@@ -533,12 +536,9 @@ class DurableRemoteStore:
         req.diagnostics.setdefault("noncanonical_event_rejected", []).append(
             {"event": event, "observed_at": now_s()}
         )
+        self._strip_noncanonical_authority_fields(req)
         if req.lifecycle_state in {"QUEUED", "DELIVERED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"}:
             req.lifecycle_state = "RECONCILIATION_REQUIRED"
-            req.claim_id = ""
-            req.claimed_at = 0.0
-            req.lease_expires_at = 0.0
-            req.process_tree = {}
             req.diagnostics.setdefault("reconciliation_reasons", []).append(
                 "duplicate_idempotency_noncanonical"
             )

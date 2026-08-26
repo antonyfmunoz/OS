@@ -486,6 +486,33 @@ def test_update_request_cannot_admit_duplicate_when_index_missing(tmp_path) -> N
     assert index["canonical_request_id"] == original.request_id
 
 
+def test_terminal_noncanonical_duplicate_quarantine_strips_authority_evidence(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="terminal-duplicate-authority"))
+    duplicate = _request(idempotency_key="terminal-duplicate-authority")
+    duplicate.lifecycle_state = "SUCCEEDED"
+    duplicate.claim_id = "stale-claim"
+    duplicate.lease_expires_at = 456.0
+    duplicate.process_tree = {"root_pid": 99999}
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    replay = store.put_request(_request(idempotency_key="terminal-duplicate-authority"))
+
+    assert replay.request_id == original.request_id
+    quarantined = store.get_request(duplicate.request_id)
+    assert quarantined is not None
+    assert quarantined.lifecycle_state == "SUCCEEDED"
+    assert quarantined.claim_id == ""
+    assert quarantined.lease_expires_at == 0.0
+    assert quarantined.process_tree == {}
+    assert quarantined.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+
+
 def test_noncanonical_duplicate_claim_is_rejected_without_prior_diagnostic(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     original = store.put_request(_request(idempotency_key="direct-stale-claim"))
