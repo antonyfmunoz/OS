@@ -594,7 +594,7 @@ def test_beast_codex_spark_probe_uses_bounded_argv_lifecycle(monkeypatch) -> Non
 
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
-    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-test")
+    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda _sha: "codex-spark-test")
 
     calls: list[dict[str, object]] = []
     probe = {
@@ -650,7 +650,9 @@ def test_beast_codex_spark_probe_fails_closed_on_nonterminal_transport(monkeypat
 
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
-    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-cancelled")
+    monkeypatch.setattr(
+        dispatch, "_codex_probe_request_id", lambda _sha: "codex-spark-cancelled"
+    )
     monkeypatch.setattr(
         dispatch,
         "_durable_remote_shell",
@@ -675,7 +677,7 @@ def test_beast_codex_spark_probe_fails_closed_on_jsonl_error_event(monkeypatch) 
 
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
-    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-error")
+    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda _sha: "codex-spark-error")
 
     observed = {
         "ok": False,
@@ -715,7 +717,9 @@ def test_beast_codex_spark_probe_fails_if_cleanup_leaves_residue(monkeypatch) ->
 
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
-    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda: "codex-spark-residue")
+    monkeypatch.setattr(
+        dispatch, "_codex_probe_request_id", lambda _sha: "codex-spark-residue"
+    )
 
     monkeypatch.setattr(
         dispatch,

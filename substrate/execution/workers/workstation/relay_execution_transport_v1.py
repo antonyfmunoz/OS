@@ -122,26 +122,8 @@ def write_request_to_relay(
     request: dict[str, Any],
 ) -> tuple[bool, str]:
     request_id = request.get("request_id", f"REQ-{uuid.uuid4().hex[:8]}")
-    filename = f"{request_id}.json"
-
-    request_json = json.dumps(request, indent=2, default=str)
-    escaped = (
-        request_json.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("$", "\\$")
-        .replace("`", "\\`")
-    )
-
-    remote_cmd = (
-        f'mkdir -p {RELAY_INBOX_WSL} && echo \\"{escaped}\\" > {RELAY_INBOX_WSL}/{filename}'
-    )
-    ok, out, err = _run_ssh(remote_cmd, timeout=20)
-
-    if ok:
-        _log(f"request written to relay inbox: {filename}")
-        return True, request_id
-    _log(f"failed to write request: {err}")
-    return False, err
+    _log(f"relay inbox write rejected for {request_id}: {SYNC_RELAY_DISABLED_ERROR}")
+    return False, SYNC_RELAY_DISABLED_ERROR
 
 
 def write_request_via_scp(
@@ -149,34 +131,8 @@ def write_request_via_scp(
     local_tmp: Path = Path("/tmp"),
 ) -> tuple[bool, str]:
     request_id = request.get("request_id", f"REQ-{uuid.uuid4().hex[:8]}")
-    filename = f"{request_id}.json"
-    local_path = local_tmp / filename
-
-    local_path.write_text(json.dumps(request, indent=2, default=str))
-
-    scp_cmd = (
-        f"scp -i {SSH_KEY} -o IdentitiesOnly=yes -o BatchMode=yes "
-        f"-o ConnectTimeout={SSH_TIMEOUT} -o StrictHostKeyChecking=no "
-        f"{local_path} "
-        f"'{SSH_USER}'@{SSH_HOST}:eos_advisor_messages/windows_desktop_relay/inbox/{filename}"
-    )
-    try:
-        result = gated_subprocess_run(
-            scp_cmd,
-            shell=True,
-            capture_output=True,
-            text=True,
-            timeout=20,
-        )
-        local_path.unlink(missing_ok=True)
-        if result.returncode == 0:
-            _log(f"scp wrote request to relay inbox: {filename}")
-            return True, request_id
-        _log(f"scp failed: {result.stderr.strip()}")
-        return False, result.stderr.strip()
-    except (subprocess.TimeoutExpired, OSError) as e:
-        local_path.unlink(missing_ok=True)
-        return False, str(e)
+    _log(f"relay SCP write rejected for {request_id}: {SYNC_RELAY_DISABLED_ERROR}")
+    return False, SYNC_RELAY_DISABLED_ERROR
 
 
 def poll_relay_result(

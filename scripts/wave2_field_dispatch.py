@@ -1974,9 +1974,9 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
     return out
 
 
-def _codex_probe_request_id() -> str:
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    return f"codex-spark-{ts}-{uuid4().hex[:8]}"
+def _codex_probe_request_id(sha: str) -> str:
+    candidate = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(sha or "").strip()).strip("-")
+    return f"codex-spark-{candidate or 'unknown-sha'}"
 
 
 def _codex_probe_argv(*, sha: str, request_id: str) -> list[str]:
@@ -2233,7 +2233,7 @@ def _beast_codex_spark_probe(
     """Run the exact Beast Codex/Spark production-path probe as a preflight gate."""
     if runner.dry_run:
         return {"dry_run": True, "ok": True}
-    request_id = _codex_probe_request_id()
+    request_id = _codex_probe_request_id(sha)
     argv = _codex_probe_argv(sha=sha, request_id=request_id)
     command_digest = hashlib.sha256(
         json.dumps(argv, ensure_ascii=True, separators=(",", ":")).encode("utf-8")

@@ -1575,6 +1575,79 @@ def test_durable_remote_shell_replay_uses_canonical_admitted_request(
     )
 
 
+def test_codex_probe_request_id_is_stable_for_exact_sha() -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+
+    assert dispatch._codex_probe_request_id("abc123") == "codex-spark-abc123"
+    assert dispatch._codex_probe_request_id(" abc123\n") == "codex-spark-abc123"
+    assert dispatch._codex_probe_request_id("abc/123") == "codex-spark-abc-123"
+
+
+def test_codex_spark_probe_retry_reuses_stable_logical_idempotency(
+    monkeypatch, tmp_path
+) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    store = DurableRemoteStore(tmp_path)
+    runner = dispatch.Runner(dry_run=False)
+
+    monkeypatch.setenv("UMH_DURABLE_REMOTE_ROOT", str(tmp_path))
+    monkeypatch.setattr(dispatch, "_ensure_mesh_secrets", lambda: None)
+    monkeypatch.setattr(dispatch, "_MESH_NODE_ID", "windows-desktop")
+
+    import substrate.execution.durable_remote_transport as durable
+    import substrate.execution.mesh_verdict as mesh_verdict
+
+    monkeypatch.setattr(mesh_verdict, "get_verdict_secret", lambda: "present")
+    monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
+    monkeypatch.setattr(durable, "DurableRemoteStore", lambda: store)
+    monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
+    ticks = chain([100.0] * 60, [101.0] * 60, repeat(102.0))
+    monkeypatch.setattr(dispatch.time, "time", lambda: next(ticks))
+
+    original_put = store.put_request
+
+    def put_and_succeed(req):
+        admitted = original_put(req)
+        if admitted.request_id == req.request_id and store.result_for(admitted.request_id) is None:
+            store.mark_claimed(admitted.request_id, claim_id="claim-1")
+            store.mark_running(admitted.request_id, claim_id="claim-1")
+            store.publish_result(
+                admitted.request_id,
+                claim_id="claim-1",
+                state="SUCCEEDED",
+                result={
+                    "success": True,
+                    "stdout": json.dumps(
+                        {
+                            "ok": True,
+                            "request_id": "codex-spark-sha-final",
+                            "usage": {"input_tokens": 1, "output_tokens": 1},
+                        }
+                    ),
+                    "stderr": "",
+                    "exit_code": 0,
+                },
+                cleanup={"process_residue": []},
+            )
+        return admitted
+
+    monkeypatch.setattr(store, "put_request", put_and_succeed)
+
+    first = dispatch._beast_codex_spark_probe(runner, "sha-final", poll_timeout_seconds=5)
+    second = dispatch._beast_codex_spark_probe(runner, "sha-final", poll_timeout_seconds=5)
+
+    assert first["ok"] is True
+    assert second["ok"] is True
+    assert first["request_id"] == second["request_id"] == "codex-spark-sha-final"
+    assert first["transport"]["request_id"] == second["transport"]["request_id"]
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+    stored = store.get_request(str(first["transport"]["request_id"]))
+    assert stored is not None
+    assert stored.diagnostics["idempotent_replays"][0]["incoming_transport_request_id"] != (
+        stored.request_id
+    )
+
+
 def test_dispatcher_no_longer_imports_mesh_dispatch_port_for_remote_reads() -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
 
