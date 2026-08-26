@@ -12,6 +12,7 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
         "fallback_unavailable",
         "post_handler_stale_delivery",
         "redelivery_amplification",
+        "durable_unknown_policy_denied",
         "sync_consequential_routes_to_durable_remote",
         "sync_caller_effect_change_no_authority_change",
         "sync_declared_read_only_for_canonical_write_denied",
@@ -31,6 +32,8 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
     assert results["sync_duplicate_consequential_denied"]["sync_side_effects"] == 0
     assert results["sync_consequential_routes_to_durable_remote"]["executed"] == 1
     assert results["sync_consequential_routes_to_durable_remote"]["sync_side_effects"] == 0
+    assert results["durable_unknown_policy_denied"]["executed"] == 0
+    assert results["durable_unknown_policy_denied"]["fail_closed"] is True
     assert results["sync_read_only_retry_observation"]["sync_observations"] == 2
     assert results["sync_read_only_retry_observation"]["sync_side_effects"] == 0
     assert results["sync_unknown_effect_fails_closed"]["fail_closed"] is True

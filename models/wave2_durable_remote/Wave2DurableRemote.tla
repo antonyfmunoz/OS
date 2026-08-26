@@ -15,9 +15,9 @@ activation, and model-provider behavior. Those are adapter/lifecycle concerns
 outside the critical durable authority protocol.
 *)
 
-VARIABLES state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects
+VARIABLES state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects
 
-vars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+vars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
 
 Terminal == {"SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}
 ClaimedLike == {"CLAIMED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"}
@@ -37,6 +37,7 @@ Init ==
     /\ nodeUp = TRUE
     /\ declaredSyncEffect \in {"READ_ONLY", "CONSEQUENTIAL_WRITE", "UNKNOWN"}
     /\ canonicalSyncEffect \in {"READ_ONLY", "CONSEQUENTIAL_WRITE", "UNKNOWN"}
+    /\ durableCanonicalEffect \in {"CONSEQUENTIAL_WRITE", "UNKNOWN"}
     /\ durableExecutionPath = "NONE"
     /\ syncExecutionPath = "NONE"
     /\ syncExecuted = 0
@@ -45,7 +46,7 @@ Init ==
 Deliver ==
     /\ state = "QUEUED"
     /\ delivered' = TRUE
-    /\ UNCHANGED <<state, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<state, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
 
 DuplicateDelivery ==
     /\ delivered
@@ -56,9 +57,10 @@ CanonicalClaimWrite ==
     /\ state = "QUEUED"
     /\ delivered
     /\ meshUp /\ nodeUp
+    /\ durableCanonicalEffect = "CONSEQUENTIAL_WRITE"
     /\ state' = "CLAIMED"
     /\ claim' = "claim1"
-    /\ UNCHANGED <<delivered, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<delivered, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
 
 LostAck ==
     /\ state = "CLAIMED"
@@ -73,7 +75,7 @@ CanonicalReadProof ==
     /\ claim = "claim1"
     /\ candidate = expectedCandidate
     /\ proof' = TRUE
-    /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
 
 CanonicalReadUnavailable ==
     /\ state \in {"QUEUED", "CLAIMED"}
@@ -81,7 +83,7 @@ CanonicalReadUnavailable ==
     /\ proof = FALSE
     /\ state' = "RECONCILIATION_REQUIRED"
     /\ terminalSeen' = TRUE
-    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
 
 Run ==
     /\ state = "CLAIMED"
@@ -89,11 +91,12 @@ Run ==
     /\ ~cancelled
     /\ claim = "claim1"
     /\ candidate = expectedCandidate
+    /\ durableCanonicalEffect = "CONSEQUENTIAL_WRITE"
     /\ state' = "RUNNING"
     /\ executed' = executed + 1
     /\ authorityAtLaunch' = TRUE
     /\ durableExecutionPath' = "DurableRemote"
-    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, proof, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, proof, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
 
 RunningReadReconcile ==
     /\ state = "RUNNING"
@@ -104,7 +107,7 @@ Terminalize ==
     /\ state = "RUNNING"
     /\ state' \in {"SUCCEEDED", "FAILED"}
     /\ terminalSeen' = TRUE
-    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
 
 CancelBeforeLaunch ==
     /\ state \in {"QUEUED", "CLAIMED"}
@@ -112,7 +115,7 @@ CancelBeforeLaunch ==
     /\ cancelled' = TRUE
     /\ state' = "CANCELLED"
     /\ terminalSeen' = TRUE
-    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
 
 ForeignClaim ==
     /\ state \in {"QUEUED", "CLAIMED"}
@@ -120,7 +123,7 @@ ForeignClaim ==
     /\ claim # "none"
     /\ state' = "RECONCILIATION_REQUIRED"
     /\ terminalSeen' = TRUE
-    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
 
 CandidateMismatch ==
     /\ state \in {"QUEUED", "CLAIMED"}
@@ -128,7 +131,7 @@ CandidateMismatch ==
     /\ candidate' = "foreign"
     /\ state' = "RECONCILIATION_REQUIRED"
     /\ terminalSeen' = TRUE
-    /\ UNCHANGED <<delivered, claim, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<delivered, claim, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
 
 LateForeignRunningAfterTerminal ==
     /\ state \in Terminal
@@ -137,11 +140,19 @@ LateForeignRunningAfterTerminal ==
 NodeRestart ==
     /\ nodeUp' = ~nodeUp
     /\ proof' = FALSE
-    /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, authorityAtLaunch, terminalSeen, meshUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, authorityAtLaunch, terminalSeen, meshUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
 
 MeshRestart ==
     /\ meshUp' = ~meshUp
-    /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
+    /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
+
+DurableRemoteRejectUnknownPolicy ==
+    /\ state = "QUEUED"
+    /\ delivered
+    /\ durableCanonicalEffect # "CONSEQUENTIAL_WRITE"
+    /\ state' = "RECONCILIATION_REQUIRED"
+    /\ terminalSeen' = TRUE
+    /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
 
 SyncMeshExecuteReadOnly ==
     /\ declaredSyncEffect = "READ_ONLY"
@@ -150,7 +161,7 @@ SyncMeshExecuteReadOnly ==
     /\ syncExecuted' = 1
     /\ syncExecutionPath' = "SyncMesh"
     /\ syncConsequentialEffects' = 0
-    /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath>>
+    /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath>>
 
 SyncMeshRejectUnsafeOrMismatched ==
     /\ canonicalSyncEffect # "READ_ONLY" \/ declaredSyncEffect # canonicalSyncEffect
@@ -173,6 +184,7 @@ Next ==
     \/ LateForeignRunningAfterTerminal
     \/ NodeRestart
     \/ MeshRestart
+    \/ DurableRemoteRejectUnknownPolicy
     \/ SyncMeshExecuteReadOnly
     \/ SyncMeshRejectUnsafeOrMismatched
 
@@ -190,6 +202,7 @@ FairSpec ==
     /\ Spec
     /\ WF_vars(Deliver)
     /\ WF_vars(CanonicalClaimWrite)
+    /\ WF_vars(DurableRemoteRejectUnknownPolicy)
     /\ WF_vars(CanonicalReadProof)
     /\ WF_vars(Run)
     /\ WF_vars(Terminalize)
@@ -207,6 +220,7 @@ ReadOnlySyncDoesNotCreateConsequentialEffect == syncExecuted > 0 => canonicalSyn
 DeclaredRiskCannotDowngradeCanonicalRisk == canonicalSyncEffect = "CONSEQUENTIAL_WRITE" /\ declaredSyncEffect = "READ_ONLY" => syncExecuted = 0
 SyncExecutionRequiresCanonicalReadOnlyPolicy == syncExecuted > 0 => canonicalSyncEffect = "READ_ONLY" /\ declaredSyncEffect = "READ_ONLY"
 ConsequentialExecutionImpliesDurableRemotePath == executed > 0 => durableExecutionPath = "DurableRemote"
+DurableRemoteExecutionRequiresCanonicalConsequentialPolicy == executed > 0 => durableCanonicalEffect = "CONSEQUENTIAL_WRITE"
 
 EventuallyHealthy == <>[](meshUp /\ nodeUp)
 

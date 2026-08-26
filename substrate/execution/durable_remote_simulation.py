@@ -29,6 +29,7 @@ class SimState:
     mesh_alive: bool = True
     store_alive: bool = True
     pending_ack: bool = False
+    durable_canonical_effect: str = "CONSEQUENTIAL_WRITE"
     declared_sync_effect: str = "UNKNOWN"
     canonical_sync_effect: str = "UNKNOWN"
     sync_side_effects: int = 0
@@ -54,6 +55,8 @@ class SimState:
             assert self.sync_observations == 0, self.log
         if self.canonical_sync_effect == "CONSEQUENTIAL_WRITE":
             assert self.sync_observations == 0, self.log
+        if self.durable_canonical_effect != "CONSEQUENTIAL_WRITE":
+            assert self.executed == 0, self.log
 
 
 def sync_mesh_receive(
@@ -134,6 +137,11 @@ def canonical_read(state: SimState, *, delayed: bool = False, available: bool = 
 
 def announce_running_and_execute(state: SimState, claim_id: str = "claim-1") -> None:
     state.record("announce_running")
+    if state.durable_canonical_effect != "CONSEQUENTIAL_WRITE":
+        state.fail_closed = True
+        state.lifecycle = "RECONCILIATION_REQUIRED"
+        state.assert_invariants()
+        return
     if state.cancelled or state.fail_closed:
         state.assert_invariants()
         return
@@ -300,6 +308,14 @@ def _consequential_write_durable_remote_duplicate_delivery(state: SimState) -> N
     terminal(state)
 
 
+def _unknown_durable_policy_denied(state: SimState) -> None:
+    state.durable_canonical_effect = "UNKNOWN"
+    deliver(state)
+    claim_write(state)
+    canonical_read(state)
+    announce_running_and_execute(state)
+
+
 def _read_only_sync_retry_observation(state: SimState) -> None:
     sync_mesh_receive(state, "READ_ONLY")
     sync_mesh_receive(state, "READ_ONLY", retry=True)
@@ -350,6 +366,7 @@ SCENARIOS: dict[str, Scenario] = {
     "terminal_late_foreign_running": _terminal_late_foreign_running,
     "sync_duplicate_consequential_denied": _duplicate_consequential_sync_denied,
     "sync_consequential_routes_to_durable_remote": _consequential_write_durable_remote_duplicate_delivery,
+    "durable_unknown_policy_denied": _unknown_durable_policy_denied,
     "sync_read_only_retry_observation": _read_only_sync_retry_observation,
     "sync_unknown_effect_fails_closed": _unknown_sync_effect_fails_closed,
     "sync_stale_verdict_rejected": _stale_operation_bound_verdict_rejected,

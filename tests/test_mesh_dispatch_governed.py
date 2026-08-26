@@ -1130,6 +1130,34 @@ def test_node_accepts_valid_write_class_verdict_only_for_durable_remote(monkeypa
     assert ok is True
 
 
+def test_node_rejects_unknown_durable_capability_even_with_consequential_declaration(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
+    params: dict[str, object] = {}
+    token, _ = _operation_bound_verdict(
+        capability="dummy.execute",
+        params=params,
+        risk_class="reversible_write",
+    )
+    client = _bare_node_client("node-a")
+
+    ok, reason = client._validate_verdict(
+        "dummy.execute",
+        "reversible_write",
+        token,
+        request_id="req-unknown-durable",
+        correlation_id="corr-unknown-durable",
+        candidate_sha="a" * 40,
+        effect_class=CONSEQUENTIAL_WRITE_EFFECT,
+        payload_digest=canonical_payload_digest(params),
+        idempotency_key="req-unknown-durable",
+        cap_params=params,
+        allow_consequential_write=True,
+    )
+
+    assert ok is False
+    assert "no canonical effect policy" in reason
+
+
 def test_node_rejects_operation_bound_verdict_for_stale_payload(monkeypatch):
     monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
     token, _params = _operation_bound_verdict(params={"argv": ["echo", "old"]})
@@ -1390,7 +1418,7 @@ def test_durable_node_does_not_run_adapter_when_running_ack_is_rejected(tmp_path
     )
     client._ws = ws
     client._config.capabilities = {
-        "dummy": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "terminal": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     executed = False
 
@@ -1400,8 +1428,8 @@ def test_durable_node_does_not_run_adapter_when_running_ack_is_rejected(tmp_path
             executed = True
             return {"success": True}
 
-    client._adapters = {"dummy": _Adapter()}
-    req = _durable_request(capability="dummy.execute", params={}, risk_class="read_only")
+    client._adapters = {"terminal": _Adapter()}
+    req = _durable_request(capability="terminal.execute", params={}, risk_class="reversible_write")
 
     asyncio.run(
         client._handle_durable_command(
@@ -1431,7 +1459,7 @@ def test_durable_node_running_ack_timeout_reads_back_running_before_execution(
     client = _durable_node_client(tmp_path)
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "dummy": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "terminal": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
     executed = False
@@ -1457,10 +1485,10 @@ def test_durable_node_running_ack_timeout_reads_back_running_before_execution(
         readbacks.append((str(payload.get("request_id", "")), str(payload.get("state", ""))))
         return _canonical_claim_readback(client, payload)
 
-    client._adapters = {"dummy": _Adapter()}
+    client._adapters = {"terminal": _Adapter()}
     monkeypatch.setattr(client, "_send_durable_event", _send_event)
     monkeypatch.setattr(client, "_read_canonical_durable_claim_state", _readback)
-    req = _durable_request(capability="dummy.execute", params={}, risk_class="read_only")
+    req = _durable_request(capability="terminal.execute", params={}, risk_class="reversible_write")
 
     asyncio.run(
         client._handle_durable_command(
@@ -2026,7 +2054,7 @@ def test_durable_node_missing_running_ack_reads_back_running_before_execution(
     client = _durable_node_client(tmp_path)
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "dummy": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "terminal": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     executed = False
 
@@ -2046,10 +2074,10 @@ def test_durable_node_missing_running_ack_reads_back_running_before_execution(
     async def _readback(payload, **_kwargs):
         return _canonical_claim_readback(client, payload)
 
-    client._adapters = {"dummy": _Adapter()}
+    client._adapters = {"terminal": _Adapter()}
     monkeypatch.setattr(client, "_send_durable_event", _send_event)
     monkeypatch.setattr(client, "_read_canonical_durable_claim_state", _readback)
-    req = _durable_request(capability="dummy.execute", params={}, risk_class="read_only")
+    req = _durable_request(capability="terminal.execute", params={}, risk_class="reversible_write")
 
     asyncio.run(
         client._handle_durable_command(
@@ -2072,7 +2100,7 @@ def test_durable_node_running_ack_timeout_rejected_readback_does_not_execute(
     client = _durable_node_client(tmp_path)
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "dummy": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "terminal": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
     executed = False
@@ -2090,7 +2118,7 @@ def test_durable_node_running_ack_timeout_rejected_readback_does_not_execute(
             return {"ok": False, "error": "durable_command.claimed acknowledgement timed out"}
         return {"ok": True, "error": ""}
 
-    client._adapters = {"dummy": _Adapter()}
+    client._adapters = {"terminal": _Adapter()}
     monkeypatch.setattr(client, "_send_durable_event", _send_event)
 
     async def _readback(_payload, **_kwargs):
@@ -2102,7 +2130,7 @@ def test_durable_node_running_ack_timeout_rejected_readback_does_not_execute(
         }
 
     monkeypatch.setattr(client, "_read_canonical_durable_claim_state", _readback)
-    req = _durable_request(capability="dummy.execute", params={}, risk_class="read_only")
+    req = _durable_request(capability="terminal.execute", params={}, risk_class="reversible_write")
 
     asyncio.run(
         client._handle_durable_command(
@@ -2126,7 +2154,7 @@ def test_durable_bare_running_ack_with_retryable_readback_does_not_execute(
     client = _durable_node_client(tmp_path)
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "dummy": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "terminal": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
 
     class _Adapter:
@@ -2150,10 +2178,10 @@ def test_durable_bare_running_ack_with_retryable_readback_does_not_execute(
             "retryable": True,
         }
 
-    client._adapters = {"dummy": _Adapter()}
+    client._adapters = {"terminal": _Adapter()}
     monkeypatch.setattr(client, "_send_durable_event", _send_event)
     monkeypatch.setattr(client, "_read_canonical_durable_claim_state", _readback)
-    req = _durable_request(capability="dummy.execute", params={}, risk_class="read_only")
+    req = _durable_request(capability="terminal.execute", params={}, risk_class="reversible_write")
 
     asyncio.run(
         client._handle_durable_command(
@@ -3998,11 +4026,11 @@ def test_durable_non_shell_cancel_after_running_ack_before_adapter_execute_does_
     client = _durable_node_client(tmp_path / "store")
     adapter = _Adapter()
     client._config.capabilities = {
-        "demo": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "terminal": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
-    client._adapters = {"demo": adapter}
+    client._adapters = {"terminal": adapter}
     req = client._durable_store.put_request(
-        _durable_request(capability="demo.execute", params={"timeout": 5})
+        _durable_request(capability="terminal.execute", params={"timeout": 5}, risk_class="reversible_write")
     )
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
 
@@ -4039,10 +4067,10 @@ def test_durable_non_shell_running_replay_without_root_pid_is_not_failed_as_shel
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "demo": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "terminal": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     req = client._durable_store.put_request(
-        _durable_request(capability="demo.execute", params={"timeout": 5})
+        _durable_request(capability="terminal.execute", params={"timeout": 5}, risk_class="reversible_write")
     )
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
     client._durable_store.mark_running(
@@ -4187,11 +4215,11 @@ def test_durable_non_shell_missing_local_state_after_running_ack_does_not_execut
     client = _durable_node_client(tmp_path / "store")
     adapter = _Adapter()
     client._config.capabilities = {
-        "demo": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "terminal": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
-    client._adapters = {"demo": adapter}
+    client._adapters = {"terminal": adapter}
     req = client._durable_store.put_request(
-        _durable_request(capability="demo.execute", params={"timeout": 5})
+        _durable_request(capability="terminal.execute", params={"timeout": 5}, risk_class="reversible_write")
     )
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
 

@@ -61,6 +61,7 @@ _CANONICAL_CONSEQUENTIAL_PREFIXES = frozenset({"shell"})
 _CANONICAL_CONSEQUENTIAL_CAPABILITIES = frozenset(
     {
         "terminal.create",
+        "terminal.execute",
         "terminal.send",
         "terminal.send_key",
         "terminal.destroy",

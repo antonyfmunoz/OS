@@ -1047,10 +1047,10 @@ class NodeClient:
         # The verdict still binds the consequential operation identity and the
         # UMH-owned policy identity; synchronous receiver policy never
         # authorizes this path.
-        if authoritative_effect in ("", READ_ONLY_EFFECT):
-            if allow_consequential_write:
-                return True, "durable read-only capability"
-            return False, "write-class capability requires canonical consequential policy"
+        if not authoritative_effect:
+            return False, "capability has no canonical effect policy"
+        if authoritative_effect == READ_ONLY_EFFECT:
+            return False, "DurableRemote consequential execution requires canonical consequential policy"
         if normalized_effect != CONSEQUENTIAL_WRITE_EFFECT:
             return False, "write-class capability requires CONSEQUENTIAL_WRITE effect binding"
 
