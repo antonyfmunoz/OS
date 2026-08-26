@@ -2581,6 +2581,8 @@ def activation_rehearsal(runner: Runner, sha: str, *, iterations: int = 3) -> di
                         str(_ROOT / "services" / ".env"),
                         "--source",
                         str(_ROOT / "infra" / "docker" / "umh.env"),
+                        "--source-container",
+                        "os-operator",
                         "--out",
                         str(env_out),
                         "--state-dir",
