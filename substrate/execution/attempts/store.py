@@ -19,11 +19,14 @@ append-only history, identity-field immutability). Grants use
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
+import re
 import tempfile
 import threading
+import time
 from contextlib import contextmanager
 from typing import Any, Iterator
 
@@ -175,6 +178,10 @@ def _encoded_kind(value: Any) -> Any:
 class AttemptStoreConflict(RuntimeError):
     """Raised when a compare-and-swap write loses to a concurrent writer, or a
     lifecycle guard rejects the transition."""
+
+
+class AttemptStoreIntegrityError(AttemptStoreConflict):
+    """Raised when authority-bearing JSONL evidence is corrupt or unreadable."""
 
 
 class ExecutionAttemptStore:
@@ -463,20 +470,160 @@ class ExecutionAttemptStore:
             f.write(json.dumps(payload, default=str, separators=(",", ":")) + "\n")
 
     @staticmethod
-    def _read_lines(path: str) -> list[dict[str, Any]]:
+    def _corruption_path(path: str) -> str:
+        directory = os.path.dirname(path) or "."
+        basename = os.path.basename(path)
+        digest = hashlib.sha256(os.path.abspath(path).encode("utf-8")).hexdigest()[:16]
+        return os.path.join(directory, f"{basename}.corrupt-{digest}.jsonl")
+
+    @classmethod
+    def _record_corruption(
+        cls,
+        path: str,
+        *,
+        reason: str,
+        raw: bytes = b"",
+        line_no: int | None = None,
+        identity: str = "",
+        status: str = "CORRUPT",
+    ) -> None:
+        evidence = {
+            "source_file": path,
+            "line_no": line_no,
+            "sha256": hashlib.sha256(raw).hexdigest(),
+            "size_bytes": len(raw),
+            "reason": reason,
+            "identity": identity,
+            "status": status,
+            "observed_at": time.time(),
+            "disposition": "authority_store_integrity_degraded_fail_closed",
+        }
+        try:
+            cls._append_line(cls._corruption_path(path), evidence)
+        except OSError:
+            logger.debug("failed to preserve attempt-store corruption evidence for %s", path)
+
+    @staticmethod
+    def _identity_tokens(row: dict[str, Any]) -> set[str]:
+        tokens: set[str] = set()
+        for key, prefix in (
+            ("attempt_id", "attempt"),
+            ("task_id", "task"),
+            ("lease_id", "lease"),
+            ("grant_id", "grant"),
+            ("decision_ref", "decision"),
+        ):
+            value = str(row.get(key, "") or "").strip()
+            if value:
+                tokens.add(f"{prefix}:{value}")
+        return tokens
+
+    @classmethod
+    def _identity_tokens_from_raw(cls, raw: bytes) -> set[str]:
+        try:
+            text = raw.decode("utf-8", errors="ignore")
+        except Exception:
+            return set()
+        recovered: dict[str, str] = {}
+        for key in ("attempt_id", "task_id", "lease_id", "grant_id", "decision_ref"):
+            match = re.search(rf'"{key}"\s*:\s*"([^"]+)"', text)
+            if match:
+                recovered[key] = match.group(1)
+        return cls._identity_tokens(recovered)
+
+    @classmethod
+    def _corruption_matches_scope(cls, tokens: set[str], authority_scope: str) -> bool:
+        return bool(authority_scope and authority_scope in tokens)
+
+    @classmethod
+    def _read_lines(
+        cls,
+        path: str,
+        *,
+        authority_scope: str = "",
+        allow_scoped_corruption: bool = False,
+    ) -> list[dict[str, Any]]:
         if not os.path.exists(path):
             return []
         rows: list[dict[str, Any]] = []
-        with open(path, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
+        try:
+            raw = open(path, "rb").read()
+        except OSError as exc:
+            reason = f"authority JSONL read failed: {type(exc).__name__}: {exc}"
+            cls._record_corruption(path, reason=reason, status="READ_ERROR")
+            raise AttemptStoreIntegrityError(reason) from exc
+        offset = 0
+        for line_no, raw_line in enumerate(raw.splitlines(keepends=True), start=1):
+            line_start = offset
+            offset += len(raw_line)
+            stripped = raw_line.strip()
+            if not stripped:
+                continue
+            try:
+                text = stripped.decode("utf-8")
+                row = json.loads(text)
+            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                tokens = cls._identity_tokens_from_raw(raw_line)
+                reason = (
+                    f"authority JSONL line corrupt at line {line_no} "
+                    f"offset {line_start}: {type(exc).__name__}: {exc}"
+                )
+                cls._record_corruption(
+                    path,
+                    reason=reason,
+                    raw=raw_line,
+                    line_no=line_no,
+                    identity=",".join(sorted(tokens)),
+                )
+                if allow_scoped_corruption and tokens and not cls._corruption_matches_scope(
+                    tokens, authority_scope
+                ):
                     continue
-                try:
-                    rows.append(json.loads(line))
-                except json.JSONDecodeError as exc:
-                    logger.debug("skipping malformed execution line in %s: %s", path, exc)
+                raise AttemptStoreIntegrityError(reason) from exc
+            if not isinstance(row, dict):
+                reason = (
+                    f"authority JSONL line semantically invalid at line {line_no} "
+                    f"offset {line_start}: record is not an object"
+                )
+                cls._record_corruption(
+                    path,
+                    reason=reason,
+                    raw=raw_line,
+                    line_no=line_no,
+                )
+                raise AttemptStoreIntegrityError(reason)
+            rows.append(dict(row))
         return rows
+
+    @classmethod
+    def _attempt_from_row(cls, path: str, row: dict[str, Any]) -> ExecutionAttempt:
+        try:
+            return ExecutionAttempt.from_dict(row)
+        except (TypeError, ValueError) as exc:
+            identity = str(row.get("attempt_id", "") or row.get("task_id", "") or "")
+            reason = f"attempt row materialization failed: {type(exc).__name__}: {exc}"
+            cls._record_corruption(
+                path,
+                reason=reason,
+                raw=json.dumps(row, default=str).encode(),
+                identity=identity,
+            )
+            raise AttemptStoreIntegrityError(reason) from exc
+
+    @classmethod
+    def _grant_from_row(cls, path: str, row: dict[str, Any]) -> ExecutionAuthorizationGrant:
+        try:
+            return ExecutionAuthorizationGrant.from_dict(row)
+        except (TypeError, ValueError) as exc:
+            identity = str(row.get("grant_id", "") or row.get("decision_ref", "") or "")
+            reason = f"grant row materialization failed: {type(exc).__name__}: {exc}"
+            cls._record_corruption(
+                path,
+                reason=reason,
+                raw=json.dumps(row, default=str).encode(),
+                identity=identity,
+            )
+            raise AttemptStoreIntegrityError(reason) from exc
 
     @staticmethod
     def _rewrite_atomic(path: str, rows: list[dict[str, Any]]) -> None:
@@ -497,12 +644,12 @@ class ExecutionAttemptStore:
     def get_attempt(self, attempt_id: str) -> ExecutionAttempt | None:
         for row in self._read_lines(self._attempts_path):
             if row.get("attempt_id") == attempt_id:
-                return ExecutionAttempt.from_dict(row)
+                return self._attempt_from_row(self._attempts_path, row)
         return None
 
     def attempts_for_task(self, task_id: str) -> list[ExecutionAttempt]:
         rows = [r for r in self._read_lines(self._attempts_path) if r.get("task_id") == task_id]
-        attempts = [ExecutionAttempt.from_dict(r) for r in rows]
+        attempts = [self._attempt_from_row(self._attempts_path, r) for r in rows]
         return sorted(attempts, key=lambda a: a.attempt_number)
 
     def attempts_for_plan(self, plan_record_id: str) -> list[ExecutionAttempt]:
@@ -511,12 +658,12 @@ class ExecutionAttemptStore:
             for r in self._read_lines(self._attempts_path)
             if r.get("plan_record_id") == plan_record_id
         ]
-        return [ExecutionAttempt.from_dict(r) for r in rows]
+        return [self._attempt_from_row(self._attempts_path, r) for r in rows]
 
     def active_attempts(self) -> list[ExecutionAttempt]:
         out: list[ExecutionAttempt] = []
         for row in self._read_lines(self._attempts_path):
-            attempt = ExecutionAttempt.from_dict(row)
+            attempt = self._attempt_from_row(self._attempts_path, row)
             if not attempt.is_terminal():
                 out.append(attempt)
         return out
@@ -525,7 +672,7 @@ class ExecutionAttemptStore:
         for row in self._read_lines(self._attempts_path):
             if row.get("task_id") != task_id:
                 continue
-            attempt = ExecutionAttempt.from_dict(row)
+            attempt = self._attempt_from_row(self._attempts_path, row)
             if not attempt.is_terminal():
                 return True
         return False
@@ -581,7 +728,11 @@ class ExecutionAttemptStore:
         self._assert_declared_kind(attempt.task_id, attempt.execution_kind, origin="this attempt")
 
         with self._file_lock(self._attempts_path):
-            rows = self._read_lines(self._attempts_path)
+            rows = self._read_lines(
+                self._attempts_path,
+                authority_scope=f"task:{attempt.task_id}",
+                allow_scoped_corruption=True,
+            )
             for row in rows:
                 if (
                     row.get("task_id") == attempt.task_id
@@ -589,7 +740,7 @@ class ExecutionAttemptStore:
                     == attempt.execution_authorization_ref
                     and int(row.get("attempt_number", -1)) == attempt.attempt_number
                 ):
-                    existing = ExecutionAttempt.from_dict(row)
+                    existing = self._attempt_from_row(self._attempts_path, row)
                     # The EXISTING row is validated against the SAME declaration.
                     # A corrupt row is preserved on disk as evidence — never
                     # returned as success, never dispatched, and never mutated
@@ -704,7 +855,7 @@ class ExecutionAttemptStore:
                         f"attempt {attempt_id}: status {on_disk_status!r} not in expected "
                         f"{list(expected_statuses)}"
                     )
-                attempt = ExecutionAttempt.from_dict(row)
+                attempt = self._attempt_from_row(self._attempts_path, row)
                 # THE DECLARATION GOVERNS THE LIFECYCLE TOO.
                 #
                 # `create_attempt_idempotent` guards both insert and idempotent
@@ -751,13 +902,13 @@ class ExecutionAttemptStore:
     def get_grant(self, decision_ref: str) -> ExecutionAuthorizationGrant | None:
         for row in self._read_lines(self._grants_path):
             if row.get("decision_ref") == decision_ref:
-                return ExecutionAuthorizationGrant.from_dict(row)
+                return self._grant_from_row(self._grants_path, row)
         return None
 
     def get_grant_by_id(self, grant_id: str) -> ExecutionAuthorizationGrant | None:
         for row in self._read_lines(self._grants_path):
             if row.get("grant_id") == grant_id:
-                return ExecutionAuthorizationGrant.from_dict(row)
+                return self._grant_from_row(self._grants_path, row)
         return None
 
     def grants_for_plan(self, plan_record_id: str) -> list[ExecutionAuthorizationGrant]:
@@ -766,12 +917,12 @@ class ExecutionAttemptStore:
             for r in self._read_lines(self._grants_path)
             if r.get("plan_record_id") == plan_record_id
         ]
-        return [ExecutionAuthorizationGrant.from_dict(r) for r in rows]
+        return [self._grant_from_row(self._grants_path, r) for r in rows]
 
     def active_grants(self) -> list[ExecutionAuthorizationGrant]:
         out: list[ExecutionAuthorizationGrant] = []
         for row in self._read_lines(self._grants_path):
-            grant = ExecutionAuthorizationGrant.from_dict(row)
+            grant = self._grant_from_row(self._grants_path, row)
             if grant.is_active():
                 out.append(grant)
         return out
@@ -785,7 +936,7 @@ class ExecutionAttemptStore:
             rows = self._read_lines(self._grants_path)
             for row in rows:
                 if row.get("decision_ref") == grant.decision_ref:
-                    return ExecutionAuthorizationGrant.from_dict(row), False
+                    return self._grant_from_row(self._grants_path, row), False
             self._append_line(self._grants_path, grant.to_dict())
             return grant, True
 
@@ -911,7 +1062,11 @@ class ExecutionAttemptStore:
         task_id = str(payload.get("task_id", "") or "")
         with self._file_lock(self._leases_path):
             latest_by_id: dict[str, dict[str, Any]] = {}
-            for row in self._read_lines(self._leases_path):
+            for row in self._read_lines(
+                self._leases_path,
+                authority_scope=f"task:{task_id}",
+                allow_scoped_corruption=True,
+            ):
                 if row.get("task_id") == task_id:
                     latest_by_id[row.get("lease_id", "")] = row
             for row in latest_by_id.values():
@@ -931,7 +1086,11 @@ class ExecutionAttemptStore:
     def active_lease_for_task(self, task_id: str) -> dict[str, Any] | None:
         """Return the newest non-released/revoked/expired lease for a task."""
         latest_by_id: dict[str, dict[str, Any]] = {}
-        for row in self._read_lines(self._leases_path):
+        for row in self._read_lines(
+            self._leases_path,
+            authority_scope=f"task:{task_id}",
+            allow_scoped_corruption=True,
+        ):
             if row.get("task_id") == task_id:
                 latest_by_id[row.get("lease_id", "")] = row
         for row in latest_by_id.values():
@@ -974,4 +1133,4 @@ class ExecutionAttemptStore:
             return payload
 
 
-__all__ = ["ExecutionAttemptStore", "AttemptStoreConflict"]
+__all__ = ["ExecutionAttemptStore", "AttemptStoreConflict", "AttemptStoreIntegrityError"]

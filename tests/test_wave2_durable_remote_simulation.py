@@ -17,6 +17,13 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
         "corrupt_restart_still_non_executable",
         "corrupt_result_does_not_terminalize",
         "durable_unknown_policy_denied",
+        "event_journal_malformed_line_fails_closed",
+        "event_journal_read_error_fails_closed",
+        "ingress_malformed_server_durable_frame_rejected",
+        "ingress_malformed_node_delivery_rejected",
+        "attempt_store_unknown_corruption_blocks_attempt_authority",
+        "attempt_store_lease_corruption_blocks_conflicting_lease",
+        "attempt_store_cas_rewrite_preserves_corruption",
         "recovery_incomplete_candidate_sha_fails_closed",
         "recovery_incomplete_node_id_fails_closed",
         "recovery_incomplete_operation_type_fails_closed",
@@ -60,5 +67,10 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
     assert results["risk_generic_shell_read_only_node_cap_denied"]["executed"] == 0
     assert results["corrupt_request_among_valid_isolated"]["fail_closed"] is True
     assert results["corrupt_result_does_not_terminalize"]["lifecycle"] == "RECONCILIATION_REQUIRED"
+    assert results["event_journal_malformed_line_fails_closed"]["fail_closed"] is True
+    assert results["event_journal_read_error_fails_closed"]["fail_closed"] is True
+    assert results["attempt_store_unknown_corruption_blocks_attempt_authority"]["fail_closed"] is True
+    assert results["attempt_store_lease_corruption_blocks_conflicting_lease"]["fail_closed"] is True
+    assert results["attempt_store_cas_rewrite_preserves_corruption"]["fail_closed"] is True
     assert all(int(result["executed"]) <= 1 for result in results.values())
     assert all(int(result["sync_side_effects"]) == 0 for result in results.values())

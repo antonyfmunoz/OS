@@ -308,6 +308,62 @@ def test_corrupt_idempotency_index_rebuilds_only_from_valid_request(tmp_path) ->
     assert index["canonical_request_id"] == original.request_id
 
 
+def test_corrupt_event_journal_fails_closed_for_idempotency_recovery(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-events-recovery"
+    original = store.put_request(_request(idempotency_key=key))
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+    with (tmp_path / "events.jsonl").open("ab") as fh:
+        fh.write(b"\xff\n")
+
+    with pytest.raises(ValueError, match="admission evidence incomplete"):
+        store.put_request(
+            _request(
+                idempotency_key=key,
+                params=original.params,
+                candidate_sha=original.candidate_sha,
+                node_id=original.node_id,
+                operation_type=original.operation_type,
+                capability=original.capability,
+                risk_class=original.risk_class,
+            )
+        )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    current = store.get_request(original.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    corruption = list((tmp_path / "corrupt").glob("events-*.json"))
+    assert len(corruption) == 1
+    evidence = json.loads(corruption[0].read_text(encoding="utf-8"))
+    assert evidence["record_kind"] == "events"
+    assert "event journal line" in evidence["reason"]
+
+
+def test_semantically_malformed_event_journal_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "bad-shaped-event"
+    original = store.put_request(_request(idempotency_key=key))
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+    with (tmp_path / "events.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(["not", "an", "object"]) + "\n")
+
+    with pytest.raises(ValueError, match="admission evidence incomplete"):
+        store.put_request(
+            _request(
+                idempotency_key=key,
+                params=original.params,
+                candidate_sha=original.candidate_sha,
+                node_id=original.node_id,
+                operation_type=original.operation_type,
+                capability=original.capability,
+                risk_class=original.risk_class,
+            )
+        )
+
+
 def test_corrupt_idempotency_index_without_valid_request_fences_fresh_admission(
     tmp_path,
 ) -> None:

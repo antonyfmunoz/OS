@@ -163,6 +163,17 @@ class _DurableRequestLoad:
         return self.status in {LOAD_CORRUPT, LOAD_READ_ERROR}
 
 
+@dataclass(frozen=True)
+class _DurableEventJournalLoad:
+    bindings: list[dict[str, Any]]
+    complete: bool = True
+    reason: str = ""
+
+    @property
+    def incomplete(self) -> bool:
+        return not self.complete
+
+
 def _read_json(path: Path) -> dict[str, Any]:
     outcome = _load_json_record(path)
     return dict(outcome.data or {}) if outcome.valid else {}
@@ -884,24 +895,65 @@ class DurableRemoteStore:
 
     def _admission_bindings_for_idempotency_key_locked(
         self, idempotency_key: str
-    ) -> list[dict[str, Any]]:
+    ) -> _DurableEventJournalLoad:
         bindings: list[dict[str, Any]] = []
         seen: set[str] = set()
         try:
-            lines = self.events_path.read_text(encoding="utf-8").splitlines()
+            raw = self.events_path.read_bytes()
         except FileNotFoundError:
-            return []
-        for line in lines:
+            return _DurableEventJournalLoad(bindings)
+        except OSError as exc:
+            reason = f"event journal read failed: {type(exc).__name__}: {exc}"
+            _record_persistence_issue(
+                self.events_path,
+                reason=reason,
+                record_kind="events",
+                identity="events_journal",
+                status=LOAD_READ_ERROR,
+            )
+            return _DurableEventJournalLoad(bindings, complete=False, reason=reason)
+        for line_no, line in enumerate(raw.splitlines(), start=1):
+            if not line.strip():
+                continue
             try:
-                event = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(event, dict) or event.get("event") != "QUEUED":
-                continue
+                event = json.loads(line.decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                reason = f"event journal line {line_no} corrupt: {type(exc).__name__}: {exc}"
+                _record_persistence_issue(
+                    self.events_path,
+                    reason=reason,
+                    record_kind="events",
+                    identity=f"line:{line_no}",
+                    status=LOAD_CORRUPT,
+                )
+                return _DurableEventJournalLoad(bindings, complete=False, reason=reason)
+            if not isinstance(event, dict):
+                reason = f"event journal line {line_no} is not an object"
+                _record_persistence_issue(
+                    self.events_path,
+                    reason=reason,
+                    record_kind="events",
+                    identity=f"line:{line_no}",
+                    status=LOAD_CORRUPT,
+                )
+                return _DurableEventJournalLoad(bindings, complete=False, reason=reason)
+            event_name = event.get("event")
+            request_id = str(event.get("request_id", "") or "").strip()
             data = event.get("data")
+            if not isinstance(event_name, str) or not request_id:
+                reason = f"event journal line {line_no} missing required event identity"
+                _record_persistence_issue(
+                    self.events_path,
+                    reason=reason,
+                    record_kind="events",
+                    identity=f"line:{line_no}",
+                    status=LOAD_CORRUPT,
+                )
+                return _DurableEventJournalLoad(bindings, complete=False, reason=reason)
+            if event_name != "QUEUED":
+                continue
             if not isinstance(data, dict) or data.get("idempotency_key") != idempotency_key:
                 continue
-            request_id = str(event.get("request_id", ""))
             if request_id and request_id not in seen:
                 seen.add(request_id)
                 admission_binding = data.get("admission_binding")
@@ -914,12 +966,14 @@ class DurableRemoteStore:
                             "canonical_request_id": request_id,
                         }
                     )
-        return bindings
+        return _DurableEventJournalLoad(bindings)
 
     def _admitted_request_ids_for_idempotency_key_locked(self, idempotency_key: str) -> list[str]:
         return [
             str(binding.get("canonical_request_id", ""))
-            for binding in self._admission_bindings_for_idempotency_key_locked(idempotency_key)
+            for binding in self._admission_bindings_for_idempotency_key_locked(
+                idempotency_key
+            ).bindings
             if str(binding.get("canonical_request_id", ""))
         ]
 
@@ -1160,7 +1214,16 @@ class DurableRemoteStore:
     ) -> DurableRemoteRequest | None:
         matches = matches if matches is not None else self._requests_by_idempotency_key_locked(idempotency_key)
         by_id = {req.request_id: req for req in matches}
-        admission_bindings = self._admission_bindings_for_idempotency_key_locked(idempotency_key)
+        admission_evidence = self._admission_bindings_for_idempotency_key_locked(
+            idempotency_key
+        )
+        if admission_evidence.incomplete:
+            self._fail_ambiguous_idempotency_recovery_locked(
+                matches,
+                event="IDEMPOTENCY_ADMISSION_EVIDENCE_INCOMPLETE",
+            )
+            raise ValueError(f"idempotency admission evidence incomplete: {admission_evidence.reason}")
+        admission_bindings = admission_evidence.bindings
         admitted = [
             str(binding.get("canonical_request_id", ""))
             for binding in admission_bindings
@@ -1223,7 +1286,16 @@ class DurableRemoteStore:
     ) -> DurableRemoteRequest:
         matches = matches if matches is not None else self._requests_by_idempotency_key_locked(idempotency_key)
         by_id = {req.request_id: req for req in matches}
-        admission_bindings = self._admission_bindings_for_idempotency_key_locked(idempotency_key)
+        admission_evidence = self._admission_bindings_for_idempotency_key_locked(
+            idempotency_key
+        )
+        if admission_evidence.incomplete:
+            self._fail_ambiguous_idempotency_recovery_locked(
+                matches,
+                event="IDEMPOTENCY_ADMISSION_EVIDENCE_INCOMPLETE",
+            )
+            raise ValueError(f"idempotency admission evidence incomplete: {admission_evidence.reason}")
+        admission_bindings = admission_evidence.bindings
         admitted = [
             str(binding.get("canonical_request_id", ""))
             for binding in admission_bindings

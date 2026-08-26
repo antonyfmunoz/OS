@@ -921,6 +921,117 @@ def _durable_request(**overrides):
     return req
 
 
+class _MeshHandlerWs:
+    def __init__(self) -> None:
+        self.sent: list[dict[str, object]] = []
+
+    async def send(self, raw: str) -> None:
+        self.sent.append(json.loads(raw))
+
+
+def _durable_mesh_server(tmp_path):
+    from substrate.execution.durable_remote_transport import DurableRemoteStore
+    from substrate.execution.executor import WorkPacketExecutor
+    from substrate.sockets.capability_socket import CapabilitySocket
+    from substrate.sockets.outcome_socket import OutcomeSocket
+    from substrate.sockets.signal_socket import SignalSocket
+    from substrate.sockets.view_socket import ViewSocket
+    from transports.node_mesh.config import MeshConfig
+    from transports.node_mesh.server import NodeMeshServer
+
+    class Registry:
+        @staticmethod
+        def owns(_node_id: str, _connection_id: str) -> bool:
+            return True
+
+    server = NodeMeshServer(
+        config=MeshConfig(),
+        executor=WorkPacketExecutor(),
+        signal_socket=SignalSocket(),
+        capability_socket=CapabilitySocket(),
+        outcome_socket=OutcomeSocket(),
+        view_socket=ViewSocket(),
+    )
+    server._durable_store = DurableRemoteStore(tmp_path)
+    server._registry = Registry()
+    return server
+
+
+def test_vps_durable_claim_rejects_malformed_process_tree_before_store_mutation(tmp_path):
+    server = _durable_mesh_server(tmp_path)
+    req = server._durable_store.put_request(_durable_request())
+    ws = _MeshHandlerWs()
+
+    asyncio.run(
+        server._handle_durable_claimed(
+            "windows-desktop",
+            {
+                "request_id": req.request_id,
+                "claim_id": "claim-1",
+                "state": "CLAIMED",
+                "process_tree": "not-an-object",
+            },
+            "msg-1",
+            ws,
+            "conn-1",
+        )
+    )
+
+    current = server._durable_store.get_request(req.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "QUEUED"
+    assert current.claim_id == ""
+    assert ws.sent[-1]["result"]["accepted"] is False
+    assert "process_tree must be an object" in ws.sent[-1]["result"]["error"]
+
+
+def test_vps_durable_result_rejects_malformed_result_before_publication(tmp_path):
+    server = _durable_mesh_server(tmp_path)
+    req = server._durable_store.put_request(_durable_request())
+    server._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    server._durable_store.mark_running(req.request_id, claim_id="claim-1")
+    ws = _MeshHandlerWs()
+
+    asyncio.run(
+        server._handle_durable_result(
+            "windows-desktop",
+            {
+                "request_id": req.request_id,
+                "claim_id": "claim-1",
+                "state": "SUCCEEDED",
+                "result": ["not", "an", "object"],
+                "cleanup": {"process_residue": []},
+            },
+            "msg-2",
+            ws,
+            "conn-1",
+        )
+    )
+
+    current = server._durable_store.get_request(req.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RUNNING"
+    assert server._durable_store.result_for(req.request_id) is None
+    assert ws.sent[-1]["result"]["ok"] is False
+    assert "result must be an object" in ws.sent[-1]["result"]["error"]
+
+
+def test_node_durable_delivery_rejects_malformed_request_material(tmp_path):
+    client = _durable_node_client(tmp_path)
+
+    asyncio.run(
+        client._handle_durable_command(
+            {
+                "method": "durable_command.request",
+                "params": {"request_id": "bad", "params": "not-an-object"},
+            }
+        )
+    )
+
+    assert client._durable_store.get_request("bad") is None
+    assert client._durable_request_trajectories == {}
+
+
 def _canonical_claim_readback(client, payload):
     current = client._durable_store.get_request(str(payload["request_id"]))
     assert current is not None

@@ -1430,7 +1430,17 @@ class NodeClient:
 
     async def _handle_durable_command(self, msg: dict[str, Any]) -> None:
         params = msg.get("params", {})
-        delivered_req = DurableRemoteRequest.from_dict(params if isinstance(params, dict) else {})
+        if not isinstance(params, dict):
+            logger.warning("durable delivery rejected: params must be an object")
+            return
+        try:
+            delivered_req = DurableRemoteRequest.from_dict(params)
+        except (TypeError, ValueError) as exc:
+            logger.warning(
+                "durable delivery rejected: malformed request material: %s",
+                exc,
+            )
+            return
         if not delivered_req.request_id or delivered_req.node_id != self._config.node_id:
             return
         if delivered_req.lifecycle_state == "CANCEL_REQUESTED":

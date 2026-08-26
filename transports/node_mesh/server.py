@@ -58,6 +58,21 @@ def hmac_compare(a: str, b: str) -> bool:
     return _hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
 
 
+def _durable_params(params: Any) -> dict[str, Any]:
+    if not isinstance(params, dict):
+        raise ValueError("durable frame params must be an object")
+    return params
+
+
+def _durable_dict_field(params: dict[str, Any], field: str) -> dict[str, Any]:
+    value = params.get(field)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"durable frame {field} must be an object")
+    return dict(value)
+
+
 class NodeMeshServer:
     """WebSocket server for the UMH node mesh."""
 
@@ -1066,10 +1081,9 @@ class NodeMeshServer:
         ws: ServerConnection,
         connection_id: str = "",
     ) -> None:
-        request_id = str(params.get("request_id", ""))
-        claim_id = str(params.get("claim_id", ""))
-        state = str(params.get("state", "CLAIMED")).upper()
-        process_tree = dict(params.get("process_tree") or {})
+        request_id = ""
+        claim_id = ""
+        state = "CLAIMED"
         result: dict[str, Any] = {
             "ok": False,
             "accepted": False,
@@ -1084,23 +1098,30 @@ class NodeMeshServer:
             "process_tree": {},
             "authority_source": "vps_canonical_durable_store",
         }
-        self._record_durable_delivery_progress(
-            request_id,
-            "durable_control_frame_received",
-            {
-                "method": "durable_command.claimed",
-                "node_id": node_id,
-                "claim_id": claim_id,
-                "state": state,
-                "connection_id": connection_id,
-            },
-        )
-        self._record_durable_delivery_progress(
-            request_id,
-            "inbound_handler_entered",
-            {"method": "durable_command.claimed", "state": state},
-        )
         try:
+            params = _durable_params(params)
+            request_id = str(params.get("request_id", "") or "").strip()
+            claim_id = str(params.get("claim_id", "") or "").strip()
+            state = str(params.get("state", "CLAIMED") or "CLAIMED").upper()
+            process_tree = _durable_dict_field(params, "process_tree")
+            result["request_id"] = request_id
+            result["claim_id"] = claim_id
+            self._record_durable_delivery_progress(
+                request_id,
+                "durable_control_frame_received",
+                {
+                    "method": "durable_command.claimed",
+                    "node_id": node_id,
+                    "claim_id": claim_id,
+                    "state": state,
+                    "connection_id": connection_id,
+                },
+            )
+            self._record_durable_delivery_progress(
+                request_id,
+                "inbound_handler_entered",
+                {"method": "durable_command.claimed", "state": state},
+            )
             if connection_id and not self._registry.owns(node_id, connection_id):
                 result["error"] = "stale node connection"
                 raise RuntimeError(result["error"])
@@ -1354,35 +1375,42 @@ class NodeMeshServer:
         ws: ServerConnection,
         connection_id: str = "",
     ) -> None:
-        request_id = str(params.get("request_id", ""))
-        claim_id = str(params.get("claim_id", ""))
-        state = str(params.get("state", "FAILED")).upper()
-        result = dict(params.get("result") or {})
-        cleanup = dict(params.get("cleanup") or {})
+        request_id = ""
+        claim_id = ""
+        state = "FAILED"
+        result: dict[str, Any] = {}
+        cleanup: dict[str, Any] = {}
         from substrate.execution.durable_remote_transport import sha256_json
 
-        incoming_digest = sha256_json(
-            {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup}
-        )
+        incoming_digest = ""
         ok = False
         error = ""
-        self._record_durable_delivery_progress(
-            request_id,
-            "durable_control_frame_received",
-            {
-                "method": "durable_command.result",
-                "node_id": node_id,
-                "claim_id": claim_id,
-                "state": state,
-                "connection_id": connection_id,
-            },
-        )
-        self._record_durable_delivery_progress(
-            request_id,
-            "inbound_handler_entered",
-            {"method": "durable_command.result", "state": state},
-        )
         try:
+            params = _durable_params(params)
+            request_id = str(params.get("request_id", "") or "").strip()
+            claim_id = str(params.get("claim_id", "") or "").strip()
+            state = str(params.get("state", "FAILED") or "FAILED").upper()
+            result = _durable_dict_field(params, "result")
+            cleanup = _durable_dict_field(params, "cleanup")
+            incoming_digest = sha256_json(
+                {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup}
+            )
+            self._record_durable_delivery_progress(
+                request_id,
+                "durable_control_frame_received",
+                {
+                    "method": "durable_command.result",
+                    "node_id": node_id,
+                    "claim_id": claim_id,
+                    "state": state,
+                    "connection_id": connection_id,
+                },
+            )
+            self._record_durable_delivery_progress(
+                request_id,
+                "inbound_handler_entered",
+                {"method": "durable_command.result", "state": state},
+            )
             if connection_id and not self._registry.owns(node_id, connection_id):
                 error = "stale node connection"
                 raise RuntimeError(error)

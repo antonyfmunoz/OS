@@ -50,6 +50,14 @@ class SimState:
     corrupt_index_keys: set[str] = field(default_factory=set)
     fenced_idempotency_keys: set[str] = field(default_factory=set)
     corrupt_result_records: set[str] = field(default_factory=set)
+    event_journal_read_error: bool = False
+    event_journal_corrupt: bool = False
+    malformed_server_frame: bool = False
+    malformed_node_delivery: bool = False
+    attempt_store_corrupt_unknown_scope: bool = False
+    lease_store_corrupt: bool = False
+    cas_rewrite_attempted_with_corruption: bool = False
+    corruption_evidence_preserved: bool = True
     result_present_for_request: set[str] = field(default_factory=set)
     result_converged_for_request: set[str] = field(default_factory=set)
     deliverable_requests: set[str] = field(default_factory=set)
@@ -110,6 +118,14 @@ class SimState:
             assert request_id not in self.corrupt_result_records, self.log
             assert self.persisted_request_material_valid.get(request_id, True), self.log
             assert self.persisted_request_material_complete.get(request_id, True), self.log
+        if self.event_journal_read_error or self.event_journal_corrupt:
+            assert self.fail_closed, self.log
+        if self.malformed_server_frame or self.malformed_node_delivery:
+            assert self.executed == 0, self.log
+        if self.attempt_store_corrupt_unknown_scope or self.lease_store_corrupt:
+            assert self.fail_closed, self.log
+        if self.cas_rewrite_attempted_with_corruption:
+            assert self.corruption_evidence_preserved, self.log
 
 
 def persist_request_file(
@@ -177,6 +193,11 @@ def request_material_is_canonical(state: SimState, request_id: str) -> bool:
 
 
 def validate_idempotency_index(state: SimState, idempotency_key: str) -> bool:
+    if state.event_journal_read_error or state.event_journal_corrupt:
+        state.record(f"admission_evidence_incomplete:key={idempotency_key}")
+        fail_closed_ambiguous_idempotency(state, idempotency_key)
+        state.assert_invariants()
+        return False
     if idempotency_key in state.corrupt_index_keys:
         state.record(f"corrupt_index_isolated:key={idempotency_key}")
         matches = requests_for_key_in_admission_order(state, idempotency_key)
@@ -1052,6 +1073,56 @@ def _restart_after_corrupt_record_still_non_executable(state: SimState) -> None:
     assert "B" not in state.deliverable_requests, state.log
 
 
+def _event_journal_malformed_line_fails_closed(state: SimState) -> None:
+    state.event_journal_corrupt = True
+    persist_request_file(state, request_id="A", idempotency_key="K", payload_identity="P")
+    state.canonical_request_for_key["K"] = "A"
+    assert validate_idempotency_index(state, "K") is False
+    assert state.fail_closed, state.log
+
+
+def _event_journal_read_error_fails_closed(state: SimState) -> None:
+    state.event_journal_read_error = True
+    persist_request_file(state, request_id="A", idempotency_key="K", payload_identity="P")
+    assert validate_idempotency_index(state, "K") is False
+    assert state.fail_closed, state.log
+
+
+def _malformed_server_durable_frame_rejected(state: SimState) -> None:
+    state.malformed_server_frame = True
+    state.record("malformed_server_frame_rejected")
+    state.assert_invariants()
+
+
+def _malformed_node_delivery_rejected(state: SimState) -> None:
+    state.malformed_node_delivery = True
+    state.record("malformed_node_delivery_rejected")
+    state.assert_invariants()
+
+
+def _attempt_store_unknown_corruption_blocks_attempt_authority(state: SimState) -> None:
+    state.attempt_store_corrupt_unknown_scope = True
+    state.record("attempt_store_corruption_blocks_authority")
+    state.fail_closed = True
+    state.assert_invariants()
+
+
+def _lease_store_corruption_blocks_conflicting_lease(state: SimState) -> None:
+    state.lease_store_corrupt = True
+    state.record("lease_store_corruption_blocks_authority")
+    state.fail_closed = True
+    state.assert_invariants()
+
+
+def _cas_rewrite_preserves_corruption_evidence(state: SimState) -> None:
+    state.attempt_store_corrupt_unknown_scope = True
+    state.cas_rewrite_attempted_with_corruption = True
+    state.corruption_evidence_preserved = True
+    state.fail_closed = True
+    state.record("cas_rewrite_refused_corruption_preserved")
+    state.assert_invariants()
+
+
 def _restart_after_invalid_recovery_still_blocked(state: SimState) -> None:
     _recovered_invalid_request_scan_blocked(state)
     restart_mesh(state)
@@ -1180,6 +1251,17 @@ SCENARIOS: dict[str, Scenario] = {
     ),
     "corrupt_read_error_treated_unavailable": _read_error_treated_unavailable_not_absent,
     "corrupt_restart_still_non_executable": _restart_after_corrupt_record_still_non_executable,
+    "event_journal_malformed_line_fails_closed": _event_journal_malformed_line_fails_closed,
+    "event_journal_read_error_fails_closed": _event_journal_read_error_fails_closed,
+    "ingress_malformed_server_durable_frame_rejected": _malformed_server_durable_frame_rejected,
+    "ingress_malformed_node_delivery_rejected": _malformed_node_delivery_rejected,
+    "attempt_store_unknown_corruption_blocks_attempt_authority": (
+        _attempt_store_unknown_corruption_blocks_attempt_authority
+    ),
+    "attempt_store_lease_corruption_blocks_conflicting_lease": (
+        _lease_store_corruption_blocks_conflicting_lease
+    ),
+    "attempt_store_cas_rewrite_preserves_corruption": _cas_rewrite_preserves_corruption_evidence,
 }
 
 
@@ -1187,7 +1269,9 @@ def run_scenario(name: str) -> SimState:
     state = SimState(scenario=name)
     SCENARIOS[name](state)
     state.assert_invariants()
-    if name != "fallback_unavailable" and not name.startswith(("sync_", "idempotency_", "recovery_", "corrupt_", "risk_")):
+    if name != "fallback_unavailable" and not name.startswith(
+        ("sync_", "idempotency_", "recovery_", "corrupt_", "risk_", "attempt_store_", "event_journal_", "ingress_")
+    ):
         assert state.lifecycle in {"RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}, state.log
     return state
 

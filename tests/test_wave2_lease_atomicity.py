@@ -142,6 +142,121 @@ def _active_leases_for(paths: dict, task_id: str) -> list[str]:
     return sorted(k for k, r in latest.items() if r.get("status") == "active")
 
 
+def test_malformed_attempt_line_fences_duplicate_attempt_creation(tmp_path):
+    from substrate.execution.attempts.store import AttemptStoreIntegrityError
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    corrupt = b'{"attempt_id":"ea-corrupt","task_id":"wp-a"'
+    with open(paths["attempts_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+
+    attempt = ExecutionAttempt(
+        task_id="wp-a",
+        attempt_number=1,
+        execution_authorization_ref="auth-a",
+    )
+
+    with pytest.raises(AttemptStoreIntegrityError):
+        store.create_attempt_idempotent(attempt)
+
+    assert corrupt in open(paths["attempts_path"], "rb").read()
+    evidence = list(tmp_path.glob("a.jsonl.corrupt-*.jsonl"))
+    assert evidence
+
+
+def test_non_object_attempt_line_fails_closed_for_unknown_scope(tmp_path):
+    from substrate.execution.attempts.store import AttemptStoreIntegrityError
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    with open(paths["attempts_path"], "ab") as fh:
+        fh.write(b'["unknown-scope"]\n')
+
+    with pytest.raises(AttemptStoreIntegrityError):
+        store.create_attempt_idempotent(ExecutionAttempt(task_id="wp-a", attempt_number=1))
+
+
+def test_scoped_attempt_corruption_does_not_block_unrelated_attempt(tmp_path):
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    corrupt = b'{"attempt_id":"ea-corrupt","task_id":"wp-a"'
+    with open(paths["attempts_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+
+    created, is_new = store.create_attempt_idempotent(
+        ExecutionAttempt(
+            task_id="wp-b",
+            attempt_number=1,
+            execution_authorization_ref="auth-b",
+        )
+    )
+
+    assert is_new is True
+    assert created.task_id == "wp-b"
+    assert corrupt in open(paths["attempts_path"], "rb").read()
+
+
+def test_malformed_lease_line_blocks_conflicting_active_lease(tmp_path):
+    from substrate.execution.attempts.store import AttemptStoreIntegrityError
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    corrupt = b'{"lease_id":"l-corrupt","task_id":"wp-a","status":"active"'
+    with open(paths["leases_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+
+    with pytest.raises(AttemptStoreIntegrityError):
+        store.append_lease_if_no_active(
+            {"lease_id": "l-new", "task_id": "wp-a", "status": "active"}
+        )
+
+    assert corrupt in open(paths["leases_path"], "rb").read()
+    assert list(tmp_path.glob("l.jsonl.corrupt-*.jsonl"))
+
+
+def test_scoped_lease_corruption_does_not_block_unrelated_lease(tmp_path):
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    corrupt = b'{"lease_id":"l-corrupt","task_id":"wp-a","status":"active"'
+    with open(paths["leases_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+
+    store.append_lease_if_no_active(
+        {"lease_id": "l-new", "task_id": "wp-b", "status": "active"}
+    )
+
+    assert corrupt in open(paths["leases_path"], "rb").read()
+    assert store.active_lease_for_task("wp-b")["lease_id"] == "l-new"
+
+
+def test_lease_cas_refuses_to_erase_corrupt_line(tmp_path):
+    from substrate.execution.attempts.store import AttemptStoreIntegrityError
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    lease = {
+        "lease_id": "l-valid",
+        "task_id": "wp-a",
+        "status": "active",
+        "record_version": 0,
+    }
+    store.append_lease_if_no_active(lease)
+    corrupt = b'{"lease_id":"l-corrupt","task_id":"wp-b"'
+    with open(paths["leases_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+    before = open(paths["leases_path"], "rb").read()
+
+    with pytest.raises(AttemptStoreIntegrityError):
+        store.update_lease_cas(
+            {**lease, "status": "released"},
+            expected_record_version=0,
+            expected_statuses=("active",),
+        )
+
+    assert open(paths["leases_path"], "rb").read() == before
+
+
 def test_concurrent_acquire_yields_exactly_one_active_lease(tmp_path):
     """Two PROCESSES racing on one Task must produce exactly ONE active lease.
 
