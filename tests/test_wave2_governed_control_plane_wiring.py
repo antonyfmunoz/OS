@@ -478,6 +478,45 @@ def test_activation_rehearsal_env_uses_authoritative_runtime_secret_source(
     assert make_env[make_env.index("--source-container") + 1] == "os-operator"
 
 
+def test_activation_rehearsal_marks_candidate_runtime_allowlist_only(
+    tmp_path, monkeypatch
+) -> None:
+    from tests.wave2_script_import import load_wave2_script
+
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    seen_commands: list[list[str]] = []
+
+    class _Runner:
+        dry_run = False
+
+        def run(self, cmd, timeout=30, capture=False, check=True):  # noqa: ANN001
+            seen_commands.append(list(cmd))
+            return dispatch.subprocess.CompletedProcess(cmd, 0, stdout="", stderr="")
+
+    seed = {
+        "grant_id": "grant-1",
+        "decision_ref": "approval-1",
+        "correlation_id": "corr-1",
+        "workpacket_ids": ["wp-a", "wp-b"],
+        "producer_store": "/state/grants.jsonl",
+    }
+    monkeypatch.setattr(dispatch, "_proof_root", lambda: tmp_path / "proof")
+    monkeypatch.setattr(dispatch, "_candidate_image_id", lambda runner: "candidate-image")
+    monkeypatch.setattr(dispatch, "_free_local_port", lambda: 55555)
+    monkeypatch.setattr(dispatch, "_run_state_json", lambda *_a, **_kw: seed)
+    monkeypatch.setattr(
+        dispatch,
+        "_wait_http_ready",
+        lambda *_a, **_kw: (_ for _ in ()).throw(RuntimeError("stop after docker run")),
+    )
+
+    result = dispatch.activation_rehearsal(_Runner(), "a" * 40, iterations=1)
+
+    assert result["ok"] is False
+    docker_run = next(cmd for cmd in seen_commands if cmd[:3] == ["docker", "run", "-d"])
+    assert "UMH_CANDIDATE_ENV_ALLOWLIST_ONLY=1" in docker_run
+
+
 def test_preflight_requires_deployed_activation_rehearsal(monkeypatch) -> None:
     from tests.wave2_script_import import load_wave2_script
 

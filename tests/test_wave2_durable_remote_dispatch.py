@@ -617,6 +617,7 @@ def test_deploy_candidate_mounts_promoted_artifact_not_worktree_dist(monkeypatch
     assert f"{artifact_root}:/frontend:ro" in flattened
     assert f"{build_dist}:/usr/share/nginx/html:ro" not in flattened
     assert "UMH_COCKPIT_DIST_WEB=/frontend" in flattened
+    assert "UMH_CANDIDATE_ENV_ALLOWLIST_ONLY=1" in flattened
 
 
 def test_deploy_candidate_requires_promoted_artifact_root(monkeypatch, tmp_path) -> None:

@@ -63,6 +63,54 @@ def test_operator_api_missing_key_import_initializes_not_ready() -> None:
     assert "not configured" in component["detail"]
 
 
+def test_candidate_operator_api_does_not_load_ignored_dotenv_secrets(tmp_path) -> None:
+    services_dir = tmp_path / "services"
+    services_dir.mkdir()
+    denied_value = "must-not-enter-candidate-env"
+    (services_dir / ".env").write_text(
+        f"UMH_MESH_RELAY_SECRET={denied_value}\nDATABASE_URL=postgres://denied\n",
+        encoding="utf-8",
+    )
+    (tmp_path / ".env").write_text("GITHUB_TOKEN=denied\n", encoding="utf-8")
+    env = dict(os.environ)
+    env["UMH_ROOT"] = str(tmp_path)
+    env["UMH_OPERATOR_API_KEY"] = "runtime-secret"
+    env["UMH_CANDIDATE_ENV_ALLOWLIST_ONLY"] = "1"
+    env["PYTHONPATH"] = str(ROOT)
+    for key in ("UMH_MESH_RELAY_SECRET", "DATABASE_URL", "GITHUB_TOKEN"):
+        env.pop(key, None)
+    script = (
+        "import json, os; "
+        "import services.operator_api as op; "
+        "print(json.dumps({"
+        "'api_key': op.API_KEY, "
+        "'mesh': os.getenv('UMH_MESH_RELAY_SECRET'), "
+        "'database': os.getenv('DATABASE_URL'), "
+        "'github': os.getenv('GITHUB_TOKEN')"
+        "}, sort_keys=True))"
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=str(ROOT),
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    payload = json.loads(result.stdout)
+    assert payload == {
+        "api_key": "runtime-secret",
+        "database": None,
+        "github": None,
+        "mesh": None,
+    }
+    assert denied_value not in result.stdout
+    assert denied_value not in result.stderr
+
+
 def test_operator_api_import_initializes_frontend_artifact_as_required(tmp_path) -> None:
     env = dict(os.environ)
     env["UMH_OPERATOR_API_KEY"] = "secret"

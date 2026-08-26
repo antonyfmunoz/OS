@@ -49,8 +49,14 @@ from fastapi.staticfiles import StaticFiles
 from substrate.state.runtime_paths import runtime_state_dir, runtime_state_path  # noqa: E402
 from transports.api.governed import governed_mutation  # noqa: E402
 
-load_dotenv(UMH_ROOT / "services" / ".env")
-load_dotenv(UMH_ROOT / ".env", override=False)
+
+def _env_truthy(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+if not _env_truthy("UMH_CANDIDATE_ENV_ALLOWLIST_ONLY"):
+    load_dotenv(UMH_ROOT / "services" / ".env")
+    load_dotenv(UMH_ROOT / ".env", override=False)
 
 API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "").strip()
 
