@@ -37,6 +37,8 @@ class SimState:
     canonical_request_for_key: dict[str, str] = field(default_factory=dict)
     payload_for_key: dict[str, str] = field(default_factory=dict)
     execution_for_key: dict[str, int] = field(default_factory=dict)
+    persisted_request_key: dict[str, str] = field(default_factory=dict)
+    deliverable_requests: set[str] = field(default_factory=set)
     idempotency_conflict: bool = False
     log: list[str] = field(default_factory=list)
 
@@ -64,6 +66,10 @@ class SimState:
         for key, execution_count in self.execution_for_key.items():
             assert self.canonical_request_for_key.get(key), self.log
             assert execution_count <= 1, self.log
+        for request_id, key in self.persisted_request_key.items():
+            canonical = self.canonical_request_for_key.get(key)
+            if canonical and canonical != request_id:
+                assert request_id not in self.deliverable_requests, self.log
 
 
 def admit_durable_request(
@@ -81,15 +87,38 @@ def admit_durable_request(
         state.canonical_request_for_key[idempotency_key] = request_id
         state.payload_for_key[idempotency_key] = payload_identity
         state.execution_for_key.setdefault(idempotency_key, 0)
+        state.persisted_request_key[request_id] = idempotency_key
+        state.deliverable_requests.add(request_id)
         state.assert_invariants()
         return request_id
+    if canonical not in state.persisted_request_key:
+        state.fail_closed = True
+        state.assert_invariants()
+        return None
     if state.payload_for_key.get(idempotency_key) != payload_identity:
         state.idempotency_conflict = True
         state.fail_closed = True
         state.assert_invariants()
         return None
+    quarantine_duplicate_request_files(state, idempotency_key)
     state.assert_invariants()
     return canonical
+
+
+def inject_duplicate_request_file(
+    state: SimState, *, request_id: str, idempotency_key: str
+) -> None:
+    state.record(f"inject_duplicate_file:request={request_id}:key={idempotency_key}")
+    state.persisted_request_key[request_id] = idempotency_key
+    state.deliverable_requests.add(request_id)
+
+
+def quarantine_duplicate_request_files(state: SimState, idempotency_key: str) -> None:
+    canonical = state.canonical_request_for_key.get(idempotency_key)
+    for request_id, key in list(state.persisted_request_key.items()):
+        if key == idempotency_key and request_id != canonical:
+            state.record(f"quarantine_duplicate_file:{request_id}:canonical={canonical}")
+            state.deliverable_requests.discard(request_id)
 
 
 def sync_mesh_receive(
@@ -435,6 +464,14 @@ def _lost_admission_response_retry_new_request_id_recovers(state: SimState) -> N
     assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") == "A"
 
 
+def _index_present_duplicate_file_is_quarantined(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    inject_duplicate_request_file(state, request_id="B", idempotency_key="K")
+    assert "B" in state.deliverable_requests, state.log
+    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") == "A"
+    assert "B" not in state.deliverable_requests, state.log
+
+
 def _partial_persistence_reconciliation_prevents_fork(state: SimState) -> None:
     state.canonical_request_for_key["K"] = "A"
     state.record("partial_index_without_request")
@@ -486,6 +523,7 @@ SCENARIOS: dict[str, Scenario] = {
     "idempotency_duplicate_after_succeeded": _duplicate_after_succeeded_no_second_execution,
     "idempotency_restart_after_admission": _restart_after_admission_duplicate_recovers,
     "idempotency_lost_admission_response_retry": _lost_admission_response_retry_new_request_id_recovers,
+    "idempotency_index_present_duplicate_file_quarantined": _index_present_duplicate_file_is_quarantined,
     "idempotency_partial_persistence_fail_closed": _partial_persistence_reconciliation_prevents_fork,
     "idempotency_adapter_retry_preserves_key": _adapter_retry_preserves_stable_key,
 }

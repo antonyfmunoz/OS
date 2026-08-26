@@ -194,6 +194,19 @@ def test_live_idempotency_lock_is_not_stolen_by_age(tmp_path) -> None:
     assert lock_path.exists()
 
 
+def test_malformed_idempotency_lock_is_reclaimed_after_timeout(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    lock_path = store._idempotency_lock_path("malformed-holder-key")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text("", encoding="ascii")
+    os.utime(lock_path, (1.0, 1.0))
+
+    with store._idempotency_lock("malformed-holder-key", timeout_s=0.01):
+        assert lock_path.exists()
+
+    assert not lock_path.exists()
+
+
 def test_update_request_cannot_mutate_admitted_operation_identity(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     original = store.put_request(_request(idempotency_key="immutable-identity"))
@@ -231,6 +244,30 @@ def test_missing_index_recovery_quarantines_duplicate_same_key_records(tmp_path)
         path.unlink()
 
     replay = store.put_request(_request(idempotency_key="legacy-duplicate"))
+
+    assert replay.request_id == original.request_id
+    assert [req.request_id for req in store.deliverable_for_node("windows-desktop", limit=10)] == [
+        original.request_id
+    ]
+    quarantined = store.get_request(duplicate.request_id)
+    assert quarantined is not None
+    assert quarantined.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert quarantined.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+
+
+def test_index_present_replay_quarantines_duplicate_same_key_records(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="indexed-legacy-duplicate"))
+    duplicate = _request(idempotency_key="indexed-legacy-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    replay = store.put_request(_request(idempotency_key="indexed-legacy-duplicate"))
 
     assert replay.request_id == original.request_id
     assert [req.request_id for req in store.deliverable_for_node("windows-desktop", limit=10)] == [

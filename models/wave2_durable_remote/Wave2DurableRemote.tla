@@ -16,11 +16,11 @@ activation, and model-provider behavior. Those are adapter/lifecycle concerns
 outside the critical durable authority protocol.
 *)
 
-VARIABLES state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, idempotencyConflict
+VARIABLES state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted
 
 protocolVars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
-idemVars == <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, idempotencyConflict>>
-vars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, idempotencyConflict>>
+idemVars == <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted>>
+vars == <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted>>
 
 Terminal == {"SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}
 ClaimedLike == {"CLAIMED", "RUNNING", "SUCCEEDED", "FAILED", "CANCELLED"}
@@ -58,6 +58,10 @@ Init ==
     /\ canonicalRequestForKey = [k \in Keys |-> "none"]
     /\ canonicalPayloadForKey = [k \in Keys |-> "none"]
     /\ idempotencyConflict = FALSE
+    /\ noncanonicalDuplicatePersisted = FALSE
+    /\ noncanonicalDuplicateDeliverable = FALSE
+    /\ duplicateRecoveryDone = FALSE
+    /\ noncanonicalDuplicateExecuted = 0
 
 AdmitRequestA ==
     /\ ~requestAAdmitted
@@ -72,7 +76,7 @@ AdmitRequestA ==
             /\ canonicalPayloadForKey' = canonicalPayloadForKey
             /\ idempotencyConflict' =
                 (idempotencyConflict \/ (canonicalPayloadForKey[requestAKey] # requestAPayload))
-    /\ UNCHANGED <<requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload>>
+    /\ UNCHANGED <<requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, noncanonicalDuplicatePersisted, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted>>
     /\ UNCHANGED protocolVars
 
 AdmitRequestB ==
@@ -88,15 +92,29 @@ AdmitRequestB ==
             /\ canonicalPayloadForKey' = canonicalPayloadForKey
             /\ idempotencyConflict' =
                 (idempotencyConflict \/ (canonicalPayloadForKey[requestBKey] # requestBPayload))
-    /\ UNCHANGED <<requestAAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload>>
+    /\ UNCHANGED <<requestAAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, noncanonicalDuplicatePersisted, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted>>
+    /\ UNCHANGED protocolVars
+
+InjectNoncanonicalDuplicateFile ==
+    /\ HasCanonicalIdempotency
+    /\ ~noncanonicalDuplicatePersisted
+    /\ noncanonicalDuplicatePersisted' = TRUE
+    /\ noncanonicalDuplicateDeliverable' = TRUE
+    /\ duplicateRecoveryDone' = FALSE
+    /\ noncanonicalDuplicateExecuted' = noncanonicalDuplicateExecuted
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, idempotencyConflict>>
     /\ UNCHANGED protocolVars
 
 Deliver ==
     /\ HasCanonicalIdempotency
     /\ state = "QUEUED"
     /\ delivered' = TRUE
+    /\ noncanonicalDuplicateDeliverable' = FALSE
+    /\ duplicateRecoveryDone' = (duplicateRecoveryDone \/ noncanonicalDuplicatePersisted)
+    /\ noncanonicalDuplicatePersisted' = noncanonicalDuplicatePersisted
+    /\ noncanonicalDuplicateExecuted' = noncanonicalDuplicateExecuted
     /\ UNCHANGED <<state, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects, durableCanonicalEffect>>
-    /\ UNCHANGED idemVars
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, canonicalPayloadForKey, idempotencyConflict>>
 
 DuplicateDelivery ==
     /\ delivered
@@ -233,6 +251,7 @@ SyncMeshRejectUnsafeOrMismatched ==
 Next ==
     \/ AdmitRequestA
     \/ AdmitRequestB
+    \/ InjectNoncanonicalDuplicateFile
     \/ Deliver
     \/ DuplicateDelivery
     \/ CanonicalClaimWrite
@@ -297,6 +316,8 @@ IdempotencyKeyCannotAuthorizeDifferentPayload ==
 IdempotencyKeyCannotForkTerminalTrajectory == terminalSeen => \A k \in Keys: canonicalRequestForKey[k] \in Requests
 AtMostOneExecutionPerIdempotencyKey == executed <= 1
 ConsequentialExecutionRequiresStableIdempotencyIdentity == executed > 0 => HasCanonicalIdempotency
+NoncanonicalDuplicateNeverExecutes == noncanonicalDuplicateExecuted = 0
+DeliveryScanQuarantinesNoncanonicalDuplicate == duplicateRecoveryDone => ~noncanonicalDuplicateDeliverable
 
 EventuallyHealthy == <>[](meshUp /\ nodeUp)
 

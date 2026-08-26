@@ -370,11 +370,18 @@ class DurableRemoteStore:
     ) -> Iterator[None]:
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         deadline = now_s() + timeout_s
-        fd: int | None = None
-        while fd is None:
+        acquired = False
+        while not acquired:
+            tmp_path = lock_path.with_name(f".{lock_path.name}.tmp-{uuid4().hex}")
             try:
-                fd = os.open(str(lock_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-                os.write(fd, f"{os.getpid()} {now_s()}\n".encode("ascii"))
+                fd = os.open(str(tmp_path), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+                try:
+                    os.write(fd, f"{os.getpid()} {now_s()}\n".encode("ascii"))
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
+                os.link(tmp_path, lock_path)
+                acquired = True
             except FileExistsError:
                 try:
                     owner_pid = self._lock_owner_pid(lock_path)
@@ -388,11 +395,14 @@ class DurableRemoteStore:
                 if now_s() >= deadline:
                     raise TimeoutError(f"timed out acquiring durable lock: {label}")
                 time.sleep(0.05)
+            finally:
+                try:
+                    tmp_path.unlink()
+                except FileNotFoundError:
+                    pass
         try:
             yield
         finally:
-            if fd is not None:
-                os.close(fd)
             try:
                 lock_path.unlink()
             except FileNotFoundError:
@@ -415,7 +425,7 @@ class DurableRemoteStore:
             self._idempotency_lock_path(idempotency_key),
             label=f"idempotency:{hashlib.sha256(idempotency_key.encode()).hexdigest()}",
             timeout_s=timeout_s,
-            break_stale_owner=False,
+            break_stale_owner=True,
         ):
             yield
 
@@ -506,12 +516,23 @@ class DurableRemoteStore:
                 },
             )
             if current.lifecycle_state in {"QUEUED", "DELIVERED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"}:
-                self._enter_reconciliation(
+                current.lifecycle_state = "RECONCILIATION_REQUIRED"
+                current.diagnostics.setdefault("reconciliation_reasons", []).append(
+                    "duplicate_idempotency_noncanonical"
+                )
+                if not current.reconciliation_requested_at:
+                    current.reconciliation_requested_at = now_s()
+                current.reconciliation_deadline_at = max(
+                    current.reconciliation_deadline_at,
+                    current.reconciliation_requested_at + 15.0,
+                )
+                self._update_request_locked(
                     current,
-                    reason="duplicate_idempotency_noncanonical",
+                    "DUPLICATE_IDEMPOTENCY_QUARANTINED",
+                    write_idempotency_index=False,
                 )
             else:
-                self._update_request_locked(current, "")
+                self._update_request_locked(current, "", write_idempotency_index=False)
 
     def _find_request_by_idempotency_key_locked(
         self, idempotency_key: str
@@ -541,6 +562,51 @@ class DurableRemoteStore:
                     canonical_request_id=canonical.request_id,
                 )
         return canonical
+
+    def _quarantine_noncanonical_idempotency_records_locked(
+        self, idempotency_key: str, *, canonical_request_id: str
+    ) -> None:
+        for path in sorted(self.requests_dir.glob("*.json")):
+            if path.stem == canonical_request_id:
+                continue
+            data = _read_json(path)
+            if not data:
+                continue
+            duplicate = DurableRemoteRequest.from_dict(data)
+            if duplicate.idempotency_key != idempotency_key:
+                continue
+            self._quarantine_duplicate_idempotency_record_locked(
+                duplicate,
+                canonical_request_id=canonical_request_id,
+            )
+
+    def _request_is_canonical_for_idempotency(self, req: DurableRemoteRequest) -> bool:
+        if not req.idempotency_key:
+            return True
+        with self._idempotency_lock(req.idempotency_key):
+            index = _read_json(self._idempotency_index_path(req.idempotency_key))
+            if index:
+                canonical_request_id = str(index.get("canonical_request_id", ""))
+                if not canonical_request_id:
+                    raise ValueError("idempotency index missing canonical request id")
+                if canonical_request_id != req.request_id:
+                    self._quarantine_duplicate_idempotency_record_locked(
+                        req,
+                        canonical_request_id=canonical_request_id,
+                    )
+                    return False
+                self._quarantine_noncanonical_idempotency_records_locked(
+                    req.idempotency_key,
+                    canonical_request_id=canonical_request_id,
+                )
+                return True
+            recovered = self._find_request_by_idempotency_key_locked(req.idempotency_key)
+            if recovered is None:
+                return True
+            with self._request_lock(recovered.request_id):
+                current = self._get_request_raw(recovered.request_id) or recovered
+                self._write_idempotency_index(current)
+            return recovered.request_id == req.request_id
 
     def _record_idempotent_replay_locked(
         self,
@@ -583,7 +649,12 @@ class DurableRemoteStore:
             with self._request_lock(recovered.request_id):
                 current = self._get_request_raw(recovered.request_id) or recovered
                 self._write_idempotency_index(current)
-                return self._record_idempotent_replay_locked(current, incoming)
+                result = self._record_idempotent_replay_locked(current, incoming)
+            self._quarantine_noncanonical_idempotency_records_locked(
+                incoming.idempotency_key,
+                canonical_request_id=result.request_id,
+            )
+            return result
         canonical_request_id = str(index.get("canonical_request_id", ""))
         if not canonical_request_id:
             raise ValueError("idempotency index missing canonical request id")
@@ -596,7 +667,12 @@ class DurableRemoteStore:
             if current is None:
                 raise ValueError("idempotency index points to missing canonical request")
             current = self._maybe_converge_recovery_locked(current)
-            return self._record_idempotent_replay_locked(current, incoming)
+            result = self._record_idempotent_replay_locked(current, incoming)
+        self._quarantine_noncanonical_idempotency_records_locked(
+            incoming.idempotency_key,
+            canonical_request_id=result.request_id,
+        )
+        return result
 
     def put_request(self, request: DurableRemoteRequest) -> DurableRemoteRequest:
         self._canonicalize_request_payload_identity(request)
@@ -734,12 +810,14 @@ class DurableRemoteStore:
         event: str = "",
         *,
         event_data: dict[str, Any] | None = None,
+        write_idempotency_index: bool = True,
     ) -> None:
         request.updated_at = now_s()
         if request.lifecycle_state in TERMINAL_STATES and not request.terminalized_at:
             request.terminalized_at = request.updated_at
         _atomic_write_json(self._request_path(request.request_id), request.to_dict())
-        self._write_idempotency_index(request)
+        if write_idempotency_index:
+            self._write_idempotency_index(request)
         if event:
             data = {"state": request.lifecycle_state}
             if event_data:
@@ -953,6 +1031,8 @@ class DurableRemoteStore:
             if req is None:
                 continue
             if req.node_id == node_id:
+                if not self._request_is_canonical_for_idempotency(req):
+                    continue
                 req = self._maybe_converge_recovery(req)
                 out.append(req)
         return out
