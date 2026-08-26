@@ -298,6 +298,27 @@ def test_is_write_class_fail_closed():
     assert is_write_class("bananas") is True  # unknown → write-class
 
 
+def test_sync_effect_policy_rejects_declared_canonical_mismatch():
+    read_policy = canonical_sync_effect_policy(
+        "terminal.capture",
+        declared_effect_class=CONSEQUENTIAL_WRITE_EFFECT,
+    )
+    write_policy = canonical_sync_effect_policy(
+        "shell",
+        declared_effect_class=READ_ONLY_EFFECT,
+    )
+
+    assert read_policy.authoritative_effect_class == READ_ONLY_EFFECT
+    assert read_policy.declared_effect_class == CONSEQUENTIAL_WRITE_EFFECT
+    assert read_policy.sync_allowed is False
+    assert "does not match canonical READ_ONLY" in read_policy.reason
+
+    assert write_policy.authoritative_effect_class == CONSEQUENTIAL_WRITE_EFFECT
+    assert write_policy.declared_effect_class == READ_ONLY_EFFECT
+    assert write_policy.sync_allowed is False
+    assert "does not match canonical CONSEQUENTIAL_WRITE" in write_policy.reason
+
+
 # ── Fail-closed relay dispatch (built-in governed dispatcher) ──────────────
 
 
