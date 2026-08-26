@@ -283,8 +283,11 @@ def test_index_present_replay_quarantines_duplicate_same_key_records(tmp_path) -
 
 def test_delivery_scan_quarantines_index_present_duplicate_same_key_records(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
-    original = store.put_request(_request(idempotency_key="deliverable-duplicate"))
+    original_req = _request(idempotency_key="deliverable-duplicate")
+    original_req.request_id = "drc-a-canonical"
+    original = store.put_request(original_req)
     duplicate = _request(idempotency_key="deliverable-duplicate")
+    duplicate.request_id = "drc-z-duplicate"
     duplicate.created_at = original.created_at + 1.0
     (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
         json.dumps(duplicate.to_dict(), sort_keys=True),
