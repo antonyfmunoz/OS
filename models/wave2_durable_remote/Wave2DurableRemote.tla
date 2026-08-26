@@ -29,6 +29,13 @@ MaybeKey == Keys \cup {"none"}
 Payloads == {"payload1", "payload2"}
 Requests == {"none", "A", "B"}
 HasCanonicalIdempotency == \E k \in Keys: canonicalRequestForKey[k] # "none"
+MaterialComplete == canonicalMaterialValid /\ recoveredMaterialValid
+MaterialValid == MaterialComplete
+ResultPresent == invalidRecoveredResultAttempt
+ResultConverged == invalidRecoveredResultAttempt /\ state \in {"SUCCEEDED", "FAILED", "CANCELLED"}
+DeclaredRisk == IF declaredSyncEffect = "READ_ONLY" THEN "read_only" ELSE "reversible_write"
+CanonicalRisk == IF canonicalSyncEffect = "READ_ONLY" THEN "read_only" ELSE "reversible_write"
+RecordCorrupt == ~canonicalMaterialValid \/ ~recoveredMaterialValid
 
 Init ==
     /\ state = "QUEUED"
@@ -500,7 +507,20 @@ CandidateMismatchNeverExecutes == candidate # expectedCandidate => executed = 0
 NoConsequentialWriteViaSyncMesh == syncConsequentialEffects = 0
 UnknownEffectNeverExecutesViaSyncMesh == canonicalSyncEffect = "UNKNOWN" => syncExecuted = 0
 ReadOnlySyncDoesNotCreateConsequentialEffect == syncExecuted > 0 => canonicalSyncEffect = "READ_ONLY" /\ syncConsequentialEffects = 0
-DeclaredRiskCannotDowngradeCanonicalRisk == canonicalSyncEffect = "CONSEQUENTIAL_WRITE" /\ declaredSyncEffect = "READ_ONLY" => syncExecuted = 0
+IncompleteMaterialNeverExecutes == ~MaterialComplete => executed = 0
+IncompleteMaterialNeverBecomesDeliverable == ~MaterialComplete => ~recoveredDeliverable
+ResultConvergenceRequiresValidMaterial == ResultConverged => MaterialValid
+ResultCannotLegitimizeInvalidRequest ==
+    ResultPresent /\ ~MaterialValid => state = "RECONCILIATION_REQUIRED" /\ executed = 0
+DeclaredRiskCannotDowngradeCanonicalRisk ==
+    CanonicalRisk # "read_only" /\ DeclaredRisk = "read_only" => syncExecuted = 0
+DeclaredEffectCannotDowngradeCanonicalEffect ==
+    canonicalSyncEffect = "CONSEQUENTIAL_WRITE" /\ declaredSyncEffect = "READ_ONLY" => syncExecuted = 0
+ConsequentialExecutionRequiresCompatibleCanonicalRiskEffect ==
+    executed > 0 => durableCanonicalEffect = "CONSEQUENTIAL_WRITE" /\ canonicalMaterialValid
+CorruptRecordNeverExecutes == RecordCorrupt => executed = 0
+CorruptRecordDoesNotBlockUnrelatedValidRequest ==
+    RecordCorrupt /\ HasCanonicalIdempotency => state \in {"QUEUED", "CLAIMED", "RUNNING"} \cup Terminal
 SyncExecutionRequiresCanonicalReadOnlyPolicy == syncExecuted > 0 => canonicalSyncEffect = "READ_ONLY" /\ declaredSyncEffect = "READ_ONLY"
 ConsequentialExecutionImpliesDurableRemotePath == executed > 0 => durableExecutionPath = "DurableRemote"
 DurableRemoteExecutionRequiresCanonicalConsequentialPolicy == executed > 0 => durableCanonicalEffect = "CONSEQUENTIAL_WRITE"

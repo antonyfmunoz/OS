@@ -1017,6 +1017,7 @@ class NodeClient:
                 canonical_sync_effect_policy,
                 canonical_payload_digest,
                 get_verdict_secret,
+                is_write_class,
                 READ_ONLY_EFFECT,
                 verify_verdict,
             )
@@ -1036,6 +1037,8 @@ class NodeClient:
                 return False, policy.reason
             if authoritative_effect != READ_ONLY_EFFECT:
                 return False, "sync capability execution is restricted to READ_ONLY"
+            if is_write_class(risk_class):
+                return False, "sync read-only capability requires read_only risk"
             if not request_id or not correlation_id or not idempotency_key:
                 return False, "sync capability requires exact operation binding"
             expected_digest = canonical_payload_digest(cap_params or {})
@@ -1053,6 +1056,8 @@ class NodeClient:
             return False, "DurableRemote consequential execution requires canonical consequential policy"
         if normalized_effect != CONSEQUENTIAL_WRITE_EFFECT:
             return False, "write-class capability requires CONSEQUENTIAL_WRITE effect binding"
+        if not is_write_class(risk_class):
+            return False, "write-class capability risk_class conflicts with canonical consequential policy"
 
         if not get_verdict_secret():
             return False, "no mesh verdict secret configured on node (fail-closed)"

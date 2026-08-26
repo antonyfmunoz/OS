@@ -22,6 +22,7 @@ from uuid import uuid4
 from substrate.execution.mesh_verdict import (
     CONSEQUENTIAL_WRITE_EFFECT,
     canonical_sync_effect_policy,
+    is_write_class,
 )
 
 TERMINAL_STATES = frozenset({"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"})
@@ -129,9 +130,39 @@ def _read_json(path: Path) -> dict[str, Any]:
         data = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
         return {}
+    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
+        _record_corrupt_json_file(path, reason=f"{type(exc).__name__}: {exc}")
+        return {}
     if not isinstance(data, dict):
+        _record_corrupt_json_file(path, reason="json record is not an object")
         return {}
     return data
+
+
+def _record_corrupt_json_file(path: Path, *, reason: str) -> None:
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        raw = b""
+    root = path.parent.parent if path.parent.name in {"requests", "idempotency", "results"} else path.parent
+    evidence = {
+        "record_path": str(path),
+        "record_kind": path.parent.name,
+        "reason": reason,
+        "sha256": hashlib.sha256(raw).hexdigest(),
+        "size_bytes": len(raw),
+        "observed_at": now_s(),
+        "disposition": "corrupt_record_isolated_fail_closed",
+    }
+    evidence_path = (
+        root
+        / "corrupt"
+        / f"{path.parent.name}-{hashlib.sha256(str(path).encode()).hexdigest()[:16]}.json"
+    )
+    try:
+        _atomic_write_json(evidence_path, evidence)
+    except OSError:
+        pass
 
 
 @dataclass
@@ -479,8 +510,18 @@ class DurableRemoteStore:
         strict_payload_digest: bool = True,
     ) -> None:
         request.idempotency_key = _normalized_idempotency_key(request.idempotency_key)
-        if not request.request_id.strip():
-            raise ValueError("durable request requires request_id")
+        required_nonempty = (
+            "request_id",
+            "candidate_sha",
+            "node_id",
+            "operation_type",
+            "capability",
+        )
+        for field_name in required_nonempty:
+            value = str(getattr(request, field_name, "") or "").strip()
+            if not value:
+                raise ValueError(f"durable request requires {field_name}")
+            setattr(request, field_name, value)
         if not request.idempotency_key:
             raise ValueError("consequential durable request requires idempotency_key")
         computed = _request_payload_digest(
@@ -499,6 +540,10 @@ class DurableRemoteStore:
         )
         if effect_policy.authoritative_effect_class != CONSEQUENTIAL_WRITE_EFFECT:
             raise ValueError("durable request capability has no canonical consequential policy")
+        if effect_policy.declared_effect_class != CONSEQUENTIAL_WRITE_EFFECT:
+            raise ValueError("durable request declared effect conflicts with canonical policy")
+        if not is_write_class(request.risk_class):
+            raise ValueError("durable request risk_class conflicts with canonical consequential policy")
 
     def _mark_invalid_canonical_material_locked(
         self,
@@ -1179,6 +1224,18 @@ class DurableRemoteStore:
         if req is None:
             return None
         if req.lifecycle_state not in TERMINAL_STATES and req.lifecycle_state not in RECOVERY_STATES:
+            with self._request_lock(request_id):
+                current = self._get_request_raw(request_id)
+                if current is None:
+                    return None
+                invalid = self._reject_invalid_canonical_material_locked(
+                    current,
+                    event="GET_REQUEST",
+                )
+                if invalid is not None:
+                    return invalid
+                req = current
+        if req.lifecycle_state not in TERMINAL_STATES and req.lifecycle_state not in RECOVERY_STATES:
             if not self._request_is_canonical_for_idempotency(req):
                 return self._get_request_raw(request_id)
         if (
@@ -1326,6 +1383,12 @@ class DurableRemoteStore:
     def _converge_existing_result_locked(
         self, req: DurableRemoteRequest
     ) -> DurableRemoteRequest:
+        invalid = self._reject_invalid_canonical_material_locked(
+            req,
+            event="TERMINAL_RESULT_RECOVERY_REJECTED",
+        )
+        if invalid is not None:
+            return invalid
         existing = self.result_for(req.request_id)
         if not existing:
             return req

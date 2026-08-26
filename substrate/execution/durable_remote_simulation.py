@@ -30,6 +30,9 @@ class SimState:
     store_alive: bool = True
     pending_ack: bool = False
     durable_canonical_effect: str = "CONSEQUENTIAL_WRITE"
+    declared_risk: str = "reversible_write"
+    canonical_risk: str = "reversible_write"
+    node_cap_risk: str = "reversible_write"
     declared_sync_effect: str = "UNKNOWN"
     canonical_sync_effect: str = "UNKNOWN"
     sync_side_effects: int = 0
@@ -41,7 +44,13 @@ class SimState:
     persisted_request_key: dict[str, str] = field(default_factory=dict)
     persisted_request_payload: dict[str, str] = field(default_factory=dict)
     persisted_request_material_valid: dict[str, bool] = field(default_factory=dict)
+    persisted_request_material_complete: dict[str, bool] = field(default_factory=dict)
     persisted_request_order: dict[str, int] = field(default_factory=dict)
+    corrupt_request_records: set[str] = field(default_factory=set)
+    corrupt_index_keys: set[str] = field(default_factory=set)
+    corrupt_result_records: set[str] = field(default_factory=set)
+    result_present_for_request: set[str] = field(default_factory=set)
+    result_converged_for_request: set[str] = field(default_factory=set)
     deliverable_requests: set[str] = field(default_factory=set)
     idempotency_conflict: bool = False
     next_request_order: int = 0
@@ -68,10 +77,24 @@ class SimState:
             assert self.sync_observations == 0, self.log
         if self.durable_canonical_effect != "CONSEQUENTIAL_WRITE":
             assert self.executed == 0, self.log
+        if self.durable_canonical_effect == "CONSEQUENTIAL_WRITE" and (
+            self.executed or self.persisted_request_key
+        ):
+            assert self.canonical_risk != "read_only", self.log
+            if self.declared_risk == "read_only":
+                assert self.executed == 0, self.log
+        if self.declared_sync_effect == "READ_ONLY" and self.canonical_sync_effect == "CONSEQUENTIAL_WRITE":
+            assert self.sync_side_effects == 0, self.log
         for key, execution_count in self.execution_for_key.items():
             assert self.canonical_request_for_key.get(key), self.log
             assert execution_count <= 1, self.log
         for request_id, key in self.persisted_request_key.items():
+            if request_id in self.corrupt_request_records:
+                assert request_id not in self.deliverable_requests, self.log
+                continue
+            if not self.persisted_request_material_complete.get(request_id, True):
+                assert request_id not in self.deliverable_requests, self.log
+                continue
             if not key.strip():
                 assert request_id not in self.deliverable_requests, self.log
                 continue
@@ -81,6 +104,11 @@ class SimState:
             canonical = self.canonical_request_for_key.get(key)
             if canonical and canonical != request_id:
                 assert request_id not in self.deliverable_requests, self.log
+        for request_id in self.result_converged_for_request:
+            assert request_id not in self.corrupt_request_records, self.log
+            assert request_id not in self.corrupt_result_records, self.log
+            assert self.persisted_request_material_valid.get(request_id, True), self.log
+            assert self.persisted_request_material_complete.get(request_id, True), self.log
 
 
 def persist_request_file(
@@ -90,9 +118,14 @@ def persist_request_file(
     idempotency_key: str,
     payload_identity: str = "",
     material_valid: bool = True,
+    material_complete: bool = True,
+    corrupt: bool = False,
 ) -> None:
     state.persisted_request_key[request_id] = idempotency_key
     state.persisted_request_material_valid[request_id] = material_valid
+    state.persisted_request_material_complete[request_id] = material_complete
+    if corrupt:
+        state.corrupt_request_records.add(request_id)
     if payload_identity:
         state.persisted_request_payload[request_id] = payload_identity
     if request_id not in state.persisted_request_order:
@@ -126,12 +159,29 @@ def fail_closed_invalid_material(state: SimState, request_id: str) -> None:
     state.deliverable_requests.discard(request_id)
 
 
+def request_material_is_canonical(state: SimState, request_id: str) -> bool:
+    if request_id in state.corrupt_request_records:
+        state.record(f"corrupt_request_isolated:{request_id}")
+        fail_closed_invalid_material(state, request_id)
+        return False
+    if not state.persisted_request_material_complete.get(request_id, True):
+        state.record(f"incomplete_material_rejected:{request_id}")
+        fail_closed_invalid_material(state, request_id)
+        return False
+    if not state.persisted_request_material_valid.get(request_id, True):
+        fail_closed_invalid_material(state, request_id)
+        return False
+    return True
+
+
 def validate_idempotency_index(state: SimState, idempotency_key: str) -> bool:
+    if idempotency_key in state.corrupt_index_keys:
+        state.record(f"corrupt_index_isolated:key={idempotency_key}")
+        state.corrupt_index_keys.discard(idempotency_key)
     canonical = state.canonical_request_for_key.get(idempotency_key)
     if not canonical:
         return True
-    if not state.persisted_request_material_valid.get(canonical, True):
-        fail_closed_invalid_material(state, canonical)
+    if not request_material_is_canonical(state, canonical):
         state.assert_invariants()
         return False
     admitted = state.admitted_request_for_key.get(idempotency_key)
@@ -235,8 +285,7 @@ def recover_missing_idempotency_index(state: SimState, idempotency_key: str) -> 
     matches = requests_for_key_in_admission_order(state, idempotency_key)
     state.record(f"recover_missing_index:key={idempotency_key}:matches={','.join(matches)}")
     if len(matches) == 1:
-        if not state.persisted_request_material_valid.get(matches[0], True):
-            fail_closed_invalid_material(state, matches[0])
+        if not request_material_is_canonical(state, matches[0]):
             state.assert_invariants()
             return None
         state.canonical_request_for_key[idempotency_key] = matches[0]
@@ -284,13 +333,17 @@ def public_update_request(
 def scan_deliverable_requests(state: SimState) -> None:
     state.record("scan_deliverable_requests")
     for request_id, key in list(state.persisted_request_key.items()):
+        if request_id in state.corrupt_request_records:
+            state.record(f"corrupt_request_isolated:{request_id}")
+            state.deliverable_requests.discard(request_id)
+            state.fail_closed = True
+            continue
         if not key.strip():
             state.record(f"keyless_request_rejected:{request_id}")
             state.deliverable_requests.discard(request_id)
             state.fail_closed = True
             continue
-        if not state.persisted_request_material_valid.get(request_id, True):
-            fail_closed_invalid_material(state, request_id)
+        if not request_material_is_canonical(state, request_id):
             continue
         validate_idempotency_index(state, key)
     state.assert_invariants()
@@ -301,15 +354,23 @@ def sync_mesh_receive(
     declared_effect: str,
     *,
     canonical_effect: str | None = None,
+    declared_risk: str = "read_only",
+    canonical_risk: str | None = None,
     retry: bool = False,
 ) -> None:
     resolved = canonical_effect if canonical_effect is not None else declared_effect
+    resolved_risk = canonical_risk or ("read_only" if resolved == "READ_ONLY" else "reversible_write")
     state.declared_sync_effect = declared_effect
     state.canonical_sync_effect = resolved
-    state.record(f"sync_mesh:declared={declared_effect}:canonical={resolved}{':retry' if retry else ''}")
-    if declared_effect == resolved == "READ_ONLY":
+    state.declared_risk = declared_risk
+    state.canonical_risk = resolved_risk
+    state.record(
+        f"sync_mesh:declared={declared_effect}/{declared_risk}:"
+        f"canonical={resolved}/{resolved_risk}{':retry' if retry else ''}"
+    )
+    if declared_effect == resolved == "READ_ONLY" and declared_risk == resolved_risk == "read_only":
         state.sync_observations += 1
-    elif resolved in {"CONSEQUENTIAL_WRITE", "UNKNOWN"} or declared_effect != resolved:
+    elif resolved in {"CONSEQUENTIAL_WRITE", "UNKNOWN"} or declared_effect != resolved or declared_risk != resolved_risk:
         state.fail_closed = True
     else:
         state.canonical_sync_effect = "UNKNOWN"
@@ -341,8 +402,7 @@ def deliver(state: SimState, *, duplicate: bool = False) -> None:
 def claim_write(state: SimState, claim_id: str = "claim-1") -> None:
     state.record("claim_write")
     for request_id in list(state.deliverable_requests):
-        if not state.persisted_request_material_valid.get(request_id, True):
-            fail_closed_invalid_material(state, request_id)
+        if not request_material_is_canonical(state, request_id):
             state.assert_invariants()
             return
     if not (state.node_alive and state.mesh_alive and state.store_alive):
@@ -384,6 +444,11 @@ def announce_running_and_execute(state: SimState, claim_id: str = "claim-1") -> 
         state.lifecycle = "RECONCILIATION_REQUIRED"
         state.assert_invariants()
         return
+    if state.declared_risk == "read_only" or state.canonical_risk == "read_only":
+        state.fail_closed = True
+        state.lifecycle = "RECONCILIATION_REQUIRED"
+        state.assert_invariants()
+        return
     if state.cancelled or state.fail_closed:
         state.assert_invariants()
         return
@@ -405,13 +470,19 @@ def announce_running_and_execute(state: SimState, claim_id: str = "claim-1") -> 
 
 def terminal(state: SimState, value: str = "SUCCEEDED") -> None:
     state.record(f"terminal:{value}")
-    for request_id, valid in state.persisted_request_material_valid.items():
-        if not valid:
-            fail_closed_invalid_material(state, request_id)
+    for request_id in state.persisted_request_key:
+        if request_id in state.corrupt_result_records:
+            state.record(f"corrupt_result_isolated:{request_id}")
+            state.fail_closed = True
+            state.assert_invariants()
+            return
+        if not request_material_is_canonical(state, request_id):
             state.assert_invariants()
             return
     if state.lifecycle == "RUNNING" and value in TERMINAL:
         state.lifecycle = value
+        for request_id in state.result_present_for_request:
+            state.result_converged_for_request.add(request_id)
     elif state.lifecycle in TERMINAL:
         pass
     else:
@@ -763,6 +834,28 @@ def _invalid_effect_mismatch_recovery_fails_closed(state: SimState) -> None:
     _invalid_unknown_operation_lost_index_fails_closed(state)
 
 
+def _incomplete_candidate_sha_fails_closed(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_complete=False,
+    )
+    state.deliverable_requests.add("A")
+    scan_deliverable_requests(state)
+    assert "A" not in state.deliverable_requests, state.log
+    assert state.lifecycle == "RECONCILIATION_REQUIRED", state.log
+
+
+def _incomplete_node_id_fails_closed(state: SimState) -> None:
+    _incomplete_candidate_sha_fails_closed(state)
+
+
+def _incomplete_operation_type_fails_closed(state: SimState) -> None:
+    _incomplete_candidate_sha_fails_closed(state)
+
+
 def _recovered_invalid_request_scan_blocked(state: SimState) -> None:
     persist_request_file(
         state,
@@ -805,6 +898,80 @@ def _late_success_after_invalid_recovery_rejected(state: SimState) -> None:
     assert state.lifecycle == "RECONCILIATION_REQUIRED", state.log
     assert state.executed == 0, state.log
     assert state.fail_closed, state.log
+
+
+def _invalid_recovered_request_existing_success_cannot_legitimize(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_complete=False,
+    )
+    state.result_present_for_request.add("A")
+    state.lifecycle = "RUNNING"
+    terminal(state)
+    assert "A" not in state.result_converged_for_request, state.log
+    assert state.lifecycle == "RECONCILIATION_REQUIRED", state.log
+
+
+def _consequential_effect_with_read_only_declared_risk_denied(state: SimState) -> None:
+    state.declared_risk = "read_only"
+    state.canonical_risk = "reversible_write"
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    canonical_read(state)
+    announce_running_and_execute(state)
+    assert state.executed == 0, state.log
+    assert state.fail_closed, state.log
+
+
+def _generic_shell_read_only_node_cap_denied(state: SimState) -> None:
+    state.node_cap_risk = "read_only"
+    _consequential_effect_with_read_only_declared_risk_denied(state)
+
+
+def _corrupt_request_among_valid_isolated(state: SimState) -> None:
+    persist_request_file(state, request_id="A", idempotency_key="K", payload_identity="P")
+    persist_request_file(
+        state,
+        request_id="B",
+        idempotency_key="K2",
+        payload_identity="P2",
+        corrupt=True,
+    )
+    state.deliverable_requests.update({"A", "B"})
+    scan_deliverable_requests(state)
+    assert "A" in state.deliverable_requests, state.log
+    assert "B" not in state.deliverable_requests, state.log
+
+
+def _corrupt_index_rebuilds_only_from_valid_request(state: SimState) -> None:
+    persist_request_file(state, request_id="A", idempotency_key="K", payload_identity="P")
+    state.canonical_request_for_key["K"] = "A"
+    state.corrupt_index_keys.add("K")
+    assert validate_idempotency_index(state, "K") is True
+    assert "K" not in state.corrupt_index_keys, state.log
+
+
+def _corrupt_result_does_not_terminalize(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    canonical_read(state)
+    announce_running_and_execute(state)
+    state.corrupt_result_records.add("A")
+    terminal(state)
+    assert state.lifecycle == "RUNNING", state.log
+    assert "A" not in state.result_converged_for_request, state.log
+
+
+def _restart_after_corrupt_record_still_non_executable(state: SimState) -> None:
+    _corrupt_request_among_valid_isolated(state)
+    restart_mesh(state)
+    scan_deliverable_requests(state)
+    assert "B" not in state.deliverable_requests, state.log
 
 
 def _restart_after_invalid_recovery_still_blocked(state: SimState) -> None:
@@ -900,8 +1067,14 @@ SCENARIOS: dict[str, Scenario] = {
         _invalid_unknown_operation_lost_index_fails_closed
     ),
     "recovery_effect_mismatch_fails_closed": _invalid_effect_mismatch_recovery_fails_closed,
+    "recovery_incomplete_candidate_sha_fails_closed": _incomplete_candidate_sha_fails_closed,
+    "recovery_incomplete_node_id_fails_closed": _incomplete_node_id_fails_closed,
+    "recovery_incomplete_operation_type_fails_closed": _incomplete_operation_type_fails_closed,
     "recovery_invalid_scan_blocked": _recovered_invalid_request_scan_blocked,
     "recovery_invalid_claim_blocked": _recovered_invalid_request_claim_blocked,
+    "recovery_invalid_existing_success_cannot_legitimize": (
+        _invalid_recovered_request_existing_success_cannot_legitimize
+    ),
     "recovery_late_success_after_invalid_rejected": (
         _late_success_after_invalid_recovery_rejected
     ),
@@ -913,6 +1086,14 @@ SCENARIOS: dict[str, Scenario] = {
         _keyless_persisted_request_file_not_deliverable
     ),
     "idempotency_adapter_retry_preserves_key": _adapter_retry_preserves_stable_key,
+    "risk_consequential_effect_read_only_declared_risk_denied": (
+        _consequential_effect_with_read_only_declared_risk_denied
+    ),
+    "risk_generic_shell_read_only_node_cap_denied": _generic_shell_read_only_node_cap_denied,
+    "corrupt_request_among_valid_isolated": _corrupt_request_among_valid_isolated,
+    "corrupt_index_rebuilds_only_from_valid_request": _corrupt_index_rebuilds_only_from_valid_request,
+    "corrupt_result_does_not_terminalize": _corrupt_result_does_not_terminalize,
+    "corrupt_restart_still_non_executable": _restart_after_corrupt_record_still_non_executable,
 }
 
 
@@ -920,7 +1101,7 @@ def run_scenario(name: str) -> SimState:
     state = SimState(scenario=name)
     SCENARIOS[name](state)
     state.assert_invariants()
-    if name != "fallback_unavailable" and not name.startswith(("sync_", "idempotency_", "recovery_")):
+    if name != "fallback_unavailable" and not name.startswith(("sync_", "idempotency_", "recovery_", "corrupt_", "risk_")):
         assert state.lifecycle in {"RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}, state.log
     return state
 

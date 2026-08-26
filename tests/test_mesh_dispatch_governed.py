@@ -862,7 +862,7 @@ def _durable_node_client(tmp_path, node_id: str = "windows-desktop"):
     from nodes.windows.umh_node.config import NodeConfig
     from substrate.execution.durable_remote_transport import DurableRemoteStore
 
-    os.environ.setdefault("UMH_MESH_VERDICT_SECRET", _SECRET)
+    os.environ["UMH_MESH_VERDICT_SECRET"] = _SECRET
     client = object.__new__(NodeClient)
     client._config = NodeConfig(node_id=node_id)
     client._connected = True
@@ -891,7 +891,7 @@ def _durable_request(**overrides):
         "operation_type": "transport_unit",
         "capability": "shell",
         "params": params,
-        "risk_class": "read_only",
+        "risk_class": "reversible_write",
         "ttl_seconds": 60,
         "idempotency_key": f"unit-durable:{uuid4().hex}",
     }
@@ -1015,7 +1015,7 @@ req = make_request(
         "timeout": 5,
         "budgets": {"claim_acquisition_timeout_s": 8.0},
     },
-    risk_class="read_only",
+    risk_class="reversible_write",
     ttl_seconds=60,
     idempotency_key="test:mesh-pump-redelivery",
 )
@@ -1131,6 +1131,29 @@ def test_node_accepts_valid_write_class_verdict_only_for_durable_remote(monkeypa
         allow_consequential_write=True,
     )
     assert ok is True
+
+
+def test_node_rejects_consequential_shell_with_declared_read_only_risk(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
+    token, params = _operation_bound_verdict(risk_class="read_only")
+    client = _bare_node_client("node-a")
+
+    ok, reason = client._validate_verdict(
+        "shell.execute",
+        "read_only",
+        token,
+        request_id="req-1",
+        correlation_id="corr-1",
+        candidate_sha="a" * 40,
+        effect_class=CONSEQUENTIAL_WRITE_EFFECT,
+        payload_digest=canonical_payload_digest(params),
+        idempotency_key="idem-1",
+        cap_params=params,
+        allow_consequential_write=True,
+    )
+
+    assert ok is False
+    assert "risk_class conflicts" in reason
 
 
 def test_node_rejects_unknown_durable_capability_even_with_consequential_declaration(monkeypatch):
@@ -2636,7 +2659,7 @@ def test_durable_shell_does_not_start_when_running_ack_is_rejected(tmp_path):
     )
     client._ws = ws
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     req = _durable_request(
@@ -2648,7 +2671,7 @@ def test_durable_shell_does_not_start_when_running_ack_is_rejected(tmp_path):
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -2683,7 +2706,7 @@ def test_durable_claim_ack_timeout_reconciles_same_claim_before_execution(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -2715,7 +2738,7 @@ def test_durable_claim_ack_timeout_reconciles_same_claim_before_execution(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -2743,7 +2766,7 @@ def test_durable_lost_claim_ack_reads_back_canonical_claim_before_execution(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -2775,7 +2798,7 @@ def test_durable_lost_claim_ack_reads_back_canonical_claim_before_execution(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -2804,7 +2827,7 @@ def test_durable_missing_claim_ack_reads_back_canonical_claim_before_execution(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -2828,7 +2851,7 @@ def test_durable_missing_claim_ack_reads_back_canonical_claim_before_execution(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -2850,7 +2873,7 @@ def test_durable_claim_ack_timeout_fails_closed_and_replay_does_not_execute(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_ACQUIRE_TIMEOUT_S", 0.01)
@@ -2879,7 +2902,7 @@ def test_durable_claim_ack_timeout_fails_closed_and_replay_does_not_execute(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -2923,7 +2946,7 @@ def test_durable_claimed_redelivery_after_fail_closed_does_not_execute(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_ACQUIRE_TIMEOUT_S", 0.01)
@@ -2946,7 +2969,7 @@ def test_durable_claimed_redelivery_after_fail_closed_does_not_execute(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -2979,7 +3002,7 @@ def test_durable_claim_ack_uncertain_fails_closed_without_execution(tmp_path, mo
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_ACQUIRE_TIMEOUT_S", 0.02)
@@ -3002,7 +3025,7 @@ def test_durable_claim_ack_uncertain_fails_closed_without_execution(tmp_path, mo
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3031,7 +3054,7 @@ def test_durable_bare_claim_ack_cannot_authorize_without_canonical_readback(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
 
@@ -3059,7 +3082,7 @@ def test_durable_bare_claim_ack_cannot_authorize_without_canonical_readback(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3086,7 +3109,7 @@ def test_durable_canonical_claim_read_unavailable_remains_bounded_retryable(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_ACQUIRE_TIMEOUT_S", 0.02)
@@ -3114,7 +3137,7 @@ def test_durable_canonical_claim_read_unavailable_remains_bounded_retryable(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3144,7 +3167,7 @@ def test_durable_canonical_claim_read_rejection_fails_closed(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_ACQUIRE_TIMEOUT_S", 0.02)
@@ -3172,7 +3195,7 @@ def test_durable_canonical_claim_read_rejection_fails_closed(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3195,7 +3218,7 @@ def test_durable_claim_foreign_rejection_fails_closed_without_execution(tmp_path
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
 
@@ -3214,7 +3237,7 @@ def test_durable_claim_foreign_rejection_fails_closed_without_execution(tmp_path
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3236,7 +3259,7 @@ def test_durable_claim_readback_foreign_claim_fails_closed_without_execution(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -3266,7 +3289,7 @@ def test_durable_claim_readback_foreign_claim_fails_closed_without_execution(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3292,7 +3315,7 @@ def test_durable_claim_readback_accepted_wrong_identity_fails_closed(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -3325,7 +3348,7 @@ def test_durable_claim_readback_accepted_wrong_identity_fails_closed(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3361,7 +3384,7 @@ def test_durable_claim_readback_accepted_single_identity_mismatch_fails_closed(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -3398,7 +3421,7 @@ def test_durable_claim_readback_accepted_single_identity_mismatch_fails_closed(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3424,7 +3447,7 @@ def test_durable_claim_readback_same_claim_running_without_root_fails_closed_not
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -3453,7 +3476,7 @@ def test_durable_claim_readback_same_claim_running_without_root_fails_closed_not
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3481,7 +3504,7 @@ def test_durable_claim_readback_shell_running_without_process_evidence_fails_clo
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -3510,7 +3533,7 @@ def test_durable_claim_readback_shell_running_without_process_evidence_fails_clo
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3537,7 +3560,7 @@ def test_durable_claim_readback_same_claim_running_with_root_does_not_relaunch(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -3568,7 +3591,7 @@ def test_durable_claim_readback_same_claim_running_with_root_does_not_relaunch(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3598,7 +3621,7 @@ def test_durable_claim_ack_same_claim_running_does_not_use_stale_local_claim_to_
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -3634,7 +3657,7 @@ def test_durable_claim_ack_same_claim_running_does_not_use_stale_local_claim_to_
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3663,7 +3686,7 @@ def test_durable_claim_readback_same_claim_terminal_does_not_relaunch(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -3696,7 +3719,7 @@ def test_durable_claim_readback_same_claim_terminal_does_not_relaunch(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3721,7 +3744,7 @@ def test_durable_claim_send_exception_fails_closed_without_execution(tmp_path, m
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
 
@@ -3742,7 +3765,7 @@ def test_durable_claim_send_exception_fails_closed_without_execution(tmp_path, m
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -3768,7 +3791,7 @@ def test_durable_claim_cancel_during_acquisition_publishes_bound_cancel_ack(
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_RETRY_SLEEP_S", 0.0)
@@ -3793,7 +3816,7 @@ def test_durable_claim_cancel_during_acquisition_publishes_bound_cancel_ack(
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -4259,7 +4282,7 @@ def test_durable_handler_missing_local_state_after_running_ack_emits_failed_resu
 
     client = _durable_node_client(tmp_path / "store")
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     sent: list[dict[str, object]] = []
@@ -4291,7 +4314,7 @@ def test_durable_handler_missing_local_state_after_running_ack_emits_failed_resu
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -4410,7 +4433,7 @@ def test_durable_shell_post_start_running_update_is_not_an_execution_gate(tmp_pa
     )
     client._ws = ws
     client._config.capabilities = {
-        "shell": CapabilityConfig(enabled=True, max_risk_class="read_only")
+        "shell": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     client._adapters = {"shell": object()}
     req = _durable_request(
@@ -4422,7 +4445,7 @@ def test_durable_shell_post_start_running_update_is_not_an_execution_gate(tmp_pa
             ],
             "timeout": 5,
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
     )
 
     asyncio.run(
@@ -4902,7 +4925,7 @@ def test_durable_shell_drains_large_stdout_and_stderr_while_running(tmp_path):
                 ],
                 "timeout": 10,
             },
-            risk_class="read_only",
+            risk_class="reversible_write",
         )
     )
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
@@ -5262,7 +5285,7 @@ def test_durable_shell_timeout_captures_phase_tail_and_cleans_descendant(tmp_pat
     req = client._durable_store.put_request(
         _durable_request(
             params={"argv": [sys.executable, str(probe)], "timeout": 1},
-            risk_class="read_only",
+            risk_class="reversible_write",
         )
     )
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")

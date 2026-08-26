@@ -1817,7 +1817,7 @@ def test_same_claim_cancel_ack_can_recover_reconciliation_window(monkeypatch, tm
                 "reconciliation_timeout_s": 10,
             },
         },
-        risk_class="read_only",
+        risk_class="reversible_write",
         ttl_seconds=120,
         idempotency_key="test:same-claim-cancel-recovery",
     )
@@ -1980,7 +1980,7 @@ def test_durable_store_does_not_immediately_reconcile_process_residue(
         operation_type="unit",
         capability="shell",
         params={"command": "sleep", "timeout": 60},
-        risk_class="read_only",
+        risk_class="reversible_write",
         ttl_seconds=120,
         idempotency_key="test:process-residue-recovery",
     )
