@@ -479,6 +479,47 @@ def test_http_dispatch_rejects_unknown_effect(monkeypatch):
     assert result["status"] == "effect_class_required"
 
 
+def test_http_dispatch_rejects_unknown_capability_declared_read_only(monkeypatch):
+    from substrate.execution.executor import WorkPacketExecutor
+    from substrate.sockets.capability_socket import CapabilitySocket
+    from substrate.sockets.outcome_socket import OutcomeSocket
+    from substrate.sockets.signal_socket import SignalSocket
+    from substrate.sockets.view_socket import ViewSocket
+    from transports.node_mesh.config import MeshConfig
+    from transports.node_mesh.server import NodeMeshServer
+
+    server = NodeMeshServer(
+        config=MeshConfig(),
+        executor=WorkPacketExecutor(),
+        signal_socket=SignalSocket(),
+        capability_socket=CapabilitySocket(),
+        outcome_socket=OutcomeSocket(),
+        view_socket=ViewSocket(),
+    )
+    params = {"name": "session-1"}
+
+    result = asyncio.run(
+        server._http_dispatch(
+            {
+                "request_id": "req-unknown-policy",
+                "correlation_id": "corr-unknown-policy",
+                "effect_class": READ_ONLY_EFFECT,
+                "idempotency_key": "req-unknown-policy",
+                "payload_digest": canonical_payload_digest(params),
+                "node_id": "node-a",
+                "capability": "terminal.unregistered",
+                "params": params,
+                "risk_class": "read_only",
+                "timeout": 1,
+            }
+        )
+    )
+
+    assert result["ok"] is False
+    assert result["status"] == "effect_policy_mismatch"
+    assert result["authoritative_effect_class"] == ""
+
+
 def test_http_dispatch_rejects_read_only_without_operation_binding(monkeypatch):
     from substrate.execution.executor import WorkPacketExecutor
     from substrate.sockets.capability_socket import CapabilitySocket
@@ -1156,6 +1197,44 @@ def test_node_rejects_shell_declared_read_only_before_adapter(monkeypatch):
             "idempotency_key": "req-lying",
             "payload_digest": canonical_payload_digest(params),
             "capability_name": "shell",
+            "params": params,
+            "risk_class": "read_only",
+            "governance_verdict_id": "",
+            "timeout_seconds": 1,
+        },
+    }
+
+    asyncio.run(client._handle_capability(frame))
+
+    assert calls["count"] == 0
+    assert client._sent_ws[0]["result"]["success"] is False
+    assert "policy mismatch" in client._sent_ws[0]["result"]["error"]
+
+
+def test_node_rejects_unknown_capability_declared_read_only_before_adapter(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
+    client = _sync_node_client("node-a")
+    calls = {"count": 0}
+
+    class _Adapter:
+        def execute(self, *_args, **_kwargs):
+            calls["count"] += 1
+            return {"success": True, "result_data": {"stdout": "executed"}}
+
+    params = {"name": "session-1"}
+    client._adapters = {"terminal.unregistered": _Adapter()}
+    frame = {
+        "jsonrpc": "2.0",
+        "method": "capability.execute",
+        "id": "req-unknown-policy",
+        "params": {
+            "request_id": "req-unknown-policy",
+            "correlation_id": "corr-unknown-policy",
+            "candidate_sha": "a" * 40,
+            "effect_class": READ_ONLY_EFFECT,
+            "idempotency_key": "req-unknown-policy",
+            "payload_digest": canonical_payload_digest(params),
+            "capability_name": "terminal.unregistered",
             "params": params,
             "risk_class": "read_only",
             "governance_verdict_id": "",
