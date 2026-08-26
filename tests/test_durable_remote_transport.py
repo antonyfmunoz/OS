@@ -246,15 +246,15 @@ def test_missing_index_recovery_quarantines_duplicate_same_key_records(tmp_path)
     replay = store.put_request(_request(idempotency_key="legacy-duplicate"))
 
     assert replay.request_id == original.request_id
-    assert [req.request_id for req in store.deliverable_for_node("windows-desktop", limit=10)] == [
-        original.request_id
-    ]
     quarantined = store.get_request(duplicate.request_id)
     assert quarantined is not None
     assert quarantined.lifecycle_state == "RECONCILIATION_REQUIRED"
     assert quarantined.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
         original.request_id
     )
+    assert [req.request_id for req in store.deliverable_for_node("windows-desktop", limit=10)] == [
+        original.request_id
+    ]
 
 
 def test_index_present_replay_quarantines_duplicate_same_key_records(tmp_path) -> None:
@@ -270,6 +270,27 @@ def test_index_present_replay_quarantines_duplicate_same_key_records(tmp_path) -
     replay = store.put_request(_request(idempotency_key="indexed-legacy-duplicate"))
 
     assert replay.request_id == original.request_id
+    quarantined = store.get_request(duplicate.request_id)
+    assert quarantined is not None
+    assert quarantined.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert quarantined.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+    assert [req.request_id for req in store.deliverable_for_node("windows-desktop", limit=10)] == [
+        original.request_id
+    ]
+
+
+def test_delivery_scan_quarantines_index_present_duplicate_same_key_records(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="deliverable-duplicate"))
+    duplicate = _request(idempotency_key="deliverable-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
     assert [req.request_id for req in store.deliverable_for_node("windows-desktop", limit=10)] == [
         original.request_id
     ]
