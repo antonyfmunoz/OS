@@ -337,6 +337,30 @@ def test_noncanonical_duplicate_cannot_mutate_lifecycle_or_index(tmp_path) -> No
     assert index["canonical_request_id"] == original.request_id
 
 
+def test_noncanonical_duplicate_claim_is_rejected_without_prior_diagnostic(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="direct-stale-claim"))
+    duplicate = _request(idempotency_key="direct-stale-claim")
+    duplicate.created_at = original.created_at + 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    claimed = store.mark_claimed(duplicate.request_id, claim_id="stale-claim")
+
+    assert claimed.request_id == duplicate.request_id
+    assert claimed.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert claimed.claim_id == ""
+    assert claimed.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+
+
 def test_noncanonical_duplicate_result_is_rejected_without_index_takeover(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     original = store.put_request(_request(idempotency_key="stale-result-duplicate"))
@@ -368,6 +392,20 @@ def test_noncanonical_duplicate_result_is_rejected_without_index_takeover(tmp_pa
     stored_original = store.get_request(original.request_id)
     assert stored_original is not None
     assert stored_original.lifecycle_state == "QUEUED"
+
+
+def test_idempotency_index_write_cannot_take_over_existing_canonical_binding(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="index-takeover"))
+    duplicate = _request(idempotency_key="index-takeover")
+
+    with pytest.raises(ValueError, match="idempotency index canonical request mismatch"):
+        store._write_idempotency_index(duplicate)
+
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
 
 
 @pytest.mark.parametrize("state", ["RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"])

@@ -661,10 +661,6 @@ class DurableRemoteStore:
                         canonical_request_id=canonical_request_id,
                     )
                     return False
-                self._quarantine_noncanonical_idempotency_records_locked(
-                    req.idempotency_key,
-                    canonical_request_id=canonical_request_id,
-                )
                 return True
             recovered = self._find_request_by_idempotency_key_locked(req.idempotency_key)
             if recovered is None:
