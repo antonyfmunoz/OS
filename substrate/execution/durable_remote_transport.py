@@ -480,6 +480,10 @@ class DurableRemoteStore:
     def _write_idempotency_index(self, request: DurableRemoteRequest) -> None:
         if not request.idempotency_key:
             return
+        existing = _read_json(self._idempotency_index_path(request.idempotency_key))
+        existing_request_id = str(existing.get("canonical_request_id", "")) if existing else ""
+        if existing_request_id and existing_request_id != request.request_id:
+            raise ValueError("idempotency index canonical request mismatch")
         _atomic_write_json(
             self._idempotency_index_path(request.idempotency_key),
             self._idempotency_binding(request),
@@ -533,6 +537,68 @@ class DurableRemoteStore:
                 )
             else:
                 self._update_request_locked(current, "", write_idempotency_index=False)
+
+    def _mark_noncanonical_request_locked(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        canonical_request_id: str,
+        event: str,
+    ) -> DurableRemoteRequest:
+        req.diagnostics.setdefault(
+            "duplicate_idempotency_noncanonical",
+            {
+                "canonical_request_id": canonical_request_id,
+                "detected_at": now_s(),
+            },
+        )
+        req.diagnostics.setdefault("noncanonical_event_rejected", []).append(
+            {"event": event, "observed_at": now_s()}
+        )
+        if req.lifecycle_state in {"QUEUED", "DELIVERED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"}:
+            req.lifecycle_state = "RECONCILIATION_REQUIRED"
+            req.diagnostics.setdefault("reconciliation_reasons", []).append(
+                "duplicate_idempotency_noncanonical"
+            )
+            if not req.reconciliation_requested_at:
+                req.reconciliation_requested_at = now_s()
+            req.reconciliation_deadline_at = max(
+                req.reconciliation_deadline_at,
+                req.reconciliation_requested_at + 15.0,
+            )
+        self._update_request_locked(
+            req,
+            "NONCANONICAL_IDEMPOTENCY_EVENT_REJECTED",
+            write_idempotency_index=False,
+        )
+        return req
+
+    def _reject_noncanonical_update_locked(
+        self, req: DurableRemoteRequest, *, event: str
+    ) -> DurableRemoteRequest | None:
+        if not req.idempotency_key:
+            return None
+        index = _read_json(self._idempotency_index_path(req.idempotency_key))
+        canonical_request_id = str(index.get("canonical_request_id", "")) if index else ""
+        if not canonical_request_id:
+            matches: list[DurableRemoteRequest] = []
+            for path in sorted(self.requests_dir.glob("*.json")):
+                data = _read_json(path)
+                if not data:
+                    continue
+                candidate = DurableRemoteRequest.from_dict(data)
+                if candidate.idempotency_key == req.idempotency_key:
+                    matches.append(candidate)
+            if matches:
+                matches.sort(key=lambda candidate: (candidate.created_at, candidate.request_id))
+                canonical_request_id = matches[0].request_id
+        if canonical_request_id and canonical_request_id != req.request_id:
+            return self._mark_noncanonical_request_locked(
+                req,
+                canonical_request_id=canonical_request_id,
+                event=event,
+            )
+        return None
 
     def _find_request_by_idempotency_key_locked(
         self, idempotency_key: str
@@ -785,6 +851,9 @@ class DurableRemoteStore:
             req = self._get_request_raw(request_id)
             if req is None:
                 return None
+            noncanonical = self._reject_noncanonical_update_locked(req, event=event)
+            if noncanonical is not None:
+                return noncanonical
             transport = req.diagnostics.setdefault("transport_control", {})
             if not isinstance(transport, dict):
                 transport = {}
@@ -1118,6 +1187,9 @@ class DurableRemoteStore:
             req = self._get_request_raw(request_id)
             if req is None:
                 raise KeyError(request_id)
+            noncanonical = self._reject_noncanonical_update_locked(req, event="DELIVERED")
+            if noncanonical is not None:
+                return noncanonical
             req = self._maybe_converge_recovery_locked(req)
             if req.lifecycle_state in {"QUEUED", "CANCEL_REQUESTED"}:
                 req.delivered_at = now_s()
@@ -1137,6 +1209,9 @@ class DurableRemoteStore:
             req = self._get_request_raw(request_id)
             if req is None:
                 raise KeyError(request_id)
+            noncanonical = self._reject_noncanonical_update_locked(req, event="CLAIMED")
+            if noncanonical is not None:
+                return noncanonical
             req = self._maybe_converge_recovery_locked(req)
             if req.lifecycle_state in TERMINAL_STATES or req.lifecycle_state in RECOVERY_STATES:
                 return req
@@ -1163,6 +1238,9 @@ class DurableRemoteStore:
             req = self._get_request_raw(request_id)
             if req is None:
                 raise KeyError(request_id)
+            noncanonical = self._reject_noncanonical_update_locked(req, event="RUNNING")
+            if noncanonical is not None:
+                return noncanonical
             req = self._maybe_converge_recovery_locked(req)
             if req.lifecycle_state in TERMINAL_STATES or req.lifecycle_state in RECOVERY_STATES:
                 self._event(
@@ -1213,6 +1291,9 @@ class DurableRemoteStore:
             req = self._get_request_raw(request_id)
             if req is None:
                 raise KeyError(request_id)
+            noncanonical = self._reject_noncanonical_update_locked(req, event="CANCEL_REQUESTED")
+            if noncanonical is not None:
+                return noncanonical
             req = self._maybe_converge_recovery_locked(req)
             if req.lifecycle_state == "QUEUED" and not req.claim_id:
                 req.lifecycle_state = "CANCELLED"
@@ -1389,6 +1470,9 @@ class DurableRemoteStore:
         req = self._get_request_raw(request_id)
         if req is None:
             raise KeyError(request_id)
+        noncanonical = self._reject_noncanonical_update_locked(req, event=state)
+        if noncanonical is not None:
+            return noncanonical
         req = self._maybe_converge_recovery_locked(req)
         if not req.claim_id:
             self._write_rejected_result_record(

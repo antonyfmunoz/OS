@@ -305,6 +305,71 @@ def test_delivery_scan_quarantines_index_present_duplicate_same_key_records(tmp_
     )
 
 
+def test_noncanonical_duplicate_cannot_mutate_lifecycle_or_index(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="stale-inbound-duplicate"))
+    duplicate = _request(idempotency_key="stale-inbound-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    diagnosed = store.record_transport_diagnostic(
+        duplicate.request_id,
+        "control_frame_received",
+    )
+    claimed = store.mark_claimed(duplicate.request_id, claim_id="stale-claim")
+    running = store.mark_running(duplicate.request_id, claim_id="stale-claim")
+
+    for observed in (diagnosed, claimed, running):
+        assert observed is not None
+        assert observed.request_id == duplicate.request_id
+        assert observed.lifecycle_state == "RECONCILIATION_REQUIRED"
+        assert observed.claim_id == ""
+        assert observed.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+            original.request_id
+        )
+
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+
+
+def test_noncanonical_duplicate_result_is_rejected_without_index_takeover(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="stale-result-duplicate"))
+    duplicate = _request(idempotency_key="stale-result-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    duplicate.lifecycle_state = "RUNNING"
+    duplicate.claim_id = "stale-claim"
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    rejected = store.publish_result(
+        duplicate.request_id,
+        claim_id="stale-claim",
+        state="SUCCEEDED",
+        result={"ok": True},
+        cleanup={"process_residue": []},
+    )
+
+    assert rejected.request_id == duplicate.request_id
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.result_digest == ""
+    assert store.result_for(duplicate.request_id) is None
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+    stored_original = store.get_request(original.request_id)
+    assert stored_original is not None
+    assert stored_original.lifecycle_state == "QUEUED"
+
+
 @pytest.mark.parametrize("state", ["RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"])
 def test_duplicate_after_existing_lifecycle_returns_same_trajectory(tmp_path, state: str) -> None:
     store = DurableRemoteStore(tmp_path)
