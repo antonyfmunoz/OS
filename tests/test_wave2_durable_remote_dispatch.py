@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 from itertools import chain, repeat
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,6 +11,8 @@ import pytest
 
 from substrate.execution.durable_remote_transport import DurableRemoteStore
 from tests.wave2_script_import import load_wave2_script
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def _write_dist_web(dist: Path, *, js_body: str = "console.log('candidate')\n") -> dict:
@@ -126,11 +129,20 @@ def test_candidate_frontend_artifact_success_emits_exact_sha_manifest(monkeypatc
     worktree = tmp_path / "repo"
     cockpit = worktree / "cockpit"
     cockpit.mkdir(parents=True)
+    (cockpit / ".env").write_text(
+        "VITE_BROWSER_RELAY_TOKEN=ignored-dotenv-token\n"
+        "VITE_VISION_TOKEN=ignored-dotenv-vision-token\n",
+        encoding="utf-8",
+    )
     (cockpit / "package-lock.json").write_text("{}", encoding="utf-8")
     monkeypatch.setattr(dispatch, "_WORKTREE", worktree)
     monkeypatch.setattr(dispatch, "_state_dir", lambda _sha: tmp_path / "candidate" / "state" / "umh")
+    monkeypatch.setenv("VITE_BROWSER_RELAY_TOKEN", "ambient-browser-token")
+    monkeypatch.setenv("VITE_VISION_TOKEN", "ambient-vision-token")
+    monkeypatch.setenv("UMH_MESH_RELAY_SECRET", "ambient-mesh-secret")
+    npm_envs: list[dict[str, str]] = []
 
-    def fake_run(cmd, **_kwargs):
+    def fake_run(cmd, **kwargs):
         if cmd[:2] == ["git", "rev-parse"] and cmd[-1] == "HEAD":
             return SimpleNamespace(returncode=0, stdout=("b" * 40) + "\n", stderr="")
         if cmd[:2] == ["git", "rev-parse"] and cmd[-1] == "HEAD^{tree}":
@@ -138,9 +150,11 @@ def test_candidate_frontend_artifact_success_emits_exact_sha_manifest(monkeypatc
         if cmd[:2] == ["git", "status"]:
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if cmd[:2] == ["npm", "ci"]:
+            npm_envs.append(dict(kwargs["env"]))
             (cockpit / "node_modules").mkdir()
             return SimpleNamespace(returncode=0, stdout="", stderr="")
         if cmd[:3] == ["npm", "run", "build:web"]:
+            npm_envs.append(dict(kwargs["env"]))
             dist = cockpit / "dist-web"
             _write_dist_web(dist)
             return SimpleNamespace(returncode=0, stdout="", stderr="")
@@ -163,12 +177,38 @@ def test_candidate_frontend_artifact_success_emits_exact_sha_manifest(monkeypatc
     assert manifest["index_sha256"] == proof["index_sha256"]
     assert manifest["assets"] == proof["assets"]
     assert manifest["build_status"] == "SUCCEEDED"
+    assert manifest["build_env_contract"] == "wave2_sanitized_frontend_build_env"
+    assert manifest["build_env_names"] == [
+        "UMH_WAVE2_VITE_ENV_DIR",
+        "VITE_AI_NAME",
+        "VITE_CLERK_PUBLISHABLE_KEY",
+    ]
+    assert manifest["vite_env_dir_isolated"] is True
     assert manifest["manifest_sha256"] == dispatch._frontend_manifest_identity_digest(manifest)
     assert dispatch._verify_candidate_frontend_artifact(Path(proof["artifact_root"]), "b" * 40)[
         "ok"
     ]
     readability = dispatch._artifact_tree_readability_proof(Path(proof["artifact_root"]))
     assert readability["ok"] is True
+    assert len(npm_envs) == 2
+    for env in npm_envs:
+        assert env["VITE_CLERK_PUBLISHABLE_KEY"] == "pk_test"
+        assert env["VITE_AI_NAME"] == "DEX"
+        assert Path(env["UMH_WAVE2_VITE_ENV_DIR"]).is_dir()
+        assert Path(env["UMH_WAVE2_VITE_ENV_DIR"]) != cockpit
+        assert list(Path(env["UMH_WAVE2_VITE_ENV_DIR"]).iterdir()) == []
+        assert "VITE_BROWSER_RELAY_TOKEN" not in env
+        assert "VITE_VISION_TOKEN" not in env
+        assert "UMH_MESH_RELAY_SECRET" not in env
+        assert os.environ["VITE_BROWSER_RELAY_TOKEN"] == "ambient-browser-token"
+
+
+def test_vite_web_build_supports_wave2_env_dir_isolation() -> None:
+    config = (ROOT / "cockpit" / "vite.web.config.ts").read_text(encoding="utf-8")
+
+    assert "UMH_WAVE2_VITE_ENV_DIR" in config
+    assert "resolve(process.env.UMH_WAVE2_VITE_ENV_DIR)" in config
+    assert "resolve(__dirname)" in config
 
 
 def test_candidate_frontend_artifact_refuses_dirty_frontend_source(monkeypatch, tmp_path):

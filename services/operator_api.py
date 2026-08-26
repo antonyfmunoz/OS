@@ -20,6 +20,50 @@ if not sys.path or sys.path[0] != _umh_root_s:
         pass
     sys.path.insert(0, _umh_root_s)
 
+
+def _env_truthy(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+_CANDIDATE_DENIED_ENV_EXACT = {
+    "DATABASE_URL",
+    "EOS_DATABASE_URL",
+    "UMH_DEV_BYPASS",
+    "UMH_DOCKER_BRIDGE_IP",
+}
+_CANDIDATE_DENIED_ENV_SUBSTRINGS = (
+    "MESH",
+    "DISCORD",
+    "FLY",
+    "GITHUB",
+    "GH_",
+    "NOTION",
+    "TELEGRAM",
+    "APIFY",
+    "SSH",
+    "PRIVATE",
+    "1PASSWORD",
+    "OP_",
+)
+
+
+def _candidate_env_key_denied(key: str) -> bool:
+    upper = key.upper()
+    return upper in _CANDIDATE_DENIED_ENV_EXACT or any(
+        token in upper for token in _CANDIDATE_DENIED_ENV_SUBSTRINGS
+    )
+
+
+def _scrub_candidate_denied_env() -> None:
+    if not _env_truthy("UMH_CANDIDATE_ENV_ALLOWLIST_ONLY"):
+        return
+    for key in list(os.environ):
+        if _candidate_env_key_denied(key):
+            os.environ.pop(key, None)
+
+
+_scrub_candidate_denied_env()
+
 from substrate.execution.cpu_gate import gated_subprocess_run
 
 import asyncio
@@ -48,10 +92,6 @@ from fastapi.staticfiles import StaticFiles
 
 from substrate.state.runtime_paths import runtime_state_dir, runtime_state_path  # noqa: E402
 from transports.api.governed import governed_mutation  # noqa: E402
-
-
-def _env_truthy(name: str) -> bool:
-    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 if not _env_truthy("UMH_CANDIDATE_ENV_ALLOWLIST_ONLY"):

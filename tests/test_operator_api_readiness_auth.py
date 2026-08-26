@@ -77,16 +77,23 @@ def test_candidate_operator_api_does_not_load_ignored_dotenv_secrets(tmp_path) -
     env["UMH_OPERATOR_API_KEY"] = "runtime-secret"
     env["UMH_CANDIDATE_ENV_ALLOWLIST_ONLY"] = "1"
     env["PYTHONPATH"] = str(ROOT)
-    for key in ("UMH_MESH_RELAY_SECRET", "DATABASE_URL", "GITHUB_TOKEN"):
-        env.pop(key, None)
+    env["UMH_MESH_RELAY_SECRET"] = denied_value
+    env["DATABASE_URL"] = "postgres://ambient-denied"
+    env["GITHUB_TOKEN"] = "ambient-github"
+    env["UMH_DEV_BYPASS"] = "true"
+    env["UMH_DOCKER_BRIDGE_IP"] = "172.18.0.1"
     script = (
         "import json, os; "
         "import services.operator_api as op; "
+        "from transports.api import cockpit_auth; "
         "print(json.dumps({"
         "'api_key': op.API_KEY, "
         "'mesh': os.getenv('UMH_MESH_RELAY_SECRET'), "
         "'database': os.getenv('DATABASE_URL'), "
-        "'github': os.getenv('GITHUB_TOKEN')"
+        "'github': os.getenv('GITHUB_TOKEN'), "
+        "'dev_bypass_env': os.getenv('UMH_DEV_BYPASS'), "
+        "'docker_bridge_env': os.getenv('UMH_DOCKER_BRIDGE_IP'), "
+        "'cockpit_dev_bypass': cockpit_auth._DEV_BYPASS"
         "}, sort_keys=True))"
     )
 
@@ -103,12 +110,44 @@ def test_candidate_operator_api_does_not_load_ignored_dotenv_secrets(tmp_path) -
     payload = json.loads(result.stdout)
     assert payload == {
         "api_key": "runtime-secret",
+        "cockpit_dev_bypass": False,
         "database": None,
+        "dev_bypass_env": None,
+        "docker_bridge_env": None,
         "github": None,
         "mesh": None,
     }
     assert denied_value not in result.stdout
     assert denied_value not in result.stderr
+
+
+def test_candidate_context_import_does_not_load_dotenv(tmp_path) -> None:
+    fake = tmp_path / "fake"
+    fake.mkdir()
+    calls = tmp_path / "dotenv-calls.txt"
+    (fake / "dotenv.py").write_text(
+        "import os\n"
+        "def load_dotenv(path, *args, **kwargs):\n"
+        "    with open(os.environ['DOTENV_CALLS_FILE'], 'a', encoding='utf-8') as fh:\n"
+        "        fh.write(str(path) + '\\n')\n",
+        encoding="utf-8",
+    )
+    env = dict(os.environ)
+    env["UMH_CANDIDATE_ENV_ALLOWLIST_ONLY"] = "1"
+    env["DOTENV_CALLS_FILE"] = str(calls)
+    env["PYTHONPATH"] = os.pathsep.join([str(fake), str(ROOT)])
+
+    subprocess.run(
+        [sys.executable, "-c", "import substrate.state.context.context"],
+        cwd=str(ROOT),
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=20,
+    )
+
+    assert not calls.exists() or calls.read_text(encoding="utf-8") == ""
 
 
 def test_operator_api_import_initializes_frontend_artifact_as_required(tmp_path) -> None:

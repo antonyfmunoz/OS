@@ -1002,6 +1002,35 @@ def _read_clerk_publishable_key() -> str:
     return ""
 
 
+_CANDIDATE_FRONTEND_BUILD_ENV_PASSTHROUGH = (
+    "PATH",
+    "HOME",
+    "USER",
+    "LOGNAME",
+    "SHELL",
+    "TMPDIR",
+    "TMP",
+    "TEMP",
+)
+
+
+def _candidate_frontend_build_env(*, clerk_key: str, vite_env_dir: Path) -> dict[str, str]:
+    env = {
+        key: value
+        for key in _CANDIDATE_FRONTEND_BUILD_ENV_PASSTHROUGH
+        if (value := os.environ.get(key))
+    }
+    env.update(
+        {
+            "NODE_ENV": "production",
+            "UMH_WAVE2_VITE_ENV_DIR": str(vite_env_dir),
+            "VITE_CLERK_PUBLISHABLE_KEY": clerk_key,
+            "VITE_AI_NAME": "DEX",
+        }
+    )
+    return env
+
+
 def _remove_container_and_wait(runner: Runner, name: str, timeout_s: int = 90) -> None:
     """`docker rm -f` + wait until the NAME is actually free.
 
@@ -1352,6 +1381,9 @@ def _prepare_candidate_frontend_artifact(
         )
     lock_hash = _sha256_file(cockpit / "package-lock.json")
     stamp = cockpit / "node_modules" / ".wave2-lock-sha"
+    vite_env_dir = _state_dir(sha) / "frontend-vite-env"
+    vite_env_dir.mkdir(parents=True, exist_ok=True)
+    build_env = _candidate_frontend_build_env(clerk_key=clerk_key, vite_env_dir=vite_env_dir)
     if stamp.exists() and stamp.read_text(encoding="utf-8").strip() == lock_hash:
         print("[deploy] npm ci skipped — lockfile unchanged since last install")
     else:
@@ -1362,6 +1394,7 @@ def _prepare_candidate_frontend_artifact(
             check=False,
             capture_output=True,
             text=True,
+            env=build_env,
         )
         _must(runner, "npm_ci", install)
         if (cockpit / "node_modules").is_dir():
@@ -1374,7 +1407,7 @@ def _prepare_candidate_frontend_artifact(
         check=False,
         capture_output=True,
         text=True,
-        env={**os.environ, "VITE_CLERK_PUBLISHABLE_KEY": clerk_key},
+        env=build_env,
     )
     _must(runner, "frontend_build_web", build)
     if not dist_web.is_dir():
@@ -1393,6 +1426,11 @@ def _prepare_candidate_frontend_artifact(
         "index_sha256": bytes_proof["index_sha256"],
         "assets": bytes_proof["assets"],
         "build_command": "npm run build:web",
+        "build_env_contract": "wave2_sanitized_frontend_build_env",
+        "build_env_names": sorted(
+            key for key in build_env if key.startswith("VITE_") or key == "UMH_WAVE2_VITE_ENV_DIR"
+        ),
+        "vite_env_dir_isolated": True,
         "build_status": "SUCCEEDED",
         "built_at": datetime.now(timezone.utc).isoformat(),
         "artifact_contract": "wave2_exact_candidate_frontend",
