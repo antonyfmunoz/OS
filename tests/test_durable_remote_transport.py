@@ -95,21 +95,25 @@ def test_recovered_unknown_capability_cannot_bypass_admission_policy(tmp_path) -
 
 
 @pytest.mark.parametrize(
-    ("field_name", "reason"),
+    ("field_name", "value", "reason"),
     [
-        ("candidate_sha", "durable request requires candidate_sha"),
-        ("node_id", "durable request requires node_id"),
-        ("operation_type", "durable request requires operation_type"),
+        ("candidate_sha", "", "durable request requires candidate_sha"),
+        ("candidate_sha", "   ", "durable request requires candidate_sha"),
+        ("node_id", "", "durable request requires node_id"),
+        ("node_id", "   ", "durable request requires node_id"),
+        ("operation_type", "", "durable request requires operation_type"),
+        ("operation_type", "   ", "durable request requires operation_type"),
     ],
 )
 def test_incomplete_recovered_material_fails_closed(
     tmp_path,
     field_name: str,
+    value: str,
     reason: str,
 ) -> None:
     store = DurableRemoteStore(tmp_path)
     recovered = _request(idempotency_key=f"incomplete-{field_name}")
-    setattr(recovered, field_name, "")
+    setattr(recovered, field_name, value)
     (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
         json.dumps(recovered.to_dict(), sort_keys=True),
         encoding="utf-8",
