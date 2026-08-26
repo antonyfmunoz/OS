@@ -709,6 +709,8 @@ def test_codex_windows_timeout_returns_after_forced_drain_stays_blocked(monkeypa
 
     monkeypatch.setattr(codex_mod.os, "name", "nt")
     monkeypatch.setattr(codex_mod, "gated_popen", lambda *_args, **_kwargs: FakeProc())
+    monkeypatch.setattr(codex_mod, "_owned_process_tree_pids", lambda pid: [pid])
+    monkeypatch.setattr(codex_mod, "_alive_owned_pids", lambda _pids: [])
 
     def fake_taskkill(pid: int, *, force: bool):
         calls.append((pid, force))
@@ -906,6 +908,8 @@ def test_codex_phase_sink_exception_cannot_defeat_timeout(monkeypatch):
 
     monkeypatch.setattr(codex_mod.os, "name", "nt")
     monkeypatch.setattr(codex_mod, "gated_popen", lambda *_args, **_kwargs: FakeProc())
+    monkeypatch.setattr(codex_mod, "_owned_process_tree_pids", lambda pid: [pid])
+    monkeypatch.setattr(codex_mod, "_alive_owned_pids", lambda _pids: [])
     monkeypatch.setattr(
         codex_mod,
         "_taskkill_tree",
