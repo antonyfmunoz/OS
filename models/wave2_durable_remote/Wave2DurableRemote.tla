@@ -36,6 +36,25 @@ ResultConverged == invalidRecoveredResultAttempt /\ state \in {"SUCCEEDED", "FAI
 DeclaredRisk == IF declaredSyncEffect = "READ_ONLY" THEN "read_only" ELSE "reversible_write"
 CanonicalRisk == IF canonicalSyncEffect = "READ_ONLY" THEN "read_only" ELSE "reversible_write"
 RecordCorrupt == ~canonicalMaterialValid \/ ~recoveredMaterialValid
+ArtifactStates == {"ABSENT", "VALID", "CORRUPT"}
+RequestArtifact ==
+    IF RecordCorrupt
+    THEN "CORRUPT"
+    ELSE IF HasCanonicalIdempotency \/ recoveredFromPersistence
+    THEN "VALID"
+    ELSE "ABSENT"
+IndexArtifact ==
+    IF idempotencyConflict /\ duplicateRecoveryDone /\ ~indexPresent
+    THEN "CORRUPT"
+    ELSE IF indexPresent
+    THEN "VALID"
+    ELSE "ABSENT"
+ResultArtifact ==
+    IF invalidRecoveredResultAttempt /\ ~MaterialValid
+    THEN "CORRUPT"
+    ELSE IF ResultPresent
+    THEN "VALID"
+    ELSE "ABSENT"
 
 Init ==
     /\ state = "QUEUED"
@@ -521,6 +540,25 @@ ConsequentialExecutionRequiresCompatibleCanonicalRiskEffect ==
 CorruptRecordNeverExecutes == RecordCorrupt => executed = 0
 CorruptRecordDoesNotBlockUnrelatedValidRequest ==
     RecordCorrupt /\ HasCanonicalIdempotency => state \in {"QUEUED", "CLAIMED", "RUNNING"} \cup Terminal
+CorruptRequestNeverExecutes == RequestArtifact = "CORRUPT" => executed = 0
+CorruptIndexNeverCreatesFreshAuthority ==
+    IndexArtifact = "CORRUPT" => idempotencyConflict /\ noncanonicalDuplicateExecuted = 0
+CorruptIndexIsNotEquivalentToAbsent ==
+    IndexArtifact = "CORRUPT" => idempotencyConflict
+CorruptResultNeverLegitimizesExecution ==
+    ResultArtifact = "CORRUPT" => ~ResultConverged
+CorruptResultNeverSilentlyOverwritten ==
+    ResultArtifact = "CORRUPT" => ResultArtifact # "VALID"
+CorruptArtifactCannotBeRepairedByNormalExecution ==
+    RequestArtifact = "CORRUPT" \/ ResultArtifact = "CORRUPT"
+    => executed = 0 \/ state = "RECONCILIATION_REQUIRED"
+ValidRequestCanProgressBesideUnrelatedCorruptRecord ==
+    RecordCorrupt /\ HasCanonicalIdempotency /\ ~idempotencyConflict
+    => state \in {"QUEUED", "CLAIMED", "RUNNING"} \cup Terminal
+IndexRecoveryRequiresProvableValidBinding ==
+    indexRecovered => IndexArtifact = "VALID" /\ recoveredMaterialValid /\ HasCanonicalIdempotency
+ResultConvergenceRequiresValidRequestAndValidResult ==
+    ResultConverged => MaterialValid /\ ResultArtifact = "VALID"
 SyncExecutionRequiresCanonicalReadOnlyPolicy == syncExecuted > 0 => canonicalSyncEffect = "READ_ONLY" /\ declaredSyncEffect = "READ_ONLY"
 ConsequentialExecutionImpliesDurableRemotePath == executed > 0 => durableExecutionPath = "DurableRemote"
 DurableRemoteExecutionRequiresCanonicalConsequentialPolicy == executed > 0 => durableCanonicalEffect = "CONSEQUENTIAL_WRITE"

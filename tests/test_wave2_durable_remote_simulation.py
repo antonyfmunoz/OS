@@ -59,6 +59,6 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
     assert results["risk_consequential_effect_read_only_declared_risk_denied"]["executed"] == 0
     assert results["risk_generic_shell_read_only_node_cap_denied"]["executed"] == 0
     assert results["corrupt_request_among_valid_isolated"]["fail_closed"] is True
-    assert results["corrupt_result_does_not_terminalize"]["lifecycle"] == "RUNNING"
+    assert results["corrupt_result_does_not_terminalize"]["lifecycle"] == "RECONCILIATION_REQUIRED"
     assert all(int(result["executed"]) <= 1 for result in results.values())
     assert all(int(result["sync_side_effects"]) == 0 for result in results.values())

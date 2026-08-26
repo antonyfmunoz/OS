@@ -117,6 +117,11 @@ _IDEMPOTENCY_IDENTITY_FIELDS = (
     "payload_digest",
 )
 
+LOAD_ABSENT = "ABSENT"
+LOAD_VALID = "VALID"
+LOAD_CORRUPT = "CORRUPT"
+LOAD_READ_ERROR = "READ_ERROR"
+
 
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -125,29 +130,124 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
     tmp.replace(path)
 
 
+@dataclass(frozen=True)
+class _DurableRecordLoad:
+    status: str
+    path: Path
+    data: dict[str, Any] | None = None
+    reason: str = ""
+
+    @property
+    def valid(self) -> bool:
+        return self.status == LOAD_VALID and isinstance(self.data, dict)
+
+    @property
+    def unavailable(self) -> bool:
+        return self.status in {LOAD_CORRUPT, LOAD_READ_ERROR}
+
+
+@dataclass(frozen=True)
+class _DurableRequestLoad:
+    status: str
+    path: Path
+    request: "DurableRemoteRequest | None" = None
+    data: dict[str, Any] | None = None
+    reason: str = ""
+
+    @property
+    def valid(self) -> bool:
+        return self.status == LOAD_VALID and self.request is not None
+
+    @property
+    def unavailable(self) -> bool:
+        return self.status in {LOAD_CORRUPT, LOAD_READ_ERROR}
+
+
 def _read_json(path: Path) -> dict[str, Any]:
+    outcome = _load_json_record(path)
+    return dict(outcome.data or {}) if outcome.valid else {}
+
+
+def _load_json_record(
+    path: Path,
+    *,
+    record_kind: str | None = None,
+    identity: str = "",
+) -> _DurableRecordLoad:
     try:
-        data = json.loads(path.read_text(encoding="utf-8"))
+        raw = path.read_bytes()
     except FileNotFoundError:
-        return {}
-    except (json.JSONDecodeError, UnicodeDecodeError, OSError) as exc:
-        _record_corrupt_json_file(path, reason=f"{type(exc).__name__}: {exc}")
-        return {}
+        if identity and _corruption_fence_exists(path, identity=identity):
+            return _DurableRecordLoad(
+                LOAD_CORRUPT,
+                path,
+                reason="unresolved corruption fence exists",
+            )
+        return _DurableRecordLoad(LOAD_ABSENT, path)
+    except OSError as exc:
+        reason = f"{type(exc).__name__}: {exc}"
+        _record_persistence_issue(
+            path,
+            reason=reason,
+            record_kind=record_kind,
+            identity=identity,
+            status=LOAD_READ_ERROR,
+        )
+        return _DurableRecordLoad(LOAD_READ_ERROR, path, reason=reason)
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        reason = f"{type(exc).__name__}: {exc}"
+        _record_persistence_issue(
+            path,
+            reason=reason,
+            record_kind=record_kind,
+            identity=identity,
+            status=LOAD_CORRUPT,
+        )
+        return _DurableRecordLoad(LOAD_CORRUPT, path, reason=reason)
     if not isinstance(data, dict):
-        _record_corrupt_json_file(path, reason="json record is not an object")
-        return {}
-    return data
+        reason = "json record is not an object"
+        _record_persistence_issue(
+            path,
+            reason=reason,
+            record_kind=record_kind,
+            identity=identity,
+            status=LOAD_CORRUPT,
+        )
+        return _DurableRecordLoad(LOAD_CORRUPT, path, reason=reason)
+    return _DurableRecordLoad(LOAD_VALID, path, data=dict(data))
 
 
-def _record_corrupt_json_file(path: Path, *, reason: str) -> None:
+def _corruption_fence_path(path: Path, *, identity: str) -> Path:
+    root = path.parent.parent if path.parent.name in {"requests", "idempotency", "results"} else path.parent
+    fence_identity = f"{path.parent.name}:{identity}"
+    return root / "corrupt" / f"fence-{hashlib.sha256(fence_identity.encode()).hexdigest()[:32]}.json"
+
+
+def _corruption_fence_exists(path: Path, *, identity: str) -> bool:
+    return _corruption_fence_path(path, identity=identity).exists()
+
+
+def _record_persistence_issue(
+    path: Path,
+    *,
+    reason: str,
+    record_kind: str | None = None,
+    identity: str = "",
+    status: str = LOAD_CORRUPT,
+) -> None:
     try:
         raw = path.read_bytes()
     except OSError:
         raw = b""
+    kind = record_kind or path.parent.name
     root = path.parent.parent if path.parent.name in {"requests", "idempotency", "results"} else path.parent
     evidence = {
         "record_path": str(path),
-        "record_kind": path.parent.name,
+        "record_kind": kind,
+        "identity": identity,
+        "status": status,
         "reason": reason,
         "sha256": hashlib.sha256(raw).hexdigest(),
         "size_bytes": len(raw),
@@ -157,10 +257,14 @@ def _record_corrupt_json_file(path: Path, *, reason: str) -> None:
     evidence_path = (
         root
         / "corrupt"
-        / f"{path.parent.name}-{hashlib.sha256(str(path).encode()).hexdigest()[:16]}.json"
+        / f"{kind}-{hashlib.sha256(str(path).encode()).hexdigest()[:16]}.json"
     )
     try:
         _atomic_write_json(evidence_path, evidence)
+        if identity:
+            fence = dict(evidence)
+            fence["fence_identity"] = identity
+            _atomic_write_json(_corruption_fence_path(path, identity=identity), fence)
     except OSError:
         pass
 
@@ -327,6 +431,139 @@ class DurableRemoteStore:
             / "locks"
             / f"idempotency-{hashlib.sha256(idempotency_key.encode()).hexdigest()}.lock"
         )
+
+    def _load_request_record(self, request_id: str) -> _DurableRequestLoad:
+        path = self._request_path(request_id)
+        loaded = _load_json_record(path, record_kind="requests", identity=request_id)
+        if not loaded.valid:
+            return _DurableRequestLoad(
+                loaded.status,
+                path,
+                data=loaded.data,
+                reason=loaded.reason,
+            )
+        data = dict(loaded.data or {})
+        identity = str(data.get("idempotency_key", "") or "").strip()
+        try:
+            req = DurableRemoteRequest.from_dict(data)
+        except (TypeError, ValueError) as exc:
+            _record_persistence_issue(
+                path,
+                reason=f"request materialization failed: {type(exc).__name__}: {exc}",
+                record_kind="requests",
+                identity=identity or request_id,
+            )
+            return _DurableRequestLoad(
+                LOAD_CORRUPT,
+                path,
+                data=data,
+                reason=f"request materialization failed: {type(exc).__name__}: {exc}",
+            )
+        if req.request_id != request_id:
+            reason = f"request path/content identity mismatch: path={request_id} content={req.request_id}"
+            _record_persistence_issue(
+                path,
+                reason=reason,
+                record_kind="requests",
+                identity=req.idempotency_key or request_id,
+            )
+            return _DurableRequestLoad(LOAD_CORRUPT, path, request=req, data=data, reason=reason)
+        if req.lifecycle_state not in STATE_ORDER:
+            reason = f"request lifecycle_state invalid: {req.lifecycle_state}"
+            _record_persistence_issue(
+                path,
+                reason=reason,
+                record_kind="requests",
+                identity=req.idempotency_key or request_id,
+            )
+            return _DurableRequestLoad(LOAD_CORRUPT, path, request=req, data=data, reason=reason)
+        return _DurableRequestLoad(LOAD_VALID, path, request=req, data=data)
+
+    def _load_idempotency_index_record(self, idempotency_key: str) -> _DurableRecordLoad:
+        key = _normalized_idempotency_key(idempotency_key)
+        path = self._idempotency_index_path(key)
+        loaded = _load_json_record(path, record_kind="idempotency", identity=key)
+        if not loaded.valid:
+            return loaded
+        data = dict(loaded.data or {})
+        if str(data.get("idempotency_key", "") or "").strip() != key:
+            reason = "idempotency index path/content identity mismatch"
+            _record_persistence_issue(
+                path,
+                reason=reason,
+                record_kind="idempotency",
+                identity=key,
+            )
+            return _DurableRecordLoad(LOAD_CORRUPT, path, data=data, reason=reason)
+        if not str(data.get("canonical_request_id", "") or "").strip():
+            reason = "idempotency index missing canonical request id"
+            _record_persistence_issue(
+                path,
+                reason=reason,
+                record_kind="idempotency",
+                identity=key,
+            )
+            return _DurableRecordLoad(LOAD_CORRUPT, path, data=data, reason=reason)
+        return _DurableRecordLoad(LOAD_VALID, path, data=data)
+
+    def _load_result_record(self, request_id: str) -> _DurableRecordLoad:
+        path = self._result_path(request_id)
+        loaded = _load_json_record(path, record_kind="results", identity=request_id)
+        if not loaded.valid:
+            return loaded
+        data = dict(loaded.data or {})
+        if str(data.get("request_id", "") or "").strip() != request_id:
+            reason = "result path/content identity mismatch"
+            _record_persistence_issue(
+                path,
+                reason=reason,
+                record_kind="results",
+                identity=request_id,
+            )
+            return _DurableRecordLoad(LOAD_CORRUPT, path, data=data, reason=reason)
+        if str(data.get("state", "") or "").strip() not in TERMINAL_STATES:
+            reason = "result state invalid"
+            _record_persistence_issue(
+                path,
+                reason=reason,
+                record_kind="results",
+                identity=request_id,
+            )
+            return _DurableRecordLoad(LOAD_CORRUPT, path, data=data, reason=reason)
+        if not isinstance(data.get("result"), dict) or not isinstance(data.get("cleanup"), dict):
+            reason = "result or cleanup material is not an object"
+            _record_persistence_issue(
+                path,
+                reason=reason,
+                record_kind="results",
+                identity=request_id,
+            )
+            return _DurableRecordLoad(LOAD_CORRUPT, path, data=data, reason=reason)
+        return _DurableRecordLoad(LOAD_VALID, path, data=data)
+
+    def _mark_persistence_integrity_failure_locked(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        event: str,
+        reason: str,
+        record_kind: str,
+    ) -> DurableRemoteRequest:
+        req.diagnostics.setdefault("persistence_integrity_failure", []).append(
+            {
+                "event": event,
+                "record_kind": record_kind,
+                "reason": reason,
+                "observed_at": now_s(),
+            }
+        )
+        req.diagnostics.setdefault("noncanonical_event_rejected", []).append(
+            {"event": event, "observed_at": now_s()}
+        )
+        if req.lifecycle_state not in TERMINAL_STATES:
+            return self._enter_reconciliation(req, reason=f"{record_kind}_corrupt")
+        self._update_request_locked(req, event, write_idempotency_index=False)
+        return req
 
     def _lock_owner_pid(self, lock_path: Path) -> int | None:
         try:
@@ -602,7 +839,10 @@ class DurableRemoteStore:
         if not request.idempotency_key:
             return
         self._validate_canonical_request_material(request)
-        existing = _read_json(self._idempotency_index_path(request.idempotency_key))
+        existing_load = self._load_idempotency_index_record(request.idempotency_key)
+        if existing_load.status == LOAD_READ_ERROR:
+            raise ValueError("idempotency index read error")
+        existing = dict(existing_load.data or {}) if existing_load.valid else {}
         existing_request_id = str(existing.get("canonical_request_id", "")) if existing else ""
         if existing_request_id and existing_request_id != request.request_id:
             raise ValueError("idempotency index canonical request mismatch")
@@ -830,8 +1070,18 @@ class DurableRemoteStore:
     ) -> DurableRemoteRequest | None:
         if not req.idempotency_key:
             return self._mark_missing_idempotency_key_locked(req, event=event)
-        index = _read_json(self._idempotency_index_path(req.idempotency_key))
-        canonical_request_id = str(index.get("canonical_request_id", "")) if index else ""
+        index_load = self._load_idempotency_index_record(req.idempotency_key)
+        canonical_request_id = (
+            str((index_load.data or {}).get("canonical_request_id", ""))
+            if index_load.valid
+            else ""
+        )
+        if index_load.status == LOAD_READ_ERROR:
+            return self._mark_noncanonical_request_locked(
+                req,
+                canonical_request_id="idempotency_index_unavailable",
+                event=event,
+            )
         if canonical_request_id:
             try:
                 canonical = self._validate_index_matches_admission_evidence_locked(
@@ -865,6 +1115,12 @@ class DurableRemoteStore:
                     return None
                 canonical_request_id = recovered.request_id
                 self._write_idempotency_index(recovered)
+            elif index_load.status == LOAD_CORRUPT:
+                return self._mark_noncanonical_request_locked(
+                    req,
+                    canonical_request_id="idempotency_index_corrupt",
+                    event=event,
+                )
         if canonical_request_id and canonical_request_id != req.request_id:
             return self._mark_noncanonical_request_locked(
                 req,
@@ -887,10 +1143,10 @@ class DurableRemoteStore:
     ) -> list[DurableRemoteRequest]:
         matches: list[DurableRemoteRequest] = []
         for path in sorted(self.requests_dir.glob("*.json")):
-            data = _read_json(path)
-            if not data:
+            loaded = self._load_request_record(path.stem)
+            if not loaded.valid or loaded.request is None:
                 continue
-            req = DurableRemoteRequest.from_dict(data)
+            req = loaded.request
             if req.idempotency_key == idempotency_key:
                 matches.append(req)
         matches.sort(key=self._request_sort_key)
@@ -1000,7 +1256,8 @@ class DurableRemoteStore:
         )
         if invalid is not None:
             raise ValueError("durable request canonical material invalid")
-        index = _read_json(self._idempotency_index_path(idempotency_key))
+        index_load = self._load_idempotency_index_record(idempotency_key)
+        index = dict(index_load.data or {}) if index_load.valid else {}
         if index:
             self._canonicalize_request_payload_identity(canonical)
             try:
@@ -1064,10 +1321,10 @@ class DurableRemoteStore:
         for path in sorted(self.requests_dir.glob("*.json")):
             if path.stem == canonical_request_id:
                 continue
-            data = _read_json(path)
-            if not data:
+            loaded = self._load_request_record(path.stem)
+            if not loaded.valid or loaded.request is None:
                 continue
-            duplicate = DurableRemoteRequest.from_dict(data)
+            duplicate = loaded.request
             if duplicate.idempotency_key != idempotency_key:
                 continue
             self._quarantine_duplicate_idempotency_record_locked(
@@ -1086,11 +1343,10 @@ class DurableRemoteStore:
                     )
             return False
         with self._idempotency_lock(req.idempotency_key):
-            index = _read_json(self._idempotency_index_path(req.idempotency_key))
+            index_load = self._load_idempotency_index_record(req.idempotency_key)
+            index = dict(index_load.data or {}) if index_load.valid else {}
             if index:
                 canonical_request_id = str(index.get("canonical_request_id", ""))
-                if not canonical_request_id:
-                    raise ValueError("idempotency index missing canonical request id")
                 try:
                     canonical = self._validate_index_matches_admission_evidence_locked(
                         idempotency_key=req.idempotency_key,
@@ -1106,12 +1362,14 @@ class DurableRemoteStore:
                     )
                     return False
                 return True
+            if index_load.status == LOAD_READ_ERROR:
+                return False
             try:
                 recovered = self._find_request_by_idempotency_key_locked(req.idempotency_key)
             except ValueError:
                 return False
             if recovered is None:
-                return True
+                return index_load.status != LOAD_CORRUPT
             with self._request_lock(recovered.request_id):
                 current = self._get_request_raw(recovered.request_id) or recovered
                 self._write_idempotency_index(current)
@@ -1153,14 +1411,22 @@ class DurableRemoteStore:
     def _existing_request_from_idempotency_index_locked(
         self, incoming: DurableRemoteRequest
     ) -> DurableRemoteRequest | None:
-        index = _read_json(self._idempotency_index_path(incoming.idempotency_key))
+        index_load = self._load_idempotency_index_record(incoming.idempotency_key)
+        index = dict(index_load.data or {}) if index_load.valid else {}
         if not index:
             recovered = self._find_request_by_idempotency_key_locked(incoming.idempotency_key)
             if recovered is None:
-                return None
+                if index_load.status == LOAD_ABSENT:
+                    return None
+                raise ValueError(
+                    f"idempotency index {index_load.status.lower()} for key "
+                    f"{incoming.idempotency_key}"
+                )
             self._validate_idempotent_replay(recovered, incoming)
             with self._request_lock(recovered.request_id):
                 current = self._get_request_raw(recovered.request_id) or recovered
+                if index_load.status == LOAD_READ_ERROR:
+                    raise ValueError("idempotency index read error")
                 self._write_idempotency_index(current)
                 result = self._record_idempotent_replay_locked(current, incoming)
             self._quarantine_noncanonical_idempotency_records_locked(
@@ -1169,8 +1435,6 @@ class DurableRemoteStore:
             )
             return result
         canonical_request_id = str(index.get("canonical_request_id", ""))
-        if not canonical_request_id:
-            raise ValueError("idempotency index missing canonical request id")
         matches = self._requests_by_idempotency_key_locked(incoming.idempotency_key)
         existing = self._validate_index_matches_admission_evidence_locked(
             idempotency_key=incoming.idempotency_key,
@@ -1214,10 +1478,8 @@ class DurableRemoteStore:
                 return request
 
     def _get_request_raw(self, request_id: str) -> DurableRemoteRequest | None:
-        data = _read_json(self._request_path(request_id))
-        if not data:
-            return None
-        return DurableRemoteRequest.from_dict(data)
+        loaded = self._load_request_record(request_id)
+        return loaded.request if loaded.valid else None
 
     def get_request(self, request_id: str) -> DurableRemoteRequest | None:
         req = self._get_request_raw(request_id)
@@ -1241,7 +1503,7 @@ class DurableRemoteStore:
         if (
             req.lifecycle_state not in TERMINAL_STATES
             and not self._recovery_due(req)
-            and self.result_for(request_id) is None
+            and self._load_result_record(request_id).status == LOAD_ABSENT
         ):
             return req
         with self._request_lock(request_id):
@@ -1389,9 +1651,17 @@ class DurableRemoteStore:
         )
         if invalid is not None:
             return invalid
-        existing = self.result_for(req.request_id)
-        if not existing:
+        result_load = self._load_result_record(req.request_id)
+        if result_load.status == LOAD_ABSENT:
             return req
+        if result_load.unavailable:
+            return self._mark_persistence_integrity_failure_locked(
+                req,
+                event="TERMINAL_RESULT_CORRUPT",
+                reason=result_load.reason,
+                record_kind="result",
+            )
+        existing = dict(result_load.data or {})
         if req.lifecycle_state in RECOVERY_STATES and self._has_process_residue_diagnostic(req):
             return req
         state = str(existing.get("state", ""))
@@ -1548,7 +1818,8 @@ class DurableRemoteStore:
         return req
 
     def _maybe_converge_recovery(self, req: DurableRemoteRequest) -> DurableRemoteRequest:
-        if not self._recovery_due(req) and self.result_for(req.request_id) is None:
+        result_load = self._load_result_record(req.request_id)
+        if not self._recovery_due(req) and result_load.status == LOAD_ABSENT:
             return req
         with self._request_lock(req.request_id):
             current = self._get_request_raw(req.request_id)
@@ -1825,6 +2096,9 @@ class DurableRemoteStore:
         result: dict[str, Any],
         cleanup: dict[str, Any] | None = None,
     ) -> str:
+        existing_result = self._load_result_record(request.request_id)
+        if existing_result.unavailable:
+            raise ValueError(f"refusing to overwrite corrupt result record: {existing_result.reason}")
         digest = sha256_json(
             {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup or {}}
         )
@@ -1894,6 +2168,22 @@ class DurableRemoteStore:
         cleanup: dict[str, Any] | None = None,
         event: str | None = None,
     ) -> DurableRemoteRequest:
+        existing_result = self._load_result_record(req.request_id)
+        if existing_result.unavailable:
+            self._write_rejected_result_record(
+                req,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+                reason="canonical_result_corrupt",
+            )
+            return self._mark_persistence_integrity_failure_locked(
+                req,
+                event=event or f"{state}_REJECTED_CORRUPT_RESULT",
+                reason=existing_result.reason,
+                record_kind="result",
+            )
         req.claim_id = claim_id
         req.lifecycle_state = state
         req.result_digest = self._write_result_record(
@@ -1956,6 +2246,22 @@ class DurableRemoteStore:
                 reason="canonical_material_invalid",
             )
             return invalid
+        existing_result = self._load_result_record(request_id)
+        if existing_result.unavailable:
+            self._write_rejected_result_record(
+                req,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+                reason="canonical_result_corrupt",
+            )
+            return self._mark_persistence_integrity_failure_locked(
+                req,
+                event="RESULT_PUBLISH_REJECTED_CORRUPT",
+                reason=existing_result.reason,
+                record_kind="result",
+            )
         req = self._maybe_converge_recovery_locked(req)
         if not req.claim_id:
             self._write_rejected_result_record(
@@ -1969,7 +2275,8 @@ class DurableRemoteStore:
             req.diagnostics["result_without_claim"] = {"incoming": claim_id}
             return self._enter_reconciliation(req, reason="result_without_claim")
         if req.lifecycle_state in TERMINAL_STATES:
-            existing = self.result_for(request_id)
+            result_load = self._load_result_record(request_id)
+            existing = dict(result_load.data or {}) if result_load.valid else {}
             incoming_digest = sha256_json(
                 {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup or {}}
             )
@@ -2233,8 +2540,8 @@ class DurableRemoteStore:
             )
 
     def result_for(self, request_id: str) -> dict[str, Any] | None:
-        data = _read_json(self._result_path(request_id))
-        return data or None
+        loaded = self._load_result_record(request_id)
+        return dict(loaded.data or {}) if loaded.valid else None
 
     def remove_request(self, request_id: str, *, force_terminal: bool = False) -> None:
         current = self.get_request(request_id)
@@ -2256,8 +2563,9 @@ class DurableRemoteStore:
             )
             if not preserve_tombstone:
                 index_path = self._idempotency_index_path(current.idempotency_key)
-                index = _read_json(index_path)
-                if str(index.get("canonical_request_id", "")) == request_id:
+                index_load = self._load_idempotency_index_record(current.idempotency_key)
+                index = dict(index_load.data or {}) if index_load.valid else {}
+                if index and str(index.get("canonical_request_id", "")) == request_id:
                     try:
                         index_path.unlink()
                     except FileNotFoundError:

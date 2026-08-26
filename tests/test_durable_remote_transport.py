@@ -239,6 +239,48 @@ def test_corrupt_request_record_isolated_while_valid_request_progresses(tmp_path
     assert store.get_request("corrupt-request") is None
 
 
+def test_semantically_malformed_request_record_isolated_while_valid_request_progresses(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    valid = store.put_request(_request(idempotency_key="valid-beside-semantic-corrupt"))
+    malformed = _request(idempotency_key="semantic-corrupt-request")
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        json.dumps(data, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    out = store.deliverable_for_node("windows-desktop")
+
+    assert [item.request_id for item in out] == [valid.request_id]
+    corruption = list((tmp_path / "corrupt").glob("requests-*.json"))
+    assert len(corruption) == 1
+    evidence = json.loads(corruption[0].read_text(encoding="utf-8"))
+    assert evidence["record_kind"] == "requests"
+    assert "materialization failed" in evidence["reason"]
+    assert store.get_request(malformed.request_id) is None
+
+
+def test_request_path_content_identity_mismatch_is_corrupt_and_isolated(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    valid = store.put_request(_request(idempotency_key="valid-beside-path-mismatch"))
+    mismatch_path = tmp_path / "requests" / "path-request-a.json"
+    mismatch_path.write_text(
+        json.dumps(valid.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    out = store.deliverable_for_node("windows-desktop", limit=10)
+
+    assert [item.request_id for item in out] == [valid.request_id]
+    corruption = list((tmp_path / "corrupt").glob("requests-*.json"))
+    assert len(corruption) == 1
+    evidence = json.loads(corruption[0].read_text(encoding="utf-8"))
+    assert "path/content identity mismatch" in evidence["reason"]
+
+
 def test_corrupt_idempotency_index_rebuilds_only_from_valid_request(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     original = store.put_request(_request(idempotency_key="corrupt-index-valid-request"))
@@ -266,6 +308,80 @@ def test_corrupt_idempotency_index_rebuilds_only_from_valid_request(tmp_path) ->
     assert index["canonical_request_id"] == original.request_id
 
 
+def test_corrupt_idempotency_index_without_valid_request_fences_fresh_admission(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-index-no-valid-request"
+    store._idempotency_index_path(key).write_text("{", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="idempotency index corrupt"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
+    corruption = list((tmp_path / "corrupt").glob("idempotency-*.json"))
+    fences = list((tmp_path / "corrupt").glob("fence-*.json"))
+    assert len(corruption) == 1
+    assert len(fences) == 1
+
+
+def test_corrupt_idempotency_fence_survives_index_file_quarantine(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-index-quarantined-away"
+    index_path = store._idempotency_index_path(key)
+    index_path.write_text("{", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="idempotency index corrupt"):
+        store.put_request(_request(idempotency_key=key))
+    index_path.unlink()
+
+    with pytest.raises(ValueError, match="idempotency index corrupt"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_corrupt_idempotency_index_with_conflicting_requests_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-index-conflicting-valid-requests"
+    first = _request(idempotency_key=key)
+    second = _request(
+        idempotency_key=key,
+        params=first.params,
+        candidate_sha=first.candidate_sha,
+        node_id=first.node_id,
+        operation_type=first.operation_type,
+        capability=first.capability,
+        risk_class=first.risk_class,
+    )
+    (tmp_path / "requests" / f"{first.request_id}.json").write_text(
+        json.dumps(first.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    (tmp_path / "requests" / f"{second.request_id}.json").write_text(
+        json.dumps(second.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    store._idempotency_index_path(key).write_text("{", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="ambiguous idempotency recovery"):
+        store.put_request(
+            _request(
+                idempotency_key=key,
+                params=first.params,
+                candidate_sha=first.candidate_sha,
+                node_id=first.node_id,
+                operation_type=first.operation_type,
+                capability=first.capability,
+                risk_class=first.risk_class,
+            )
+        )
+
+    assert store.get_request(first.request_id).lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert store.get_request(second.request_id).lifecycle_state == "RECONCILIATION_REQUIRED"
+
+
 def test_corrupt_result_record_isolated_and_does_not_terminalize_request(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request(idempotency_key="corrupt-result-valid-request"))
@@ -276,10 +392,59 @@ def test_corrupt_result_record_isolated_and_does_not_terminalize_request(tmp_pat
     current = store.get_request(req.request_id)
 
     assert current is not None
-    assert current.lifecycle_state == "RUNNING"
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
     corruption = list((tmp_path / "corrupt").glob("results-*.json"))
     assert len(corruption) == 1
     assert store.result_for(req.request_id) is None
+
+
+def test_corrupt_result_is_not_overwritten_by_later_publication(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request(idempotency_key="corrupt-result-overwrite"))
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.mark_running(req.request_id, claim_id="claim-1", process_tree={"root_pid": 1})
+    result_path = tmp_path / "results" / f"{req.request_id}.json"
+    result_path.write_text("{", encoding="utf-8")
+    original_bytes = result_path.read_bytes()
+
+    final = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True},
+        cleanup={"process_residue": []},
+    )
+
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert result_path.read_bytes() == original_bytes
+    assert store.result_for(req.request_id) is None
+    assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+
+
+def test_result_path_content_identity_mismatch_blocks_convergence(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request(idempotency_key="result-path-mismatch"))
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    running = store.mark_running(req.request_id, claim_id="claim-1", process_tree={"root_pid": 1})
+    store._write_result_record(
+        running,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True},
+        cleanup={"process_residue": []},
+    )
+    result_path = tmp_path / "results" / f"{req.request_id}.json"
+    data = json.loads(result_path.read_text(encoding="utf-8"))
+    data["request_id"] = "foreign-request"
+    result_path.write_text(json.dumps(data, sort_keys=True), encoding="utf-8")
+
+    current = store.get_request(req.request_id)
+
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert store.result_for(req.request_id) is None
+    corruption = list((tmp_path / "corrupt").glob("results-*.json"))
+    assert len(corruption) == 1
 
 
 def test_claim_guard_rejects_invalid_material_if_recovery_check_is_bypassed(
@@ -1482,10 +1647,11 @@ def test_running_rejects_corrupt_active_claim_outside_claimed_state(tmp_path) ->
     corrupt.claim_id = "claim-1"
     store._update_request_locked(corrupt, "CORRUPT_CLAIM_FOR_TEST")
 
-    rejected = store.mark_running(req.request_id, claim_id="claim-1")
+    with pytest.raises(KeyError):
+        store.mark_running(req.request_id, claim_id="claim-1")
 
-    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
-    assert rejected.diagnostics["running_without_claimed_state"]["state"] == "DELIVERED"
+    corruption = list((tmp_path / "corrupt").glob("requests-*.json"))
+    assert len(corruption) == 1
 
 
 def test_same_claim_running_replay_updates_execution_evidence_without_reconciliation(

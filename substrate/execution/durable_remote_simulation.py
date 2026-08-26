@@ -48,6 +48,7 @@ class SimState:
     persisted_request_order: dict[str, int] = field(default_factory=dict)
     corrupt_request_records: set[str] = field(default_factory=set)
     corrupt_index_keys: set[str] = field(default_factory=set)
+    fenced_idempotency_keys: set[str] = field(default_factory=set)
     corrupt_result_records: set[str] = field(default_factory=set)
     result_present_for_request: set[str] = field(default_factory=set)
     result_converged_for_request: set[str] = field(default_factory=set)
@@ -64,7 +65,7 @@ class SimState:
             assert self.canonical_claim_proven, self.log
             assert self.candidate_sha == self.expected_candidate_sha, self.log
             assert self.claim_id, self.log
-            assert self.lifecycle in {"RUNNING", "SUCCEEDED"}, self.log
+            assert self.lifecycle in {"RUNNING", "SUCCEEDED", "RECONCILIATION_REQUIRED"}, self.log
         assert self.executed <= 1, self.log
         if self.cancelled and not self.running_announced:
             assert self.executed == 0, self.log
@@ -147,6 +148,7 @@ def requests_for_key_in_admission_order(state: SimState, idempotency_key: str) -
 def fail_closed_ambiguous_idempotency(state: SimState, idempotency_key: str) -> None:
     state.idempotency_conflict = True
     state.fail_closed = True
+    state.fenced_idempotency_keys.add(idempotency_key)
     for request_id in requests_for_key_in_admission_order(state, idempotency_key):
         state.deliverable_requests.discard(request_id)
 
@@ -177,7 +179,26 @@ def request_material_is_canonical(state: SimState, request_id: str) -> bool:
 def validate_idempotency_index(state: SimState, idempotency_key: str) -> bool:
     if idempotency_key in state.corrupt_index_keys:
         state.record(f"corrupt_index_isolated:key={idempotency_key}")
-        state.corrupt_index_keys.discard(idempotency_key)
+        matches = requests_for_key_in_admission_order(state, idempotency_key)
+        valid_matches = [
+            request_id
+            for request_id in matches
+            if request_material_is_canonical(state, request_id)
+        ]
+        if len(valid_matches) == 1:
+            state.canonical_request_for_key[idempotency_key] = valid_matches[0]
+            state.execution_for_key.setdefault(idempotency_key, 0)
+            state.corrupt_index_keys.discard(idempotency_key)
+            state.fenced_idempotency_keys.discard(idempotency_key)
+        else:
+            fail_closed_ambiguous_idempotency(state, idempotency_key)
+            state.assert_invariants()
+            return False
+    if idempotency_key in state.fenced_idempotency_keys:
+        state.record(f"idempotency_fence_blocks_authority:key={idempotency_key}")
+        state.fail_closed = True
+        state.assert_invariants()
+        return False
     canonical = state.canonical_request_for_key.get(idempotency_key)
     if not canonical:
         return True
@@ -234,6 +255,9 @@ def admit_durable_request(
         state.fail_closed = True
         state.assert_invariants()
         return None
+    if idempotency_key in state.corrupt_index_keys or idempotency_key in state.fenced_idempotency_keys:
+        if not validate_idempotency_index(state, idempotency_key):
+            return None
     canonical = state.canonical_request_for_key.get(idempotency_key)
     if not canonical:
         state.canonical_request_for_key[idempotency_key] = request_id
@@ -474,6 +498,8 @@ def terminal(state: SimState, value: str = "SUCCEEDED") -> None:
         if request_id in state.corrupt_result_records:
             state.record(f"corrupt_result_isolated:{request_id}")
             state.fail_closed = True
+            if state.lifecycle not in TERMINAL:
+                state.lifecycle = "RECONCILIATION_REQUIRED"
             state.assert_invariants()
             return
         if not request_material_is_canonical(state, request_id):
@@ -949,9 +975,9 @@ def _corrupt_request_among_valid_isolated(state: SimState) -> None:
 
 def _corrupt_index_rebuilds_only_from_valid_request(state: SimState) -> None:
     persist_request_file(state, request_id="A", idempotency_key="K", payload_identity="P")
-    state.canonical_request_for_key["K"] = "A"
     state.corrupt_index_keys.add("K")
     assert validate_idempotency_index(state, "K") is True
+    assert state.canonical_request_for_key["K"] == "A", state.log
     assert "K" not in state.corrupt_index_keys, state.log
 
 
@@ -963,8 +989,60 @@ def _corrupt_result_does_not_terminalize(state: SimState) -> None:
     announce_running_and_execute(state)
     state.corrupt_result_records.add("A")
     terminal(state)
-    assert state.lifecycle == "RUNNING", state.log
+    assert state.lifecycle == "RECONCILIATION_REQUIRED", state.log
     assert "A" not in state.result_converged_for_request, state.log
+
+
+def _corrupt_index_no_valid_request_fences_key(state: SimState) -> None:
+    state.corrupt_index_keys.add("K")
+    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") is None
+    assert "K" in state.fenced_idempotency_keys, state.log
+    assert "K" not in state.canonical_request_for_key, state.log
+
+
+def _corrupt_index_conflicting_valid_requests_fail_closed(state: SimState) -> None:
+    persist_request_file(state, request_id="A", idempotency_key="K", payload_identity="P")
+    persist_request_file(state, request_id="B", idempotency_key="K", payload_identity="P")
+    state.corrupt_index_keys.add("K")
+    assert validate_idempotency_index(state, "K") is False
+    assert "K" in state.fenced_idempotency_keys, state.log
+    assert "A" not in state.deliverable_requests, state.log
+    assert "B" not in state.deliverable_requests, state.log
+
+
+def _corrupt_result_later_publication_rejected(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    canonical_read(state)
+    announce_running_and_execute(state)
+    state.corrupt_result_records.add("A")
+    terminal(state)
+    terminal(state)
+    assert state.lifecycle == "RECONCILIATION_REQUIRED", state.log
+    assert "A" not in state.result_converged_for_request, state.log
+
+
+def _path_content_identity_mismatch_is_corrupt(state: SimState) -> None:
+    persist_request_file(state, request_id="A", idempotency_key="K", payload_identity="P")
+    persist_request_file(state, request_id="path-B-content-A", idempotency_key="K2", payload_identity="P2", corrupt=True)
+    state.deliverable_requests.update({"A", "path-B-content-A"})
+    scan_deliverable_requests(state)
+    assert "A" in state.deliverable_requests, state.log
+    assert "path-B-content-A" not in state.deliverable_requests, state.log
+
+
+def _quarantine_then_duplicate_request_remains_fenced(state: SimState) -> None:
+    state.corrupt_index_keys.add("K")
+    assert validate_idempotency_index(state, "K") is False
+    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") is None
+    assert "K" in state.fenced_idempotency_keys, state.log
+
+
+def _read_error_treated_unavailable_not_absent(state: SimState) -> None:
+    state.corrupt_index_keys.add("K")
+    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") is None
+    assert state.fail_closed, state.log
 
 
 def _restart_after_corrupt_record_still_non_executable(state: SimState) -> None:
@@ -1092,7 +1170,15 @@ SCENARIOS: dict[str, Scenario] = {
     "risk_generic_shell_read_only_node_cap_denied": _generic_shell_read_only_node_cap_denied,
     "corrupt_request_among_valid_isolated": _corrupt_request_among_valid_isolated,
     "corrupt_index_rebuilds_only_from_valid_request": _corrupt_index_rebuilds_only_from_valid_request,
+    "corrupt_index_no_valid_request_fences_key": _corrupt_index_no_valid_request_fences_key,
+    "corrupt_index_conflicting_valid_requests_fail_closed": _corrupt_index_conflicting_valid_requests_fail_closed,
     "corrupt_result_does_not_terminalize": _corrupt_result_does_not_terminalize,
+    "corrupt_result_later_publication_rejected": _corrupt_result_later_publication_rejected,
+    "corrupt_path_content_identity_mismatch_isolated": _path_content_identity_mismatch_is_corrupt,
+    "corrupt_quarantine_then_duplicate_request_remains_fenced": (
+        _quarantine_then_duplicate_request_remains_fenced
+    ),
+    "corrupt_read_error_treated_unavailable": _read_error_treated_unavailable_not_absent,
     "corrupt_restart_still_non_executable": _restart_after_corrupt_record_still_non_executable,
 }
 
