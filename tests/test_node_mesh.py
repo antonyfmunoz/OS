@@ -15,13 +15,12 @@ Tests:
 from __future__ import annotations
 
 import time
-from datetime import datetime, timezone
 from uuid import uuid4
 
 
 def test_signal_socket_unregister():
-    from substrate.sockets.signal_socket import SignalSocket
     from substrate.sockets.protocols import SignalDescriptor
+    from substrate.sockets.signal_socket import SignalSocket
 
     class FakeEmitter:
         @property
@@ -44,10 +43,10 @@ def test_signal_socket_unregister():
 
 
 def test_capability_socket_unregister():
-    from substrate.sockets.capability_socket import CapabilitySocket
-    from substrate.sockets.protocols import CapabilityDescriptor, CapabilityHealth
-    from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
     from substrate.governance.risk_classes import RiskClass
+    from substrate.sockets.capability_socket import CapabilitySocket
+    from substrate.sockets.envelopes import CapabilityResponse
+    from substrate.sockets.protocols import CapabilityDescriptor, CapabilityHealth
     from substrate.types import CapabilityCategory
 
     class FakeHandler:
@@ -103,18 +102,18 @@ def test_outcome_socket_unregister():
 
 
 def test_registry_reregistration():
+    from substrate.governance.risk_classes import RiskClass
     from substrate.sockets.capability_socket import CapabilitySocket
+    from substrate.sockets.envelopes import CapabilityResponse
     from substrate.sockets.outcome_socket import OutcomeSocket
-    from substrate.sockets.signal_socket import SignalSocket
-    from substrate.sockets.view_socket import ViewSocket
-    from substrate.sockets.registry import IntegrationManifest, IntegrationRegistry
     from substrate.sockets.protocols import (
         CapabilityDescriptor,
         CapabilityHealth,
         SignalDescriptor,
     )
-    from substrate.sockets.envelopes import CapabilityResponse
-    from substrate.governance.risk_classes import RiskClass
+    from substrate.sockets.registry import IntegrationManifest, IntegrationRegistry
+    from substrate.sockets.signal_socket import SignalSocket
+    from substrate.sockets.view_socket import ViewSocket
     from substrate.types import CapabilityCategory
 
     class FakeEmitter:
@@ -270,7 +269,7 @@ def test_node_registry():
 
 
 def test_node_registry_stale_detection():
-    from transports.node_mesh.registry import ConnectedNode, NodeCapability, NodeRegistry
+    from transports.node_mesh.registry import ConnectedNode, NodeRegistry
 
     reg = NodeRegistry(heartbeat_timeout_s=0.1)
     node = ConnectedNode(
@@ -293,8 +292,8 @@ def test_node_registry_stale_detection():
 
 
 def test_node_signal_emitter():
-    from transports.node_mesh.integration.signals import NodeSignalEmitter
     from substrate.sockets.protocols import SignalEmitter
+    from transports.node_mesh.integration.signals import NodeSignalEmitter
 
     emitter = NodeSignalEmitter("test-node")
     assert isinstance(emitter, SignalEmitter)
@@ -308,9 +307,9 @@ def test_node_signal_emitter():
 
 
 def test_node_capability_handler_descriptors():
+    from substrate.sockets.protocols import CapabilityHandler
     from transports.node_mesh.integration.handlers import NodeCapabilityHandler
     from transports.node_mesh.registry import ConnectedNode, NodeCapability
-    from substrate.sockets.protocols import CapabilityHandler
 
     node = ConnectedNode(
         node_id="test-node",
@@ -336,9 +335,115 @@ def test_node_capability_handler_descriptors():
     print("PASS: NodeCapabilityHandler descriptors")
 
 
+def test_node_capability_handler_rejects_legacy_write_sync():
+
+    from substrate.sockets.envelopes import CapabilityRequest
+    from transports.node_mesh.integration.handlers import NodeCapabilityHandler
+    from transports.node_mesh.registry import ConnectedNode, NodeCapability
+
+    class Ws:
+        sent: list[str] = []
+
+        async def send(self, raw: str) -> None:
+            self.sent.append(raw)
+
+    ws = Ws()
+    node = ConnectedNode(
+        node_id="test-node",
+        hostname="PC",
+        os="windows",
+        os_version="11",
+        capabilities=[NodeCapability("shell", "compute", "read_only", "irreversible_write")],
+        daemon_version="0.1.0",
+        tailscale_ip="",
+        ws=ws,
+    )
+    handler = NodeCapabilityHandler(node)
+    request = CapabilityRequest(
+        request_id=uuid4(),
+        capability_name="shell",
+        integration_id="node-test-node",
+        params={"argv": ["echo", "unsafe"]},
+        governance_verdict_id=uuid4(),
+        trace_id=uuid4(),
+        timeout_seconds=1,
+    )
+
+    response = handler.handle_capability(request)
+
+    assert response.success is False
+    assert "DurableRemote" in (response.error or "")
+    assert ws.sent == []
+
+
+def test_node_capability_handler_emits_bound_read_only_envelope():
+
+    from substrate.execution.mesh_verdict import READ_ONLY_EFFECT, canonical_payload_digest
+    from substrate.sockets.envelopes import CapabilityRequest
+    from transports.node_mesh.integration.handlers import NodeCapabilityHandler
+    from transports.node_mesh.registry import ConnectedNode, NodeCapability
+
+    class Ws:
+        def __init__(self) -> None:
+            self.sent: list[str] = []
+            self._loop = None
+
+        async def send(self, raw: str) -> None:
+            self.sent.append(raw)
+
+    ws = Ws()
+    node = ConnectedNode(
+        node_id="test-node",
+        hostname="PC",
+        os="windows",
+        os_version="11",
+        capabilities=[NodeCapability("terminal.capture", "compute", "read_only", "read_only")],
+        daemon_version="0.1.0",
+        tailscale_ip="",
+        ws=ws,
+    )
+    handler = NodeCapabilityHandler(node)
+    req_id = uuid4()
+    trace_id = uuid4()
+    request = CapabilityRequest(
+        request_id=req_id,
+        capability_name="terminal.capture",
+        integration_id="node-test-node",
+        params={"name": "s1"},
+        governance_verdict_id=uuid4(),
+        trace_id=trace_id,
+        timeout_seconds=0.01,
+        metadata={"candidate_sha": "a" * 40},
+    )
+
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        handler.handle_capability(request)
+    except TimeoutError:
+        pass
+    finally:
+        asyncio.set_event_loop(None)
+        loop.close()
+
+    assert len(ws.sent) == 1
+    payload = __import__("json").loads(ws.sent[0])
+    params = payload["params"]
+    assert params["request_id"] == req_id.hex
+    assert params["correlation_id"] == str(trace_id)
+    assert params["candidate_sha"] == "a" * 40
+    assert params["effect_class"] == READ_ONLY_EFFECT
+    assert params["authoritative_effect_class"] == READ_ONLY_EFFECT
+    assert params["effect_policy"] == "umh-sync-effect-policy:v1"
+    assert params["idempotency_key"] == req_id.hex
+    assert params["payload_digest"] == canonical_payload_digest({"name": "s1"})
+
+
 def test_node_outcome_receiver():
-    from transports.node_mesh.integration.outcomes import NodeOutcomeReceiver
     from substrate.sockets.protocols import OutcomeReceiver
+    from transports.node_mesh.integration.outcomes import NodeOutcomeReceiver
 
     receiver = NodeOutcomeReceiver("test-node", ws=None)
     assert isinstance(receiver, OutcomeReceiver)
@@ -348,9 +453,9 @@ def test_node_outcome_receiver():
 
 
 def test_build_node_manifest():
+    from substrate.sockets.registry import IntegrationManifest
     from transports.node_mesh.integration.manifest import build_node_manifest
     from transports.node_mesh.registry import ConnectedNode, NodeCapability
-    from substrate.sockets.registry import IntegrationManifest
 
     node = ConnectedNode(
         node_id="win-pc",

@@ -1123,6 +1123,13 @@ def _candidate_frontend_bytes_proof(dist_web: Path) -> dict[str, Any]:
     return proof
 
 
+def _frontend_manifest_identity_digest(manifest: dict[str, Any]) -> str:
+    stable = {k: v for k, v in manifest.items() if k != "manifest_sha256"}
+    return hashlib.sha256(
+        json.dumps(stable, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+
 def _verify_candidate_frontend_artifact(dist_web: Path, sha: str) -> dict[str, Any]:
     manifest_path = dist_web / _FRONTEND_ARTIFACT_MANIFEST
     if not dist_web.is_dir():
@@ -1151,6 +1158,10 @@ def _verify_candidate_frontend_artifact(dist_web: Path, sha: str) -> dict[str, A
         }
     if not manifest.get("source_tree"):
         return {"ok": False, "error": "artifact source tree missing"}
+    if manifest.get("build_status") != "SUCCEEDED":
+        return {"ok": False, "error": "artifact build status is not SUCCEEDED"}
+    if manifest.get("manifest_sha256") != _frontend_manifest_identity_digest(manifest):
+        return {"ok": False, "error": "artifact manifest digest mismatch"}
     index = dist_web / "index.html"
     if not index.is_file():
         return {"ok": False, "error": "dist-web index.html missing"}
@@ -1279,24 +1290,20 @@ def _prepare_candidate_frontend_artifact(
     if not bytes_proof.get("ok"):
         raise SystemExit(f"candidate frontend artifact bytes are invalid: {bytes_proof}")
     manifest_path = dist_web / _FRONTEND_ARTIFACT_MANIFEST
-    manifest_path.write_text(
-        json.dumps(
-            {
-                "candidate_sha": sha,
-                "source_head": source_head,
-                "source_tree": source_tree,
-                "source_worktree": str(_WORKTREE),
-                "index_sha256": bytes_proof["index_sha256"],
-                "assets": bytes_proof["assets"],
-                "build_command": "npm run build:web",
-                "built_at": datetime.now(timezone.utc).isoformat(),
-                "artifact_contract": "wave2_exact_candidate_frontend",
-            },
-            sort_keys=True,
-            indent=2,
-        ),
-        encoding="utf-8",
-    )
+    manifest = {
+        "candidate_sha": sha,
+        "source_head": source_head,
+        "source_tree": source_tree,
+        "source_worktree": str(_WORKTREE),
+        "index_sha256": bytes_proof["index_sha256"],
+        "assets": bytes_proof["assets"],
+        "build_command": "npm run build:web",
+        "build_status": "SUCCEEDED",
+        "built_at": datetime.now(timezone.utc).isoformat(),
+        "artifact_contract": "wave2_exact_candidate_frontend",
+    }
+    manifest["manifest_sha256"] = _frontend_manifest_identity_digest(manifest)
+    manifest_path.write_text(json.dumps(manifest, sort_keys=True, indent=2), encoding="utf-8")
     proof = _verify_candidate_frontend_artifact(dist_web, sha)
     if not proof.get("ok"):
         raise SystemExit(f"candidate frontend artifact is not exact-sha bound: {proof}")
@@ -2912,6 +2919,12 @@ def _durable_remote_shell(
         risk_class="reversible_write",
         ttl_seconds=int(caller_wait_timeout_s + 60),
     )
+    from substrate.execution.mesh_verdict import canonical_sync_effect_policy, effect_policy_id
+
+    effect_policy = canonical_sync_effect_policy(
+        request.capability,
+        declared_effect_class="CONSEQUENTIAL_WRITE",
+    )
     verdict_payload_digest = canonical_payload_digest(executable_params)
     verdict = sign_verdict(
         verdict_id=uuid4().hex,
@@ -2922,6 +2935,8 @@ def _durable_remote_shell(
         correlation_id=request.correlation_id,
         candidate_sha=request.candidate_sha,
         effect_class="CONSEQUENTIAL_WRITE",
+        authoritative_effect_class=effect_policy.authoritative_effect_class,
+        effect_policy=effect_policy_id(),
         payload_digest=verdict_payload_digest,
         idempotency_key=request.idempotency_key,
         ttl_seconds=max(command_timeout, dispatch_timeout) + 60,

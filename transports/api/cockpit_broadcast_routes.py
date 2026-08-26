@@ -133,15 +133,16 @@ async def _dispatch_remote(
     from substrate.execution.mesh_verdict import (
         READ_ONLY_EFFECT,
         canonical_payload_digest,
-        is_write_class,
+        canonical_sync_effect_policy,
     )
 
     full_cap = f"broadcast.{capability}"
     risk_class = "read_only" if capability in ("health", "status") else "reversible_write"
-    if is_write_class(risk_class):
+    policy = canonical_sync_effect_policy(full_cap, declared_effect_class=READ_ONLY_EFFECT)
+    if not policy.sync_allowed:
         raise HTTPException(
             status_code=409,
-            detail="remote consequential broadcast operations must use DurableRemote",
+            detail="remote broadcast operation must use DurableRemote or registered read-only policy",
         )
 
     relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
@@ -160,6 +161,8 @@ async def _dispatch_remote(
         "correlation_id": correlation_id,
         "candidate_sha": os.environ.get("UMH_SOURCE_SHA", "").strip(),
         "effect_class": effect_class,
+        "authoritative_effect_class": policy.authoritative_effect_class,
+        "effect_policy": policy.policy_id,
         "idempotency_key": request_id,
         "payload_digest": payload_digest,
         "node_id": node_id,

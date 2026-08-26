@@ -32,8 +32,11 @@ import pytest  # noqa: E402
 from fastapi import HTTPException  # noqa: E402
 
 from substrate.execution.mesh_verdict import (  # noqa: E402
+    CONSEQUENTIAL_WRITE_EFFECT,
     READ_ONLY_EFFECT,
     canonical_payload_digest,
+    canonical_sync_effect_policy,
+    effect_policy_id,
     is_write_class,
     sign_verdict,
     verify_verdict,
@@ -396,6 +399,47 @@ def test_http_dispatch_rejects_write_before_node_send(monkeypatch):
     assert result["status"] == "sync_write_denied"
 
 
+def test_http_dispatch_rejects_shell_declared_read_only(monkeypatch):
+    from substrate.execution.executor import WorkPacketExecutor
+    from substrate.sockets.capability_socket import CapabilitySocket
+    from substrate.sockets.outcome_socket import OutcomeSocket
+    from substrate.sockets.signal_socket import SignalSocket
+    from substrate.sockets.view_socket import ViewSocket
+    from transports.node_mesh.config import MeshConfig
+    from transports.node_mesh.server import NodeMeshServer
+
+    server = NodeMeshServer(
+        config=MeshConfig(),
+        executor=WorkPacketExecutor(),
+        signal_socket=SignalSocket(),
+        capability_socket=CapabilitySocket(),
+        outcome_socket=OutcomeSocket(),
+        view_socket=ViewSocket(),
+    )
+    params = {"argv": ["echo", "unsafe"]}
+
+    result = asyncio.run(
+        server._http_dispatch(
+            {
+                "request_id": "req-lying",
+                "correlation_id": "corr-lying",
+                "effect_class": READ_ONLY_EFFECT,
+                "idempotency_key": "req-lying",
+                "payload_digest": canonical_payload_digest(params),
+                "node_id": "node-a",
+                "capability": "shell",
+                "params": params,
+                "risk_class": "read_only",
+                "timeout": 1,
+            }
+        )
+    )
+
+    assert result["ok"] is False
+    assert result["status"] == "effect_policy_mismatch"
+    assert result["authoritative_effect_class"] == CONSEQUENTIAL_WRITE_EFFECT
+
+
 def test_http_dispatch_rejects_unknown_effect(monkeypatch):
     monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
     from substrate.execution.executor import WorkPacketExecutor
@@ -661,6 +705,8 @@ def test_default_dispatch_read_only_authenticates_without_write_verdict(monkeypa
     assert res["ok"] is True
     assert captured["auth"] == "Bearer relay-secret"
     assert captured["payload"]["effect_class"] == READ_ONLY_EFFECT
+    assert captured["payload"]["authoritative_effect_class"] == READ_ONLY_EFFECT
+    assert captured["payload"]["effect_policy"] == effect_policy_id()
     assert captured["payload"]["risk_class"] == "read_only"
     assert captured["payload"]["verdict_token"] == ""
 
@@ -713,6 +759,11 @@ def _operation_bound_verdict(
         correlation_id=correlation_id,
         candidate_sha=candidate_sha,
         effect_class=effect_class,
+        authoritative_effect_class=canonical_sync_effect_policy(
+            capability,
+            declared_effect_class=effect_class,
+        ).authoritative_effect_class,
+        effect_policy=effect_policy_id(),
         payload_digest=canonical_payload_digest(payload),
         idempotency_key=idempotency_key,
         secret=_SECRET,
@@ -748,6 +799,7 @@ def _durable_node_client(tmp_path, node_id: str = "windows-desktop"):
     from nodes.windows.umh_node.config import NodeConfig
     from substrate.execution.durable_remote_transport import DurableRemoteStore
 
+    os.environ.setdefault("UMH_MESH_VERDICT_SECRET", _SECRET)
     client = object.__new__(NodeClient)
     client._config = NodeConfig(node_id=node_id)
     client._connected = True
@@ -768,18 +820,41 @@ def _durable_node_client(tmp_path, node_id: str = "windows-desktop"):
 def _durable_request(**overrides):
     from substrate.execution.durable_remote_transport import make_request
 
+    params = {"command": "echo ok", "timeout": 5}
     data = {
         "correlation_id": "unit-durable",
         "candidate_sha": "abc123",
         "node_id": "windows-desktop",
         "operation_type": "transport_unit",
         "capability": "shell",
-        "params": {"command": "echo ok", "timeout": 5},
+        "params": params,
         "risk_class": "read_only",
         "ttl_seconds": 60,
     }
     data.update(overrides)
-    return make_request(**data)
+    req = make_request(**data)
+    executable_params = dict(req.params)
+    verdict_digest = canonical_payload_digest(executable_params)
+    req.params["governance_verdict_id"] = sign_verdict(
+        verdict_id="unit-durable-verdict",
+        node_id=req.node_id,
+        capability=req.capability,
+        risk_class=req.risk_class,
+        request_id=req.request_id,
+        correlation_id=req.correlation_id,
+        candidate_sha=req.candidate_sha,
+        effect_class=CONSEQUENTIAL_WRITE_EFFECT,
+        authoritative_effect_class=canonical_sync_effect_policy(
+            req.capability,
+            declared_effect_class=CONSEQUENTIAL_WRITE_EFFECT,
+        ).authoritative_effect_class,
+        effect_policy=effect_policy_id(),
+        payload_digest=verdict_digest,
+        idempotency_key=req.idempotency_key,
+        secret=_SECRET,
+    )
+    req.diagnostics["verdict_payload_digest"] = verdict_digest
+    return req
 
 
 def _canonical_claim_readback(client, payload):
@@ -1057,6 +1132,44 @@ def test_node_sync_receiver_rejects_replayed_consequential_frame(monkeypatch):
     assert all("DurableRemote" in msg["result"]["error"] for msg in client._sent_ws)
 
 
+def test_node_rejects_shell_declared_read_only_before_adapter(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
+    client = _sync_node_client("node-a")
+    calls = {"count": 0}
+
+    class _Adapter:
+        def execute(self, *_args, **_kwargs):
+            calls["count"] += 1
+            return {"success": True, "result_data": {"stdout": "executed"}}
+
+    params = {"argv": ["echo", "x"]}
+    client._adapters = {"shell": _Adapter()}
+    frame = {
+        "jsonrpc": "2.0",
+        "method": "capability.execute",
+        "id": "req-lying",
+        "params": {
+            "request_id": "req-lying",
+            "correlation_id": "corr-lying",
+            "candidate_sha": "a" * 40,
+            "effect_class": READ_ONLY_EFFECT,
+            "idempotency_key": "req-lying",
+            "payload_digest": canonical_payload_digest(params),
+            "capability_name": "shell",
+            "params": params,
+            "risk_class": "read_only",
+            "governance_verdict_id": "",
+            "timeout_seconds": 1,
+        },
+    }
+
+    asyncio.run(client._handle_capability(frame))
+
+    assert calls["count"] == 0
+    assert client._sent_ws[0]["result"]["success"] is False
+    assert "policy mismatch" in client._sent_ws[0]["result"]["error"]
+
+
 def test_node_allows_read_only_without_verdict(monkeypatch):
     monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
     params = {"name": "s1"}
@@ -1073,6 +1186,25 @@ def test_node_allows_read_only_without_verdict(monkeypatch):
         cap_params=params,
     )
     assert ok is True
+
+
+def test_node_rejects_declared_consequential_for_canonical_read_only(monkeypatch):
+    monkeypatch.setenv("UMH_MESH_VERDICT_SECRET", _SECRET)
+    params = {"name": "s1"}
+    client = _bare_node_client("node-a")
+    ok, reason = client._validate_verdict(
+        "terminal.capture",
+        "read_only",
+        "",
+        request_id="req-read",
+        correlation_id="corr-read",
+        effect_class=CONSEQUENTIAL_WRITE_EFFECT,
+        payload_digest=canonical_payload_digest(params),
+        idempotency_key="req-read",
+        cap_params=params,
+    )
+    assert ok is False
+    assert "policy mismatch" in reason
 
 
 def test_node_rejects_unknown_sync_effect(monkeypatch):
@@ -1111,7 +1243,7 @@ def test_node_rejects_risk_downgrade_attack(monkeypatch):
         effect_class=READ_ONLY_EFFECT,
     )
     assert ok is False
-    assert "effect binding" in reason.lower() or "durableremote" in reason.lower()
+    assert "policy mismatch" in reason.lower()
 
 
 def test_durable_node_does_not_execute_when_controller_rejects_claim(tmp_path, monkeypatch):

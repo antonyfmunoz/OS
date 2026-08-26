@@ -93,6 +93,12 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _manifest_identity_digest(manifest: dict[str, Any]) -> str:
+    stable = {k: v for k, v in manifest.items() if k != "manifest_sha256"}
+    raw = json.dumps(stable, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def _current_source_sha(root: Path | None = None) -> str:
     base = root or _ROOT
     for key in (
@@ -156,12 +162,19 @@ def _cockpit_frontend_artifact_proof(
     proof["artifact_source_tree"] = manifest.get("source_tree")
     proof["artifact_index_sha256"] = manifest.get("index_sha256")
     proof["artifact_assets"] = manifest.get("assets")
+    proof["artifact_build_status"] = manifest.get("build_status")
+    proof["artifact_manifest_sha256"] = manifest.get("manifest_sha256")
     if manifest.get("candidate_sha") != expected_sha:
         errors.append("artifact candidate SHA mismatch")
     if manifest.get("source_head") != expected_sha:
         errors.append("artifact source HEAD mismatch")
     if not manifest.get("source_tree"):
         errors.append("artifact source tree missing")
+    if manifest.get("build_status") != "SUCCEEDED":
+        errors.append("artifact build status is not SUCCEEDED")
+    expected_manifest_digest = _manifest_identity_digest(manifest)
+    if manifest.get("manifest_sha256") != expected_manifest_digest:
+        errors.append("artifact manifest digest mismatch")
     if bytes_proof is None:
         errors.append("artifact bytes proof unavailable")
     else:
@@ -177,7 +190,12 @@ def _cockpit_frontend_asset_info(
     root: Path | None = None, *, expected_sha: str | None = None
 ) -> dict[str, Any]:
     base = root or _ROOT
-    dist_web = base / "cockpit" / "dist-web"
+    override = os.getenv("UMH_COCKPIT_DIST_WEB", "").strip()
+    dist_web = (
+        Path(override).expanduser().resolve()
+        if override
+        else base / "cockpit" / "dist-web"
+    )
     index_html = dist_web / "index.html"
     if not index_html.is_file():
         proof = (

@@ -386,15 +386,28 @@ async def _remote_terminal_dispatch(
     if operation in _READ_ONLY_TERMINAL_OPS:
         from uuid import uuid4
 
-        from substrate.execution.mesh_verdict import READ_ONLY_EFFECT, canonical_payload_digest
+        from substrate.execution.mesh_verdict import (
+            READ_ONLY_EFFECT,
+            canonical_payload_digest,
+            canonical_sync_effect_policy,
+        )
 
         request_id = f"sync-{uuid4().hex}"
         payload_params = dict(params)
+        effect_policy = canonical_sync_effect_policy(capability, declared_effect_class=READ_ONLY_EFFECT)
+        if not effect_policy.sync_allowed:
+            return {
+                "ok": False,
+                "status": "effect_policy_unavailable",
+                "error": effect_policy.reason,
+            }
         payload = {
             "request_id": request_id,
             "correlation_id": f"cockpit-terminal:{operation}:{request_id}",
             "candidate_sha": os.environ.get("UMH_SOURCE_SHA", "").strip(),
             "effect_class": READ_ONLY_EFFECT,
+            "authoritative_effect_class": effect_policy.authoritative_effect_class,
+            "effect_policy": effect_policy.policy_id,
             "idempotency_key": request_id,
             "payload_digest": canonical_payload_digest(payload_params),
             "node_id": node_id,

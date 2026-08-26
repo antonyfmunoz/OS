@@ -1014,42 +1014,45 @@ class NodeClient:
         try:
             from substrate.execution.mesh_verdict import (
                 CONSEQUENTIAL_WRITE_EFFECT,
+                canonical_sync_effect_policy,
                 canonical_payload_digest,
                 get_verdict_secret,
                 READ_ONLY_EFFECT,
-                normalize_effect_class,
-                sync_effect_allows_execution,
                 verify_verdict,
             )
         except Exception as exc:  # pragma: no cover - defensive import guard
             return False, f"sync effect classifier unavailable: {exc}"
 
-        # A caller must NOT be able to skip the verdict by lying that a
-        # write-class capability is read_only. The node classifies write-class
-        # from the wire risk_class OR the capability's own configured max risk —
-        # whichever is stricter (fail-closed against downgrade attacks).
-        if not self._effective_write_class(cap_name, risk_class):
-            if allow_consequential_write:
-                return True, "durable read-only capability"
-            normalized_effect = normalize_effect_class(effect_class)
+        policy = canonical_sync_effect_policy(cap_name, declared_effect_class=effect_class)
+        normalized_effect = policy.declared_effect_class
+        authoritative_effect = policy.authoritative_effect_class
+
+        if not allow_consequential_write:
             if not normalized_effect:
                 return False, "sync capability requires explicit known effect_class"
-            if normalized_effect != READ_ONLY_EFFECT:
+            if normalized_effect != authoritative_effect:
+                return False, f"sync effect policy mismatch: {policy.reason}"
+            if not policy.sync_allowed:
+                return False, policy.reason
+            if authoritative_effect != READ_ONLY_EFFECT:
                 return False, "sync capability execution is restricted to READ_ONLY"
             if not request_id or not correlation_id or not idempotency_key:
                 return False, "sync capability requires exact operation binding"
             expected_digest = canonical_payload_digest(cap_params or {})
             if not payload_digest or payload_digest != expected_digest:
                 return False, "payload digest mismatch"
-            if not sync_effect_allows_execution(normalized_effect, risk_class):
-                return False, "sync capability execution is restricted to READ_ONLY"
             return True, "read-only sync capability, no verdict required"
 
-        normalized_effect = normalize_effect_class(effect_class)
+        # DurableRemote has already proven canonical durable request authority.
+        # The verdict still binds the consequential operation identity and the
+        # UMH-owned policy identity; synchronous receiver policy never
+        # authorizes this path.
+        if authoritative_effect in ("", READ_ONLY_EFFECT):
+            if allow_consequential_write:
+                return True, "durable read-only capability"
+            return False, "write-class capability requires canonical consequential policy"
         if normalized_effect != CONSEQUENTIAL_WRITE_EFFECT:
             return False, "write-class capability requires CONSEQUENTIAL_WRITE effect binding"
-        if not allow_consequential_write:
-            return False, "write-class capability must use DurableRemote, not sync mesh"
 
         if not get_verdict_secret():
             return False, "no mesh verdict secret configured on node (fail-closed)"
@@ -1070,6 +1073,8 @@ class NodeClient:
             expected_correlation_id=correlation_id,
             expected_candidate_sha=candidate_sha,
             expected_effect_class=normalized_effect,
+            expected_authoritative_effect_class=authoritative_effect,
+            expected_effect_policy=policy.policy_id,
             expected_payload_digest=expected_digest,
             expected_idempotency_key=idempotency_key,
         )

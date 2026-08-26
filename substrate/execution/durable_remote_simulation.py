@@ -29,7 +29,8 @@ class SimState:
     mesh_alive: bool = True
     store_alive: bool = True
     pending_ack: bool = False
-    sync_effect_class: str = "UNKNOWN"
+    declared_sync_effect: str = "UNKNOWN"
+    canonical_sync_effect: str = "UNKNOWN"
     sync_side_effects: int = 0
     sync_observations: int = 0
     log: list[str] = field(default_factory=list)
@@ -49,19 +50,29 @@ class SimState:
         if self.lifecycle in TERMINAL:
             assert self.lifecycle != "RUNNING", self.log
         assert self.sync_side_effects == 0, self.log
-        if self.sync_effect_class == "UNKNOWN":
+        if self.canonical_sync_effect == "UNKNOWN":
+            assert self.sync_observations == 0, self.log
+        if self.canonical_sync_effect == "CONSEQUENTIAL_WRITE":
             assert self.sync_observations == 0, self.log
 
 
-def sync_mesh_receive(state: SimState, effect_class: str, *, retry: bool = False) -> None:
-    state.sync_effect_class = effect_class
-    state.record(f"sync_mesh:{effect_class}{':retry' if retry else ''}")
-    if effect_class == "READ_ONLY":
+def sync_mesh_receive(
+    state: SimState,
+    declared_effect: str,
+    *,
+    canonical_effect: str | None = None,
+    retry: bool = False,
+) -> None:
+    resolved = canonical_effect if canonical_effect is not None else declared_effect
+    state.declared_sync_effect = declared_effect
+    state.canonical_sync_effect = resolved
+    state.record(f"sync_mesh:declared={declared_effect}:canonical={resolved}{':retry' if retry else ''}")
+    if declared_effect == resolved == "READ_ONLY":
         state.sync_observations += 1
-    elif effect_class in {"CONSEQUENTIAL_WRITE", "UNKNOWN"}:
+    elif resolved in {"CONSEQUENTIAL_WRITE", "UNKNOWN"} or declared_effect != resolved:
         state.fail_closed = True
     else:
-        state.sync_effect_class = "UNKNOWN"
+        state.canonical_sync_effect = "UNKNOWN"
         state.fail_closed = True
     state.assert_invariants()
 
@@ -72,9 +83,10 @@ def verify_operation_bound_verdict(
     request_id_matches: bool = True,
     payload_matches: bool = True,
     candidate_matches: bool = True,
+    policy_matches: bool = True,
 ) -> bool:
     state.record("verdict_check")
-    ok = request_id_matches and payload_matches and candidate_matches
+    ok = request_id_matches and payload_matches and candidate_matches and policy_matches
     if not ok:
         state.fail_closed = True
     state.assert_invariants()
@@ -297,6 +309,26 @@ def _unknown_sync_effect_fails_closed(state: SimState) -> None:
     sync_mesh_receive(state, "UNKNOWN")
 
 
+def _declared_read_only_for_canonical_write_denied(state: SimState) -> None:
+    sync_mesh_receive(state, "READ_ONLY", canonical_effect="CONSEQUENTIAL_WRITE")
+
+
+def _generic_shell_declares_read_only_denied(state: SimState) -> None:
+    sync_mesh_receive(state, "READ_ONLY", canonical_effect="CONSEQUENTIAL_WRITE")
+
+
+def _policy_lookup_unavailable_denied(state: SimState) -> None:
+    sync_mesh_receive(state, "READ_ONLY", canonical_effect="UNKNOWN")
+
+
+def _stale_effect_policy_verdict_rejected(state: SimState) -> None:
+    assert not verify_operation_bound_verdict(state, policy_matches=False)
+
+
+def _caller_changes_declared_effect_no_authority_change(state: SimState) -> None:
+    sync_mesh_receive(state, "CONSEQUENTIAL_WRITE", canonical_effect="READ_ONLY")
+
+
 def _stale_operation_bound_verdict_rejected(state: SimState) -> None:
     assert not verify_operation_bound_verdict(state, request_id_matches=False)
 
@@ -322,6 +354,11 @@ SCENARIOS: dict[str, Scenario] = {
     "sync_unknown_effect_fails_closed": _unknown_sync_effect_fails_closed,
     "sync_stale_verdict_rejected": _stale_operation_bound_verdict_rejected,
     "sync_payload_substitution_rejected": _altered_payload_verdict_rejected,
+    "sync_declared_read_only_for_canonical_write_denied": _declared_read_only_for_canonical_write_denied,
+    "sync_generic_shell_declares_read_only_denied": _generic_shell_declares_read_only_denied,
+    "sync_policy_lookup_unavailable_denied": _policy_lookup_unavailable_denied,
+    "sync_stale_effect_policy_verdict_rejected": _stale_effect_policy_verdict_rejected,
+    "sync_caller_effect_change_no_authority_change": _caller_changes_declared_effect_no_authority_change,
 }
 
 

@@ -994,8 +994,13 @@ except Exception as e:
     logger.warning(f"voice router not available: {e}")
 
 
-# ─── Static files (cockpit build) ─────────────────────────────────────────────
-cockpit_dist = UMH_ROOT / "cockpit" / "dist-web"
+# ─── Static files (Cockpit release artifact) ─────────────────────────────────
+_cockpit_dist_override = os.getenv("UMH_COCKPIT_DIST_WEB", "").strip()
+cockpit_dist = (
+    Path(_cockpit_dist_override).expanduser().resolve()
+    if _cockpit_dist_override
+    else UMH_ROOT / "cockpit" / "dist-web"
+)
 if cockpit_dist.exists():
     try:
         from transports.api.cockpit_core_routes import (  # noqa: E402
@@ -1021,7 +1026,7 @@ if cockpit_dist.exists():
         _set_readiness_component(
             "cockpit_frontend_artifact",
             ready=True,
-            detail="exact artifact verified",
+            detail="exact release artifact verified",
         )
     else:
         _set_readiness_component(
@@ -1034,7 +1039,7 @@ else:
     _set_readiness_component(
         "cockpit_frontend_artifact",
         ready=False,
-        detail="dist-web missing",
+        detail="frontend release artifact missing",
     )
 
 # ─── Entry point ──────────────────────────────────────────────────────────────

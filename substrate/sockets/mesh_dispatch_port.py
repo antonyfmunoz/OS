@@ -66,16 +66,21 @@ def _default_governed_dispatch(
     trajectory/idempotency owns redelivery and replay.
     """
     from substrate.execution.mesh_verdict import (
-        READ_ONLY_EFFECT,
         canonical_payload_digest,
-        is_write_class,
+        canonical_sync_effect_policy,
     )
 
-    if is_write_class(risk_class):
+    declared_effect = "READ_ONLY"
+    policy = canonical_sync_effect_policy(capability, declared_effect_class=declared_effect)
+    if not policy.sync_allowed:
         return {
             "ok": False,
-            "error": "consequential writes must use DurableRemote, not sync mesh",
-            "status": "durable_remote_required",
+            "error": policy.reason,
+            "status": "durable_remote_required"
+            if policy.authoritative_effect_class
+            else "effect_policy_unavailable",
+            "authoritative_effect_class": policy.authoritative_effect_class,
+            "effect_policy": policy.policy_id,
         }
 
     relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
@@ -88,7 +93,6 @@ def _default_governed_dispatch(
 
     request_id = f"sync-{uuid4().hex}"
     correlation_id = f"mesh-dispatch-port:{request_id}"
-    effect_class = READ_ONLY_EFFECT
     payload_digest = canonical_payload_digest(params)
 
     relay_host = os.environ.get("UMH_MESH_RELAY_HOST", "localhost")
@@ -98,7 +102,9 @@ def _default_governed_dispatch(
             "request_id": request_id,
             "correlation_id": correlation_id,
             "candidate_sha": os.environ.get("UMH_SOURCE_SHA", "").strip(),
-            "effect_class": effect_class,
+            "effect_class": declared_effect,
+            "authoritative_effect_class": policy.authoritative_effect_class,
+            "effect_policy": policy.policy_id,
             "idempotency_key": request_id,
             "payload_digest": payload_digest,
             "node_id": node_id,

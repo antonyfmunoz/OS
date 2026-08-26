@@ -36,6 +36,27 @@ def _write_dist_web(dist: Path, *, js_body: str = "console.log('candidate')\n") 
     }
 
 
+def _write_artifact_manifest(
+    dispatch, dist: Path, sha: str, bytes_proof: dict, **overrides: object
+) -> dict:
+    manifest = {
+        "candidate_sha": sha,
+        "source_head": sha,
+        "source_tree": "1" * 40,
+        "source_worktree": str(dist.parent.parent),
+        "index_sha256": bytes_proof["index_sha256"],
+        "assets": bytes_proof["assets"],
+        "build_command": "npm run build:web",
+        "build_status": "SUCCEEDED",
+        "built_at": "2026-08-25T00:00:00+00:00",
+        "artifact_contract": "wave2_exact_candidate_frontend",
+    }
+    manifest.update(overrides)
+    manifest["manifest_sha256"] = dispatch._frontend_manifest_identity_digest(manifest)
+    (dist / ".umh-wave2-artifact.json").write_text(json.dumps(manifest), encoding="utf-8")
+    return manifest
+
+
 def test_mesh_read_submits_durable_request_with_signed_shell_shape(monkeypatch) -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
     calls: list[dict[str, object]] = []
@@ -137,6 +158,8 @@ def test_candidate_frontend_artifact_success_emits_exact_sha_manifest(monkeypatc
     assert manifest["source_tree"] == "2" * 40
     assert manifest["index_sha256"] == proof["index_sha256"]
     assert manifest["assets"] == proof["assets"]
+    assert manifest["build_status"] == "SUCCEEDED"
+    assert manifest["manifest_sha256"] == dispatch._frontend_manifest_identity_digest(manifest)
     assert dispatch._verify_candidate_frontend_artifact(cockpit / "dist-web", "b" * 40)["ok"]
 
 
@@ -180,66 +203,42 @@ def test_candidate_frontend_artifact_rejects_missing_or_stale_marker(tmp_path):
     assert missing["ok"] is False
     assert missing["error"] == "artifact manifest missing"
 
-    (dist / ".umh-wave2-artifact.json").write_text(
-        json.dumps(
-            {
-                "candidate_sha": "d" * 40,
-                "source_head": "d" * 40,
-                "source_tree": "1" * 40,
-                **bytes_proof,
-            }
-        ),
-        encoding="utf-8",
-    )
+    _write_artifact_manifest(dispatch, dist, "d" * 40, bytes_proof)
     stale = dispatch._verify_candidate_frontend_artifact(dist, "c" * 40)
     assert stale["ok"] is False
     assert stale["error"] == "artifact candidate SHA mismatch"
 
-    (dist / ".umh-wave2-artifact.json").write_text(
-        json.dumps(
-            {
-                "candidate_sha": "c" * 40,
-                "source_head": "d" * 40,
-                "source_tree": "1" * 40,
-                **bytes_proof,
-            }
-        ),
-        encoding="utf-8",
-    )
+    _write_artifact_manifest(dispatch, dist, "c" * 40, bytes_proof, source_head="d" * 40)
     wrong_head = dispatch._verify_candidate_frontend_artifact(dist, "c" * 40)
     assert wrong_head["ok"] is False
     assert wrong_head["error"] == "artifact source HEAD mismatch"
 
-    (dist / ".umh-wave2-artifact.json").write_text(
-        json.dumps(
-            {
-                "candidate_sha": "c" * 40,
-                "source_head": "c" * 40,
-                **bytes_proof,
-            }
-        ),
-        encoding="utf-8",
-    )
+    _write_artifact_manifest(dispatch, dist, "c" * 40, bytes_proof, source_tree="")
     missing_tree = dispatch._verify_candidate_frontend_artifact(dist, "c" * 40)
     assert missing_tree["ok"] is False
     assert missing_tree["error"] == "artifact source tree missing"
+
+    _write_artifact_manifest(dispatch, dist, "c" * 40, bytes_proof, build_status="FAILED")
+    failed_build = dispatch._verify_candidate_frontend_artifact(dist, "c" * 40)
+    assert failed_build["ok"] is False
+    assert failed_build["error"] == "artifact build status is not SUCCEEDED"
+
+    manifest = _write_artifact_manifest(dispatch, dist, "c" * 40, bytes_proof)
+    manifest["candidate_sha"] = "f" * 40
+    (dist / ".umh-wave2-artifact.json").write_text(json.dumps(manifest), encoding="utf-8")
+    digest_tampered = dispatch._verify_candidate_frontend_artifact(dist, "c" * 40)
+    assert digest_tampered["ok"] is False
+    assert digest_tampered["error"] in {
+        "artifact candidate SHA mismatch",
+        "artifact manifest digest mismatch",
+    }
 
 
 def test_candidate_frontend_artifact_rejects_stale_served_bytes(tmp_path):
     dispatch = load_wave2_script("wave2_field_dispatch")
     dist = tmp_path / "dist-web"
     bytes_proof = _write_dist_web(dist, js_body="console.log('fresh')\n")
-    (dist / ".umh-wave2-artifact.json").write_text(
-        json.dumps(
-            {
-                "candidate_sha": "c" * 40,
-                "source_head": "c" * 40,
-                "source_tree": "1" * 40,
-                **bytes_proof,
-            }
-        ),
-        encoding="utf-8",
-    )
+    _write_artifact_manifest(dispatch, dist, "c" * 40, bytes_proof)
     (dist / "assets" / "main.js").write_text("console.log('stale')\n", encoding="utf-8")
 
     stale = dispatch._verify_candidate_frontend_artifact(dist, "c" * 40)

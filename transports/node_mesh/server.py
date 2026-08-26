@@ -1890,8 +1890,7 @@ class NodeMeshServer:
         from substrate.execution.mesh_verdict import (
             READ_ONLY_EFFECT,
             canonical_payload_digest,
-            normalize_effect_class,
-            sync_effect_allows_execution,
+            canonical_sync_effect_policy,
             verify_verdict,
         )
 
@@ -1920,12 +1919,21 @@ class NodeMeshServer:
         if not node_id or not capability:
             return {"ok": False, "error": "node_id and capability required"}
 
-        normalized_effect = normalize_effect_class(effect_class)
-        if not normalized_effect:
+        policy = canonical_sync_effect_policy(capability, declared_effect_class=effect_class)
+        declared_effect = policy.declared_effect_class
+        if not declared_effect:
             return {
                 "ok": False,
                 "error": "sync dispatch requires explicit known effect_class",
                 "status": "effect_class_required",
+            }
+        if declared_effect != policy.authoritative_effect_class:
+            return {
+                "ok": False,
+                "error": f"sync effect policy mismatch: {policy.reason}",
+                "status": "effect_policy_mismatch",
+                "authoritative_effect_class": policy.authoritative_effect_class,
+                "effect_policy": policy.policy_id,
             }
         if not request_id or not correlation_id or not idempotency_key:
             return {
@@ -1939,13 +1947,17 @@ class NodeMeshServer:
                 "error": "payload digest mismatch",
                 "status": "payload_digest_mismatch",
             }
-        if not sync_effect_allows_execution(normalized_effect, risk_class):
+        if not policy.sync_allowed:
             return {
                 "ok": False,
-                "error": "consequential or unknown-effect operations must use DurableRemote",
-                "status": "sync_write_denied",
+                "error": policy.reason,
+                "status": "sync_write_denied"
+                if policy.authoritative_effect_class
+                else "effect_policy_unavailable",
+                "authoritative_effect_class": policy.authoritative_effect_class,
+                "effect_policy": policy.policy_id,
             }
-        if normalized_effect != READ_ONLY_EFFECT:
+        if policy.authoritative_effect_class != READ_ONLY_EFFECT:
             return {
                 "ok": False,
                 "error": "sync dispatch is restricted to READ_ONLY effect_class",
@@ -1960,7 +1972,9 @@ class NodeMeshServer:
                 expected_request_id=request_id,
                 expected_correlation_id=correlation_id,
                 expected_candidate_sha=candidate_sha,
-                expected_effect_class=normalized_effect,
+                expected_effect_class=declared_effect,
+                expected_authoritative_effect_class=policy.authoritative_effect_class,
+                expected_effect_policy=policy.policy_id,
                 expected_payload_digest=expected_payload_digest if supplied_payload_digest else "",
                 expected_idempotency_key=idempotency_key,
             )
@@ -1992,7 +2006,9 @@ class NodeMeshServer:
                     "request_id": req_id,
                     "correlation_id": correlation_id,
                     "candidate_sha": candidate_sha,
-                    "effect_class": normalized_effect,
+                    "effect_class": declared_effect,
+                    "authoritative_effect_class": policy.authoritative_effect_class,
+                    "effect_policy": policy.policy_id,
                     "idempotency_key": idempotency_key,
                     "payload_digest": expected_payload_digest,
                     "capability_name": capability,
