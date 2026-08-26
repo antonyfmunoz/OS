@@ -682,6 +682,43 @@ def test_missing_admission_evidence_index_binding_blocks_single_file_mutation(tm
     assert index["payload_digest"] != mutated.payload_digest
 
 
+def test_admission_binding_blocks_mutation_when_index_missing(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    admitted = store.put_request(_request(idempotency_key="admission-binding-mutated"))
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+    mutated = DurableRemoteRequest.from_dict(admitted.to_dict())
+    mutated.params = {"command": "echo mutated", "timeout": 5}
+    mutated.payload_digest = ""
+    mutated.__post_init__()
+    (tmp_path / "requests" / f"{mutated.request_id}.json").write_text(
+        json.dumps(mutated.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    rejected = store.get_request(admitted.request_id)
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+
+
+def test_idempotency_index_write_rejects_same_request_material_drift(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    admitted = store.put_request(_request(idempotency_key="index-write-drift"))
+    mutated = DurableRemoteRequest.from_dict(admitted.to_dict())
+    mutated.params = {"command": "echo mutated", "timeout": 5}
+    mutated.payload_digest = ""
+    mutated.__post_init__()
+
+    with pytest.raises(ValueError, match="idempotency index binding drift"):
+        store._write_idempotency_index(mutated)
+
+    index = json.loads(store._idempotency_index_path("index-write-drift").read_text())
+    assert index["payload_digest"] == admitted.payload_digest
+    assert index["payload_digest"] != mutated.payload_digest
+
+
 def test_keyless_persisted_request_is_not_deliverable_claimable_or_runnable(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     keyless = _request(idempotency_key="")

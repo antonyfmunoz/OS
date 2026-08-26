@@ -963,9 +963,7 @@ class DurableRemoteStore:
                 return True
             try:
                 recovered = self._find_request_by_idempotency_key_locked(req.idempotency_key)
-            except ValueError as exc:
-                if "ambiguous idempotency recovery" not in str(exc):
-                    raise
+            except ValueError:
                 return False
             if recovered is None:
                 return True
