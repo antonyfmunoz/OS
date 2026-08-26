@@ -958,6 +958,58 @@ def test_canonical_claim_state_http_auth_binds_node_token_to_node_id(tmp_path):
     assert response["authority_source"] == "vps_canonical_durable_store"
 
 
+def test_canonical_claim_state_rejects_noncanonical_duplicate_request(tmp_path):
+    s = _server()
+    s._durable_store = DurableRemoteStore(tmp_path)
+    original = make_request(
+        correlation_id="claim-state-canonical",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        idempotency_key="claim-state-duplicate",
+        ttl_seconds=60,
+    )
+    s._durable_store.put_request(original)
+    duplicate = make_request(
+        correlation_id="claim-state-duplicate",
+        candidate_sha="sha",
+        node_id="n1",
+        operation_type="unit",
+        capability="shell",
+        params={"command": "hostname"},
+        idempotency_key="claim-state-duplicate",
+        ttl_seconds=60,
+    )
+    duplicate.lifecycle_state = "CLAIMED"
+    duplicate.claim_id = "stale-claim"
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    response = s._canonical_durable_claim_state(
+        "n1",
+        {
+            "request_id": duplicate.request_id,
+            "correlation_id": duplicate.correlation_id,
+            "candidate_sha": duplicate.candidate_sha,
+            "node_id": "n1",
+            "claim_id": duplicate.claim_id,
+            "state": "CLAIMED",
+        },
+    )
+
+    assert response["ok"] is False
+    assert response["accepted"] is False
+    assert response["error"] == "request is not canonical for idempotency"
+    quarantined = s._durable_store.get_request(duplicate.request_id)
+    assert quarantined is not None
+    assert quarantined.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert quarantined.claim_id == ""
+
+
 async def _canonical_claim_state_http_relay_reads_store(tmp_path, monkeypatch) -> dict:
     monkeypatch.setenv("UMH_MESH_RELAY_BIND", "127.0.0.1")
     s = _server()

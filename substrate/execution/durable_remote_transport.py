@@ -495,6 +495,10 @@ class DurableRemoteStore:
             )
             if current.lifecycle_state in {"QUEUED", "DELIVERED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"}:
                 current.lifecycle_state = "RECONCILIATION_REQUIRED"
+                current.claim_id = ""
+                current.claimed_at = 0.0
+                current.lease_expires_at = 0.0
+                current.process_tree = {}
                 current.diagnostics.setdefault("reconciliation_reasons", []).append(
                     "duplicate_idempotency_noncanonical"
                 )
@@ -531,6 +535,10 @@ class DurableRemoteStore:
         )
         if req.lifecycle_state in {"QUEUED", "DELIVERED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"}:
             req.lifecycle_state = "RECONCILIATION_REQUIRED"
+            req.claim_id = ""
+            req.claimed_at = 0.0
+            req.lease_expires_at = 0.0
+            req.process_tree = {}
             req.diagnostics.setdefault("reconciliation_reasons", []).append(
                 "duplicate_idempotency_noncanonical"
             )
@@ -660,6 +668,10 @@ class DurableRemoteStore:
                 self._write_idempotency_index(current)
             return recovered.request_id == req.request_id
 
+    def is_canonical_request(self, req: DurableRemoteRequest) -> bool:
+        """Return whether ``req`` is the canonical request for its logical key."""
+        return self._request_is_canonical_for_idempotency(req)
+
     def _record_idempotent_replay_locked(
         self,
         existing: DurableRemoteRequest,
@@ -783,6 +795,9 @@ class DurableRemoteStore:
         with self._request_lock(request.request_id):
             current = self._get_request_raw(request.request_id)
             self._canonicalize_request_payload_identity(request)
+            request.idempotency_key = _normalized_idempotency_key(request.idempotency_key)
+            if not request.idempotency_key:
+                raise ValueError("consequential durable request requires idempotency_key")
             noncanonical_probe = current or request
             self._canonicalize_request_payload_identity(noncanonical_probe)
             noncanonical = self._reject_noncanonical_update_locked(
@@ -791,6 +806,8 @@ class DurableRemoteStore:
             )
             if noncanonical is not None:
                 return
+            if current is None:
+                raise KeyError(request.request_id)
             if current is not None:
                 self._canonicalize_request_payload_identity(current)
                 mismatched_identity = self._immutable_request_mutation_fields(current, request)

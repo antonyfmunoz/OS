@@ -1310,6 +1310,9 @@ class NodeMeshServer:
         if req.node_id != node_id:
             result["error"] = "request not found for node"
             return result
+        if not self._durable_store.is_canonical_request(req):
+            result["error"] = "request is not canonical for idempotency"
+            return result
         result.update(
             {
                 "request_id": req.request_id,

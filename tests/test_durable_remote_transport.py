@@ -428,6 +428,30 @@ def test_update_request_rejects_noncanonical_duplicate_before_lifecycle_write(tm
     assert index["canonical_request_id"] == original.request_id
 
 
+def test_update_request_missing_idempotency_key_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    request = _request(idempotency_key="")
+    request.idempotency_key = ""
+
+    with pytest.raises(ValueError, match="requires idempotency_key"):
+        store.update_request(request, "FORGED_UPDATE_WITHOUT_KEY")
+
+    assert store.get_request(request.request_id) is None
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
+def test_update_request_cannot_first_admit_with_idempotency_key(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    request = _request(idempotency_key="update-first-admission")
+
+    with pytest.raises(KeyError):
+        store.update_request(request, "FORGED_FIRST_ADMISSION")
+
+    assert store.get_request(request.request_id) is None
+    assert store.deliverable_for_node("windows-desktop") == []
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+
 def test_update_request_cannot_admit_duplicate_when_index_missing(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     original = store.put_request(_request(idempotency_key="update-missing-index"))
@@ -437,12 +461,16 @@ def test_update_request_cannot_admit_duplicate_when_index_missing(tmp_path) -> N
         path.unlink()
     duplicate = _request(idempotency_key="update-missing-index")
     duplicate.lifecycle_state = "QUEUED"
+    duplicate.claim_id = "evil-claim"
+    duplicate.process_tree = {"root_pid": 99999}
 
     store.update_request(duplicate, "FORGED_UPDATE_ADMISSION")
 
     rejected = store.get_request(duplicate.request_id)
     assert rejected is not None
     assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+    assert rejected.process_tree == {}
     assert rejected.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
         original.request_id
     )
