@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 from uuid import uuid4
 
@@ -177,6 +178,20 @@ def test_concurrent_same_key_admission_creates_one_canonical_request(tmp_path) -
 
     assert len(set(request_ids)) == 1
     assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+def test_live_idempotency_lock_is_not_stolen_by_age(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    lock_path = store._idempotency_lock_path("live-holder-key")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text(f"{os.getpid()} 1.0\n", encoding="ascii")
+    os.utime(lock_path, (1.0, 1.0))
+
+    with pytest.raises(TimeoutError, match="idempotency"):
+        with store._idempotency_lock("live-holder-key", timeout_s=0.01):
+            raise AssertionError("live idempotency lock was stolen")
+
+    assert lock_path.exists()
 
 
 @pytest.mark.parametrize("state", ["RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"])

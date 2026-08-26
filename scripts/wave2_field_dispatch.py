@@ -2913,6 +2913,7 @@ def _mesh_read(
     max_len: int = 400,
     command_timeout: int = 60,
     dispatch_timeout: int = 90,
+    correlation_id: str = "",
 ) -> dict[str, Any]:
     """Read-only shell command over the governed mesh.
 
@@ -2937,6 +2938,7 @@ def _mesh_read(
         command_timeout=command_timeout,
         dispatch_timeout=dispatch_timeout,
         operation_type="wave2_read",
+        correlation_id=correlation_id or f"wave2-read-{uuid4().hex}",
     )
 
 
@@ -2974,6 +2976,7 @@ def _preflight_observation_read(
             max_len=max_len,
             command_timeout=command_timeout,
             dispatch_timeout=dispatch_timeout,
+            correlation_id=f"{gate}-attempt-{attempt}-{uuid4().hex}",
         )
         attempts.append(
             {
@@ -3928,7 +3931,12 @@ def _poll_status(
     consecutive_mesh_failures = 0
     while time.time() < deadline:
         # status.json is structured JSON — read it untruncated (64 KiB is ample).
-        res = _mesh_read(runner, read_cmd, max_len=65536)
+        res = _mesh_read(
+            runner,
+            read_cmd,
+            max_len=65536,
+            correlation_id=f"poll-status-{run_id}-p{pass_num}-{uuid4().hex}",
+        )
         if runner.dry_run:
             print(f"[dry-run] poll (every 30s, up to {timeout_min}m): mesh read {status_path}")
             return {"dry_run": True, "status_path": status_path}
@@ -4558,6 +4566,7 @@ def _mesh_read_fast(runner: Runner, command: str, *, max_len: int = 65536) -> di
         command_timeout=10,
         dispatch_timeout=15,
         operation_type="wave2_fast_read",
+        correlation_id=f"wave2-fast-read-{uuid4().hex}",
     )
 
 

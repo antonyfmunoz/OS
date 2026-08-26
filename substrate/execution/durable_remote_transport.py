@@ -327,8 +327,34 @@ class DurableRemoteStore:
             / f"idempotency-{hashlib.sha256(idempotency_key.encode()).hexdigest()}.lock"
         )
 
+    def _lock_owner_pid(self, lock_path: Path) -> int | None:
+        try:
+            raw = lock_path.read_text(encoding="ascii").split(maxsplit=1)[0]
+            pid = int(raw)
+        except (FileNotFoundError, IndexError, UnicodeDecodeError, ValueError):
+            return None
+        return pid if pid > 0 else None
+
+    def _lock_owner_alive(self, pid: int | None) -> bool:
+        if pid is None:
+            return True
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
+
     @contextmanager
-    def _file_lock(self, lock_path: Path, *, label: str, timeout_s: float = 10.0) -> Iterator[None]:
+    def _file_lock(
+        self,
+        lock_path: Path,
+        *,
+        label: str,
+        timeout_s: float = 10.0,
+        break_stale_owner: bool = True,
+    ) -> Iterator[None]:
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         deadline = now_s() + timeout_s
         fd: int | None = None
@@ -338,7 +364,10 @@ class DurableRemoteStore:
                 os.write(fd, f"{os.getpid()} {now_s()}\n".encode("ascii"))
             except FileExistsError:
                 try:
-                    if now_s() - lock_path.stat().st_mtime > timeout_s:
+                    owner_pid = self._lock_owner_pid(lock_path)
+                    owner_alive = self._lock_owner_alive(owner_pid)
+                    is_old = now_s() - lock_path.stat().st_mtime > timeout_s
+                    if not owner_alive or (break_stale_owner and owner_pid is None and is_old):
                         lock_path.unlink()
                         continue
                 except FileNotFoundError:
@@ -373,6 +402,7 @@ class DurableRemoteStore:
             self._idempotency_lock_path(idempotency_key),
             label=f"idempotency:{hashlib.sha256(idempotency_key.encode()).hexdigest()}",
             timeout_s=timeout_s,
+            break_stale_owner=False,
         ):
             yield
 

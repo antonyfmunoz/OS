@@ -86,8 +86,10 @@ def test_mesh_read_submits_durable_request_with_signed_shell_shape(monkeypatch) 
             "command_timeout": 12,
             "dispatch_timeout": 34,
             "operation_type": "wave2_read",
+            "correlation_id": calls[0]["correlation_id"],
         }
     ]
+    assert str(calls[0]["correlation_id"]).startswith("wave2-read-")
 
 
 def test_candidate_frontend_artifact_build_failure_refuses_stale_dist(monkeypatch, tmp_path):
@@ -1174,12 +1176,14 @@ def test_fast_read_uses_durable_request_not_synchronous_mesh(monkeypatch) -> Non
     assert calls[0]["operation_type"] == "wave2_fast_read"
     assert calls[0]["command_timeout"] == 10
     assert calls[0]["dispatch_timeout"] == 15
+    assert str(calls[0]["correlation_id"]).startswith("wave2-fast-read-")
 
 
 def test_preflight_observation_retries_only_unclaimed_cancellation(monkeypatch) -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
     calls: list[str] = []
+    correlations: list[str] = []
     responses = iter(
         [
             {
@@ -1199,8 +1203,9 @@ def test_preflight_observation_retries_only_unclaimed_cancellation(monkeypatch) 
         ]
     )
 
-    def fake_mesh(_runner, command, **_kwargs):  # noqa: ANN001
+    def fake_mesh(_runner, command, **kwargs):  # noqa: ANN001
         calls.append(command)
+        correlations.append(str(kwargs.get("correlation_id", "")))
         return next(responses)
 
     monkeypatch.setattr(dispatch, "_mesh_read", fake_mesh)
@@ -1215,6 +1220,8 @@ def test_preflight_observation_retries_only_unclaimed_cancellation(monkeypatch) 
     assert out["preclaim_retry_exhausted"] is False
     assert [attempt["request_id"] for attempt in out["attempts"]] == ["drc-first", "drc-second"]
     assert calls == ["schtasks /query", "schtasks /query"]
+    assert len(set(correlations)) == 2
+    assert all(item.startswith("schtasks_query-attempt-") for item in correlations)
 
 
 def test_preflight_observation_does_not_retry_claimed_or_ambiguous_failure(monkeypatch) -> None:
@@ -1438,6 +1445,61 @@ def test_durable_remote_shell_omits_empty_cwd_for_default_shell_requests(
     assert req.params["command"] == "hostname"
     assert req.params["argv"] == []
     assert req.params["cwd"] is None
+
+
+def test_mesh_read_identical_command_uses_fresh_observation_identity(
+    monkeypatch, tmp_path
+) -> None:
+    dispatch = load_wave2_script("wave2_field_dispatch")
+    store = DurableRemoteStore(tmp_path)
+    runner = dispatch.Runner(dry_run=False)
+
+    monkeypatch.setenv("UMH_DURABLE_REMOTE_ROOT", str(tmp_path))
+    monkeypatch.setattr(dispatch, "_ensure_mesh_secrets", lambda: None)
+    monkeypatch.setattr(dispatch, "_candidate_sha", lambda _default: "sha")
+    monkeypatch.setattr(dispatch, "_MESH_NODE_ID", "windows-desktop")
+
+    import substrate.execution.durable_remote_transport as durable
+    import substrate.execution.mesh_verdict as mesh_verdict
+
+    monkeypatch.setattr(mesh_verdict, "get_verdict_secret", lambda: "present")
+    monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
+    monkeypatch.setattr(durable, "DurableRemoteStore", lambda: store)
+    monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
+    ticks = chain([100.0] * 20, [101.0] * 20, [102.0] * 20, repeat(103.0))
+    monkeypatch.setattr(dispatch.time, "time", lambda: next(ticks))
+
+    original_put = store.put_request
+
+    def put_and_succeed(req):
+        admitted = original_put(req)
+        if admitted.request_id == req.request_id:
+            store.mark_claimed(admitted.request_id, claim_id="claim-1")
+            store.mark_running(admitted.request_id, claim_id="claim-1")
+            store.publish_result(
+                admitted.request_id,
+                claim_id="claim-1",
+                state="SUCCEEDED",
+                result={
+                    "success": True,
+                    "stdout": admitted.request_id,
+                    "stderr": "",
+                    "exit_code": 0,
+                },
+                cleanup={"process_residue": []},
+            )
+        return admitted
+
+    monkeypatch.setattr(store, "put_request", put_and_succeed)
+
+    first = dispatch._mesh_read(runner, "type status.json", max_len=65536)
+    second = dispatch._mesh_read(runner, "type status.json", max_len=65536)
+
+    assert first["ok"] is True
+    assert second["ok"] is True
+    assert first["request_id"] != second["request_id"]
+    assert first["stdout"] != second["stdout"]
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 2
 
 
 def test_durable_remote_shell_replay_uses_canonical_admitted_request(
