@@ -581,6 +581,85 @@ def test_wrong_idempotency_index_cannot_claim_forged_earlier_duplicate(tmp_path)
     )
 
 
+def test_missing_admission_evidence_wrong_index_duplicate_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="missing-admission-wrong-index"))
+    duplicate = _request(idempotency_key="missing-admission-wrong-index")
+    duplicate.created_at = original.created_at - 1.0
+    duplicate.lifecycle_state = "SUCCEEDED"
+    duplicate.claim_id = "forged-terminal-claim"
+    duplicate.lease_expires_at = 999.0
+    duplicate.process_tree = {"root_pid": 99999}
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    store.events_path.write_text("", encoding="utf-8")
+    index_path = store._idempotency_index_path("missing-admission-wrong-index")
+    index_path.write_text(json.dumps(store._idempotency_binding(duplicate)), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="ambiguous idempotency recovery"):
+        store.put_request(_request(idempotency_key="missing-admission-wrong-index"))
+
+    stored_original = store.get_request(original.request_id)
+    stored_duplicate = store.get_request(duplicate.request_id)
+    assert stored_original is not None
+    assert stored_duplicate is not None
+    assert stored_original.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert stored_duplicate.lifecycle_state == "SUCCEEDED"
+    assert stored_duplicate.claim_id == ""
+    assert stored_duplicate.lease_expires_at == 0.0
+    assert stored_duplicate.process_tree == {}
+    assert stored_duplicate.diagnostics["ambiguous_idempotency_recovery"]["request_ids"] == sorted(
+        [original.request_id, duplicate.request_id]
+    )
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
+def test_mutated_canonical_request_file_cannot_change_admitted_payload(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    admitted = store.put_request(_request(idempotency_key="mutated-canonical-payload"))
+    mutated = DurableRemoteRequest.from_dict(admitted.to_dict())
+    mutated.params = {"command": "echo mutated", "timeout": 5}
+    mutated.payload_digest = ""
+    mutated.__post_init__()
+    (tmp_path / "requests" / f"{mutated.request_id}.json").write_text(
+        json.dumps(mutated.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    rejected = store.get_request(admitted.request_id)
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.diagnostics["ambiguous_idempotency_recovery"]["request_ids"] == [
+        admitted.request_id
+    ]
+    index = json.loads(store._idempotency_index_path("mutated-canonical-payload").read_text())
+    assert index["payload_digest"] == admitted.payload_digest
+
+
+def test_mutated_canonical_request_file_cannot_claim_or_rewrite_index(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    admitted = store.put_request(_request(idempotency_key="mutated-canonical-claim"))
+    mutated = DurableRemoteRequest.from_dict(admitted.to_dict())
+    mutated.params = {"command": "echo mutated", "timeout": 5}
+    mutated.payload_digest = ""
+    mutated.__post_init__()
+    (tmp_path / "requests" / f"{mutated.request_id}.json").write_text(
+        json.dumps(mutated.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    claimed = store.mark_claimed(mutated.request_id, claim_id="forged-claim")
+
+    assert claimed.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert claimed.claim_id == ""
+    index = json.loads(store._idempotency_index_path("mutated-canonical-claim").read_text())
+    assert index["payload_digest"] == admitted.payload_digest
+    assert index["payload_digest"] != mutated.payload_digest
+
+
 def test_keyless_persisted_request_is_not_deliverable_claimable_or_runnable(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     keyless = _request(idempotency_key="")
