@@ -38,8 +38,10 @@ class SimState:
     payload_for_key: dict[str, str] = field(default_factory=dict)
     execution_for_key: dict[str, int] = field(default_factory=dict)
     persisted_request_key: dict[str, str] = field(default_factory=dict)
+    persisted_request_order: dict[str, int] = field(default_factory=dict)
     deliverable_requests: set[str] = field(default_factory=set)
     idempotency_conflict: bool = False
+    next_request_order: int = 0
     log: list[str] = field(default_factory=list)
 
     def record(self, event: str) -> None:
@@ -67,9 +69,52 @@ class SimState:
             assert self.canonical_request_for_key.get(key), self.log
             assert execution_count <= 1, self.log
         for request_id, key in self.persisted_request_key.items():
+            if not key.strip():
+                assert request_id not in self.deliverable_requests, self.log
+                continue
             canonical = self.canonical_request_for_key.get(key)
             if canonical and canonical != request_id:
                 assert request_id not in self.deliverable_requests, self.log
+
+
+def persist_request_file(state: SimState, *, request_id: str, idempotency_key: str) -> None:
+    state.persisted_request_key[request_id] = idempotency_key
+    if request_id not in state.persisted_request_order:
+        state.next_request_order += 1
+        state.persisted_request_order[request_id] = state.next_request_order
+
+
+def requests_for_key_in_admission_order(state: SimState, idempotency_key: str) -> list[str]:
+    return sorted(
+        (
+            request_id
+            for request_id, key in state.persisted_request_key.items()
+            if key == idempotency_key
+        ),
+        key=lambda request_id: (state.persisted_request_order.get(request_id, 0), request_id),
+    )
+
+
+def fail_closed_ambiguous_idempotency(state: SimState, idempotency_key: str) -> None:
+    state.idempotency_conflict = True
+    state.fail_closed = True
+    for request_id in requests_for_key_in_admission_order(state, idempotency_key):
+        state.deliverable_requests.discard(request_id)
+
+
+def validate_idempotency_index(state: SimState, idempotency_key: str) -> bool:
+    canonical = state.canonical_request_for_key.get(idempotency_key)
+    if not canonical:
+        return True
+    matches = requests_for_key_in_admission_order(state, idempotency_key)
+    if matches and matches[0] != canonical:
+        state.record(
+            f"idempotency_index_conflict:key={idempotency_key}:canonical={canonical}:first={matches[0]}"
+        )
+        fail_closed_ambiguous_idempotency(state, idempotency_key)
+        state.assert_invariants()
+        return False
+    return True
 
 
 def admit_durable_request(
@@ -92,10 +137,12 @@ def admit_durable_request(
         state.canonical_request_for_key[idempotency_key] = request_id
         state.payload_for_key[idempotency_key] = payload_identity
         state.execution_for_key.setdefault(idempotency_key, 0)
-        state.persisted_request_key[request_id] = idempotency_key
+        persist_request_file(state, request_id=request_id, idempotency_key=idempotency_key)
         state.deliverable_requests.add(request_id)
         state.assert_invariants()
         return request_id
+    if not validate_idempotency_index(state, idempotency_key):
+        return None
     if canonical not in state.persisted_request_key:
         state.fail_closed = True
         state.assert_invariants()
@@ -114,7 +161,7 @@ def inject_duplicate_request_file(
     state: SimState, *, request_id: str, idempotency_key: str
 ) -> None:
     state.record(f"inject_duplicate_file:request={request_id}:key={idempotency_key}")
-    state.persisted_request_key[request_id] = idempotency_key
+    persist_request_file(state, request_id=request_id, idempotency_key=idempotency_key)
     state.deliverable_requests.add(request_id)
 
 
@@ -127,11 +174,7 @@ def quarantine_duplicate_request_files(state: SimState, idempotency_key: str) ->
 
 
 def recover_missing_idempotency_index(state: SimState, idempotency_key: str) -> str | None:
-    matches = sorted(
-        request_id
-        for request_id, key in state.persisted_request_key.items()
-        if key == idempotency_key
-    )
+    matches = requests_for_key_in_admission_order(state, idempotency_key)
     state.record(f"recover_missing_index:key={idempotency_key}:matches={','.join(matches)}")
     if len(matches) == 1:
         state.canonical_request_for_key[idempotency_key] = matches[0]
@@ -156,17 +199,35 @@ def public_update_request(
     idempotency_key: str,
 ) -> None:
     state.record(f"public_update:request={request_id}:key={idempotency_key}")
-    canonical = state.canonical_request_for_key.get(idempotency_key)
-    if not canonical:
-        canonical = recover_missing_idempotency_index(state, idempotency_key)
-    if canonical and canonical != request_id:
-        state.persisted_request_key[request_id] = idempotency_key
+    if not idempotency_key.strip():
+        persist_request_file(state, request_id=request_id, idempotency_key=idempotency_key)
         state.deliverable_requests.discard(request_id)
         state.fail_closed = True
         state.assert_invariants()
         return
-    state.persisted_request_key[request_id] = idempotency_key
+    canonical = state.canonical_request_for_key.get(idempotency_key)
+    if not canonical:
+        canonical = recover_missing_idempotency_index(state, idempotency_key)
+    if canonical and canonical != request_id:
+        persist_request_file(state, request_id=request_id, idempotency_key=idempotency_key)
+        state.deliverable_requests.discard(request_id)
+        state.fail_closed = True
+        state.assert_invariants()
+        return
+    persist_request_file(state, request_id=request_id, idempotency_key=idempotency_key)
     state.deliverable_requests.add(request_id)
+    state.assert_invariants()
+
+
+def scan_deliverable_requests(state: SimState) -> None:
+    state.record("scan_deliverable_requests")
+    for request_id, key in list(state.persisted_request_key.items()):
+        if not key.strip():
+            state.record(f"keyless_request_rejected:{request_id}")
+            state.deliverable_requests.discard(request_id)
+            state.fail_closed = True
+            continue
+        validate_idempotency_index(state, key)
     state.assert_invariants()
 
 
@@ -553,6 +614,25 @@ def _public_update_missing_index_duplicate_cannot_take_over(state: SimState) -> 
     assert state.fail_closed, state.log
 
 
+def _wrong_index_existing_duplicate_fails_closed(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    inject_duplicate_request_file(state, request_id="B", idempotency_key="K")
+    state.canonical_request_for_key["K"] = "B"
+    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") is None
+    assert state.fail_closed, state.log
+    assert state.idempotency_conflict, state.log
+    assert "A" not in state.deliverable_requests, state.log
+    assert "B" not in state.deliverable_requests, state.log
+
+
+def _keyless_persisted_request_file_not_deliverable(state: SimState) -> None:
+    inject_duplicate_request_file(state, request_id="A", idempotency_key="")
+    assert "A" in state.deliverable_requests, state.log
+    scan_deliverable_requests(state)
+    assert "A" not in state.deliverable_requests, state.log
+    assert state.fail_closed, state.log
+
+
 def _adapter_retry_preserves_stable_key(state: SimState) -> None:
     first = admit_durable_request(state, request_id="A", idempotency_key="adapter:stable", payload_identity="P")
     retry = admit_durable_request(state, request_id="B", idempotency_key="adapter:stable", payload_identity="P")
@@ -605,6 +685,12 @@ SCENARIOS: dict[str, Scenario] = {
     ),
     "idempotency_public_update_missing_index_duplicate_denied": (
         _public_update_missing_index_duplicate_cannot_take_over
+    ),
+    "idempotency_wrong_index_existing_duplicate_fails_closed": (
+        _wrong_index_existing_duplicate_fails_closed
+    ),
+    "idempotency_keyless_persisted_request_file_not_deliverable": (
+        _keyless_persisted_request_file_not_deliverable
     ),
     "idempotency_adapter_retry_preserves_key": _adapter_retry_preserves_stable_key,
 }
