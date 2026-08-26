@@ -783,6 +783,12 @@ class DurableRemoteStore:
             if current is not None:
                 self._canonicalize_request_payload_identity(current)
                 self._canonicalize_request_payload_identity(request)
+                noncanonical = self._reject_noncanonical_update_locked(
+                    current,
+                    event=event or "UPDATE_REQUEST",
+                )
+                if noncanonical is not None:
+                    return
                 mismatched_identity = self._immutable_request_mutation_fields(current, request)
                 if mismatched_identity:
                     current.diagnostics.setdefault("identity_mutation_rejected", []).append(

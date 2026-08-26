@@ -393,6 +393,41 @@ def test_noncanonical_duplicate_cannot_mutate_lifecycle_or_index(tmp_path) -> No
     assert index["canonical_request_id"] == original.request_id
 
 
+def test_update_request_rejects_noncanonical_duplicate_before_lifecycle_write(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="stale-update-duplicate"))
+    duplicate = _request(idempotency_key="stale-update-duplicate")
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    forged = DurableRemoteRequest.from_dict(duplicate.to_dict())
+    forged.lifecycle_state = "RUNNING"
+    forged.claim_id = "evil-claim"
+    forged.process_tree = {"root_pid": 99999}
+
+    store.update_request(forged, "FORGED_DUPLICATE_RUNNING")
+
+    rejected = store.get_request(duplicate.request_id)
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+    assert rejected.process_tree == {}
+    assert rejected.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+    assert rejected.diagnostics["noncanonical_event_rejected"][-1]["event"] == (
+        "FORGED_DUPLICATE_RUNNING"
+    )
+    stored_original = store.get_request(original.request_id)
+    assert stored_original is not None
+    assert stored_original.lifecycle_state == "QUEUED"
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+
+
 def test_noncanonical_duplicate_claim_is_rejected_without_prior_diagnostic(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     original = store.put_request(_request(idempotency_key="direct-stale-claim"))
