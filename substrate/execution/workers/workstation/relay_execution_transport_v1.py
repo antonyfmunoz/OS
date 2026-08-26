@@ -12,16 +12,17 @@ UMH substrate subsystem.
 """
 
 from __future__ import annotations
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
-import os
 import json
+import os
 import subprocess
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from substrate.execution.cpu_gate import gated_subprocess_run
 
 SSH_HOST = os.getenv("EOS_LOCAL_BRIDGE_IP", "")
 SSH_USER = os.getenv("EOS_LOCAL_BRIDGE_USER", "")
@@ -34,6 +35,10 @@ RELAY_OUTBOX_WSL = f"{RELAY_DIR_WSL}/outbox"
 
 TRANSPORT_TIMEOUT_SECONDS = 120
 TRANSPORT_POLL_INTERVAL = 3
+SYNC_RELAY_DISABLED_ERROR = (
+    "legacy workstation relay execution is disabled; consequential workstation work "
+    "requires DurableRemote idempotent execution"
+)
 
 
 def _now_iso() -> str:
@@ -197,7 +202,7 @@ def poll_relay_result(
             try:
                 return json.loads(out)
             except json.JSONDecodeError:
-                _log(f"result file exists but not valid JSON yet")
+                _log("result file exists but not valid JSON yet")
 
         poll_count += 1
         if poll_count % 5 == 0:
@@ -212,51 +217,10 @@ def send_and_wait(
     request: dict[str, Any],
     timeout_seconds: int = TRANSPORT_TIMEOUT_SECONDS,
 ) -> RelayTransportResult:
-    import time
-
-    start = time.time()
     result = RelayTransportResult(request_id=request.get("request_id", ""))
-
-    ssh_ok, ssh_reason = check_ssh_reachable()
-    result.ssh_reachable = ssh_ok
-    if not ssh_ok:
-        result.status = "ssh_unreachable"
-        result.transport_error = f"SSH failed: {ssh_reason}"
-        result.elapsed_seconds = time.time() - start
-        _log(f"transport failed: SSH unreachable ({ssh_reason})")
-        return result
-
-    written, write_info = write_request_via_scp(request)
-    result.inbox_written = written
-    if not written:
-        result.status = "write_failed"
-        result.transport_error = f"inbox write failed: {write_info}"
-        result.elapsed_seconds = time.time() - start
-        _log(f"transport failed: could not write to inbox ({write_info})")
-        return result
-
-    request_id = request.get("request_id", write_info)
-    result.request_id = request_id
-
-    relay_result = poll_relay_result(
-        request_id,
-        timeout_seconds=timeout_seconds,
-    )
-    result.elapsed_seconds = time.time() - start
-
-    if relay_result is None:
-        result.status = "timeout"
-        result.transport_error = f"no result within {timeout_seconds}s"
-        _log(f"transport timeout: relay did not respond in {timeout_seconds}s")
-        return result
-
-    result.status = "completed"
-    result.relay_result = relay_result
-    result.result_received = True
-    _log(
-        f"transport completed: adapter_status={relay_result.get('adapter_status')} "
-        f"elapsed={result.elapsed_seconds:.1f}s"
-    )
+    result.status = "durable_remote_required"
+    result.transport_error = SYNC_RELAY_DISABLED_ERROR
+    _log(f"transport failed closed: {SYNC_RELAY_DISABLED_ERROR}")
     return result
 
 

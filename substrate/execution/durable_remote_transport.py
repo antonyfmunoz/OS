@@ -80,33 +80,6 @@ def _normalized_idempotency_key(value: str) -> str:
     return str(value or "").strip()
 
 
-def _derive_idempotency_key(
-    *,
-    correlation_id: str,
-    candidate_sha: str,
-    node_id: str,
-    operation_type: str,
-    capability: str,
-    risk_class: str,
-    authority_id: str,
-    payload_digest: str,
-) -> str:
-    digest = sha256_json(
-        {
-            "version": 1,
-            "correlation_id": correlation_id,
-            "candidate_sha": candidate_sha,
-            "node_id": node_id,
-            "operation_type": operation_type,
-            "capability": capability,
-            "risk_class": risk_class,
-            "authority_id": authority_id,
-            "payload_digest": payload_digest,
-        }
-    )
-    return f"durable:{digest}"
-
-
 def _logical_payload_params(params: dict[str, Any]) -> dict[str, Any]:
     logical_params = dict(params)
     logical_params.pop("governance_verdict_id", None)
@@ -591,7 +564,12 @@ class DurableRemoteStore:
                 if candidate.idempotency_key == req.idempotency_key:
                     matches.append(candidate)
             if matches:
-                matches.sort(key=lambda candidate: (candidate.created_at, candidate.request_id))
+                if len(matches) > 1:
+                    return self._mark_noncanonical_request_locked(
+                        req,
+                        canonical_request_id="ambiguous_idempotency_recovery",
+                        event=event,
+                    )
                 canonical_request_id = matches[0].request_id
         if canonical_request_id and canonical_request_id != req.request_id:
             return self._mark_noncanonical_request_locked(
@@ -614,20 +592,24 @@ class DurableRemoteStore:
                 matches.append(req)
         if not matches:
             return None
-        matches.sort(key=lambda req: (req.created_at, req.request_id))
-        canonical = matches[0]
         if len(matches) > 1:
-            canonical.diagnostics.setdefault("idempotency_duplicate_legacy_records", []).append(
-                {
-                    "request_ids": [req.request_id for req in matches[1:]],
-                    "detected_at": now_s(),
-                }
-            )
-            for duplicate in matches[1:]:
-                self._quarantine_duplicate_idempotency_record_locked(
-                    duplicate,
-                    canonical_request_id=canonical.request_id,
+            detected_at = now_s()
+            request_ids = sorted(req.request_id for req in matches)
+            for duplicate in matches:
+                duplicate.diagnostics.setdefault(
+                    "ambiguous_idempotency_recovery",
+                    {
+                        "request_ids": request_ids,
+                        "detected_at": detected_at,
+                    },
                 )
+                self._mark_noncanonical_request_locked(
+                    duplicate,
+                    canonical_request_id="ambiguous_idempotency_recovery",
+                    event="AMBIGUOUS_IDEMPOTENCY_RECOVERY_REJECTED",
+                )
+            raise ValueError("ambiguous idempotency recovery: multiple request records")
+        canonical = matches[0]
         return canonical
 
     def _quarantine_noncanonical_idempotency_records_locked(
@@ -663,7 +645,12 @@ class DurableRemoteStore:
                     )
                     return False
                 return True
-            recovered = self._find_request_by_idempotency_key_locked(req.idempotency_key)
+            try:
+                recovered = self._find_request_by_idempotency_key_locked(req.idempotency_key)
+            except ValueError as exc:
+                if "ambiguous idempotency recovery" not in str(exc):
+                    raise
+                return False
             if recovered is None:
                 return True
             with self._request_lock(recovered.request_id):

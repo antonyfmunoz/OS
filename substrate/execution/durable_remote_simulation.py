@@ -126,6 +126,29 @@ def quarantine_duplicate_request_files(state: SimState, idempotency_key: str) ->
             state.deliverable_requests.discard(request_id)
 
 
+def recover_missing_idempotency_index(state: SimState, idempotency_key: str) -> str | None:
+    matches = sorted(
+        request_id
+        for request_id, key in state.persisted_request_key.items()
+        if key == idempotency_key
+    )
+    state.record(f"recover_missing_index:key={idempotency_key}:matches={','.join(matches)}")
+    if len(matches) == 1:
+        state.canonical_request_for_key[idempotency_key] = matches[0]
+        state.execution_for_key.setdefault(idempotency_key, 0)
+        state.assert_invariants()
+        return matches[0]
+    if len(matches) > 1:
+        state.idempotency_conflict = True
+        state.fail_closed = True
+        for request_id in matches:
+            state.deliverable_requests.discard(request_id)
+        state.assert_invariants()
+        return None
+    state.assert_invariants()
+    return None
+
+
 def sync_mesh_receive(
     state: SimState,
     declared_effect: str,
@@ -490,6 +513,15 @@ def _partial_persistence_reconciliation_prevents_fork(state: SimState) -> None:
     assert state.fail_closed
 
 
+def _missing_index_ambiguous_duplicate_files_fail_closed(state: SimState) -> None:
+    inject_duplicate_request_file(state, request_id="A", idempotency_key="K")
+    inject_duplicate_request_file(state, request_id="B", idempotency_key="K")
+    assert recover_missing_idempotency_index(state, "K") is None
+    assert state.idempotency_conflict, state.log
+    assert "A" not in state.deliverable_requests, state.log
+    assert "B" not in state.deliverable_requests, state.log
+
+
 def _adapter_retry_preserves_stable_key(state: SimState) -> None:
     first = admit_durable_request(state, request_id="A", idempotency_key="adapter:stable", payload_identity="P")
     retry = admit_durable_request(state, request_id="B", idempotency_key="adapter:stable", payload_identity="P")
@@ -537,6 +569,9 @@ SCENARIOS: dict[str, Scenario] = {
     "idempotency_lost_admission_response_retry": _lost_admission_response_retry_new_request_id_recovers,
     "idempotency_index_present_duplicate_file_quarantined": _index_present_duplicate_file_is_quarantined,
     "idempotency_partial_persistence_fail_closed": _partial_persistence_reconciliation_prevents_fork,
+    "idempotency_missing_index_ambiguous_duplicate_files_fail_closed": (
+        _missing_index_ambiguous_duplicate_files_fail_closed
+    ),
     "idempotency_adapter_retry_preserves_key": _adapter_retry_preserves_stable_key,
 }
 

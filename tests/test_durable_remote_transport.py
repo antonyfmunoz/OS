@@ -270,7 +270,7 @@ def test_update_request_cannot_mutate_admitted_verdict_material(tmp_path) -> Non
     assert set(rejected["fields"]) == {"params", "diagnostics.verdict_payload_digest"}
 
 
-def test_missing_index_recovery_quarantines_duplicate_same_key_records(tmp_path) -> None:
+def test_missing_index_recovery_with_duplicate_same_key_records_fails_closed(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     original = store.put_request(_request(idempotency_key="legacy-duplicate"))
     duplicate = _request(idempotency_key="legacy-duplicate")
@@ -282,18 +282,35 @@ def test_missing_index_recovery_quarantines_duplicate_same_key_records(tmp_path)
     for path in (tmp_path / "idempotency").glob("*.json"):
         path.unlink()
 
-    replay = store.put_request(_request(idempotency_key="legacy-duplicate"))
+    with pytest.raises(ValueError, match="ambiguous idempotency recovery"):
+        store.put_request(_request(idempotency_key="legacy-duplicate"))
 
-    assert replay.request_id == original.request_id
-    quarantined = store.get_request(duplicate.request_id)
-    assert quarantined is not None
-    assert quarantined.lifecycle_state == "RECONCILIATION_REQUIRED"
-    assert quarantined.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
-        original.request_id
+    for request_id in (original.request_id, duplicate.request_id):
+        quarantined = store.get_request(request_id)
+        assert quarantined is not None
+        assert quarantined.lifecycle_state == "RECONCILIATION_REQUIRED"
+        assert quarantined.diagnostics["ambiguous_idempotency_recovery"]["request_ids"] == sorted(
+            [original.request_id, duplicate.request_id]
+        )
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
+def test_missing_index_recovery_rejects_earlier_created_duplicate_takeover(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="created-at-takeover"))
+    duplicate = _request(idempotency_key="created-at-takeover")
+    duplicate.created_at = original.created_at - 100.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
     )
-    assert [req.request_id for req in store.deliverable_for_node("windows-desktop", limit=1)] == [
-        original.request_id
-    ]
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+
+    with pytest.raises(ValueError, match="ambiguous idempotency recovery"):
+        store.put_request(_request(idempotency_key="created-at-takeover"))
+
+    assert store.deliverable_for_node("windows-desktop") == []
 
 
 def test_index_present_replay_quarantines_duplicate_same_key_records(tmp_path) -> None:
