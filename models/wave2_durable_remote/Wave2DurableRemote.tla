@@ -530,7 +530,7 @@ ReadErrorDetected ==
     /\ recoveredDeliverable' = FALSE
     /\ unsafeDuplicateAuthority' = FALSE
     /\ UNCHANGED <<delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
-    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, invalidRecoveredResultAttempt, attemptStoreUnknownCorruption>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, invalidRecoveredResultAttempt, attemptStoreUnknownCorruption, corruptRequestMaterialPresent, corruptRequestRecoverableKey, corruptRequestNoValidBinding>>
 
 AttemptStoreUnknownCorruptionDetected ==
     /\ ~attemptStoreUnknownCorruption
@@ -541,13 +541,13 @@ AttemptStoreUnknownCorruptionDetected ==
     /\ idempotencyConflict' = TRUE
     /\ unsafeDuplicateAuthority' = FALSE
     /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
-    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt, readErrorPresent>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt, readErrorPresent, corruptRequestMaterialPresent, corruptRequestRecoverableKey, corruptRequestNoValidBinding>>
 
 UnsafeDuplicateAuthorityAttempt ==
     /\ evidenceIncomplete
     /\ unsafeDuplicateAuthority' = FALSE
     /\ UNCHANGED <<state, delivered, claim, candidate, expectedCandidate, cancelled, executed, proof, authorityAtLaunch, terminalSeen, meshUp, nodeUp, declaredSyncEffect, canonicalSyncEffect, durableCanonicalEffect, durableExecutionPath, syncExecutionPath, syncExecuted, syncConsequentialEffects>>
-    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt, readErrorPresent, evidenceIncomplete, attemptStoreUnknownCorruption>>
+    /\ UNCHANGED <<requestAAdmitted, requestBAdmitted, requestAKey, requestBKey, requestAPayload, requestBPayload, canonicalRequestForKey, admittedRequestForKey, canonicalPayloadForKey, canonicalMaterialValid, idempotencyConflict, noncanonicalDuplicatePersisted, noncanonicalDuplicateKey, noncanonicalDuplicateDeliverable, duplicateRecoveryDone, noncanonicalDuplicateExecuted, recoveredFromPersistence, indexPresent, indexRecovered, recoveredMaterialValid, recoveredDeliverable, invalidRecoveredResultAttempt, readErrorPresent, evidenceIncomplete, attemptStoreUnknownCorruption, corruptRequestMaterialPresent, corruptRequestRecoverableKey, corruptRequestNoValidBinding>>
 
 Next ==
     \/ AdmitRequestA
