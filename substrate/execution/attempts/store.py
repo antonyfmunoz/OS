@@ -626,16 +626,6 @@ class ExecutionAttemptStore:
             if allow_scoped_corruption and tokens and not cls._corruption_matches_scope(
                 tokens, authority_scope
             ):
-                cls._record_corruption(
-                    path,
-                    reason=(
-                        f"authority JSONL line scoped corruption at line {line_no} "
-                        f"offset {line_start}: outside {authority_scope}"
-                    ),
-                    raw=raw_line,
-                    line_no=line_no,
-                    identity=",".join(sorted(tokens)),
-                )
                 continue
             rows.append(dict(row))
         return rows

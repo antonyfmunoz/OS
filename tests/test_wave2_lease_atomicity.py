@@ -317,6 +317,21 @@ def test_scoped_lease_corruption_does_not_block_unrelated_lease(tmp_path):
     assert store.active_lease_for_task("wp-b")["lease_id"] == "l-new"
 
 
+def test_valid_out_of_scope_lease_does_not_emit_corruption_evidence(tmp_path):
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    store.append_lease_if_no_active(
+        {"lease_id": "l-a", "task_id": "wp-a", "status": "active"}
+    )
+
+    store.append_lease_if_no_active(
+        {"lease_id": "l-b", "task_id": "wp-b", "status": "active"}
+    )
+
+    assert store.active_lease_for_task("wp-b")["lease_id"] == "l-b"
+    assert not list(tmp_path.glob("l.jsonl.corrupt-*.jsonl"))
+
+
 def test_malformed_raw_lease_token_is_unknown_scope_and_blocks_new_lease(tmp_path):
     from substrate.execution.attempts.store import AttemptStoreIntegrityError
 
