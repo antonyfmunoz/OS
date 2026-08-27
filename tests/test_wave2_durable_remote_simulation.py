@@ -14,6 +14,15 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
         "redelivery_amplification",
         "corrupt_index_rebuilds_only_from_valid_request",
         "corrupt_request_among_valid_isolated",
+        "corrupt_same_key_request_blocks_fresh_admission",
+        "corrupt_same_key_retry_new_request_id_denied",
+        "corrupt_same_key_survives_restart",
+        "corrupt_quarantined_request_preserves_key_fence",
+        "corrupt_valid_binding_plus_duplicate_preserves_canonical",
+        "corrupt_index_plus_corrupt_request_fences_key",
+        "corrupt_unknown_scope_request_blocks_unproven_admission",
+        "corrupt_unrelated_key_progresses_beside_key_scoped_corruption",
+        "corrupt_event_history_incomplete_cannot_prove_absence",
         "corrupt_restart_still_non_executable",
         "corrupt_result_does_not_terminalize",
         "durable_unknown_policy_denied",
@@ -66,6 +75,22 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
     assert results["risk_consequential_effect_read_only_declared_risk_denied"]["executed"] == 0
     assert results["risk_generic_shell_read_only_node_cap_denied"]["executed"] == 0
     assert results["corrupt_request_among_valid_isolated"]["fail_closed"] is True
+    assert results["corrupt_same_key_request_blocks_fresh_admission"]["fail_closed"] is True
+    assert any(
+        "admission_absence_unproven:key=K:corrupt_request" in event
+        for event in results["corrupt_same_key_request_blocks_fresh_admission"]["log"]
+    )
+    assert results["corrupt_same_key_retry_new_request_id_denied"]["fail_closed"] is True
+    assert results["corrupt_same_key_survives_restart"]["fail_closed"] is True
+    assert results["corrupt_quarantined_request_preserves_key_fence"]["fail_closed"] is True
+    assert results["corrupt_valid_binding_plus_duplicate_preserves_canonical"]["fail_closed"] is False
+    assert results["corrupt_index_plus_corrupt_request_fences_key"]["fail_closed"] is True
+    assert (
+        results["corrupt_unknown_scope_request_blocks_unproven_admission"]["fail_closed"]
+        is True
+    )
+    assert results["corrupt_unrelated_key_progresses_beside_key_scoped_corruption"]["fail_closed"] is False
+    assert results["corrupt_event_history_incomplete_cannot_prove_absence"]["fail_closed"] is True
     assert results["corrupt_result_does_not_terminalize"]["lifecycle"] == "RECONCILIATION_REQUIRED"
     assert results["event_journal_malformed_line_fails_closed"]["fail_closed"] is True
     assert results["event_journal_read_error_fails_closed"]["fail_closed"] is True

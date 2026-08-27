@@ -121,6 +121,7 @@ LOAD_ABSENT = "ABSENT"
 LOAD_VALID = "VALID"
 LOAD_CORRUPT = "CORRUPT"
 LOAD_READ_ERROR = "READ_ERROR"
+UNKNOWN_IDEMPOTENCY_SCOPE = "__unknown_idempotency_scope__"
 
 
 def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
@@ -172,6 +173,31 @@ class _DurableEventJournalLoad:
     @property
     def incomplete(self) -> bool:
         return not self.complete
+
+
+@dataclass(frozen=True)
+class _IdempotencyCorruptionScope:
+    same_key: bool = False
+    unknown_scope: bool = False
+    read_error: bool = False
+    reasons: tuple[str, ...] = ()
+
+    @property
+    def blocks_fresh_authority(self) -> bool:
+        return self.same_key or self.unknown_scope or self.read_error
+
+    def reason(self, idempotency_key: str) -> str:
+        labels: list[str] = []
+        if self.same_key:
+            labels.append("same-key corrupt request material")
+        if self.unknown_scope:
+            labels.append("unknown-scope corrupt request material")
+        if self.read_error:
+            labels.append("request read error")
+        detail = "; ".join(self.reasons[:3])
+        base = ", ".join(labels) or "request corruption"
+        suffix = f": {detail}" if detail else ""
+        return f"idempotency request corruption fenced for key {idempotency_key}: {base}{suffix}"
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -443,10 +469,72 @@ class DurableRemoteStore:
             / f"idempotency-{hashlib.sha256(idempotency_key.encode()).hexdigest()}.lock"
         )
 
+    def _request_corruption_fence_path(self, identity: str) -> Path:
+        return _corruption_fence_path(self.requests_dir / "_scope.json", identity=identity)
+
+    def _request_corruption_fence_exists(self, identity: str) -> bool:
+        return self._request_corruption_fence_path(identity).exists()
+
+    @staticmethod
+    def _recover_request_idempotency_key_from_bytes(path: Path) -> str:
+        try:
+            text = path.read_bytes().decode("utf-8", errors="ignore")
+        except OSError:
+            return ""
+        import re
+
+        match = re.search(r'"idempotency_key"\s*:\s*"([^"]+)"', text)
+        return _normalized_idempotency_key(match.group(1)) if match else ""
+
+    def _negative_request_corruption_identity(
+        self,
+        path: Path,
+        *,
+        data: dict[str, Any] | None = None,
+        request: DurableRemoteRequest | None = None,
+    ) -> str:
+        if request is not None:
+            key = _normalized_idempotency_key(request.idempotency_key)
+            if key:
+                return key
+        if isinstance(data, dict):
+            key = _normalized_idempotency_key(str(data.get("idempotency_key", "") or ""))
+            if key:
+                return key
+        return self._recover_request_idempotency_key_from_bytes(path)
+
+    def _record_request_corruption_fence(
+        self,
+        path: Path,
+        *,
+        reason: str,
+        data: dict[str, Any] | None = None,
+        request: DurableRemoteRequest | None = None,
+        status: str = LOAD_CORRUPT,
+    ) -> str:
+        identity = self._negative_request_corruption_identity(path, data=data, request=request)
+        if not identity:
+            identity = UNKNOWN_IDEMPOTENCY_SCOPE
+        _record_persistence_issue(
+            path,
+            reason=reason,
+            record_kind="requests",
+            identity=identity,
+            status=status,
+        )
+        return identity
+
     def _load_request_record(self, request_id: str) -> _DurableRequestLoad:
         path = self._request_path(request_id)
         loaded = _load_json_record(path, record_kind="requests", identity=request_id)
         if not loaded.valid:
+            if loaded.unavailable:
+                self._record_request_corruption_fence(
+                    path,
+                    reason=loaded.reason or f"request record {loaded.status.lower()}",
+                    data=loaded.data,
+                    status=loaded.status,
+                )
             return _DurableRequestLoad(
                 loaded.status,
                 path,
@@ -454,15 +542,13 @@ class DurableRemoteStore:
                 reason=loaded.reason,
             )
         data = dict(loaded.data or {})
-        identity = str(data.get("idempotency_key", "") or "").strip()
         try:
             req = DurableRemoteRequest.from_dict(data)
         except (TypeError, ValueError) as exc:
-            _record_persistence_issue(
+            self._record_request_corruption_fence(
                 path,
                 reason=f"request materialization failed: {type(exc).__name__}: {exc}",
-                record_kind="requests",
-                identity=identity or request_id,
+                data=data,
             )
             return _DurableRequestLoad(
                 LOAD_CORRUPT,
@@ -472,20 +558,20 @@ class DurableRemoteStore:
             )
         if req.request_id != request_id:
             reason = f"request path/content identity mismatch: path={request_id} content={req.request_id}"
-            _record_persistence_issue(
+            self._record_request_corruption_fence(
                 path,
                 reason=reason,
-                record_kind="requests",
-                identity=req.idempotency_key or request_id,
+                data=data,
+                request=req,
             )
             return _DurableRequestLoad(LOAD_CORRUPT, path, request=req, data=data, reason=reason)
         if req.lifecycle_state not in STATE_ORDER:
             reason = f"request lifecycle_state invalid: {req.lifecycle_state}"
-            _record_persistence_issue(
+            self._record_request_corruption_fence(
                 path,
                 reason=reason,
-                record_kind="requests",
-                identity=req.idempotency_key or request_id,
+                data=data,
+                request=req,
             )
             return _DurableRequestLoad(LOAD_CORRUPT, path, request=req, data=data, reason=reason)
         return _DurableRequestLoad(LOAD_VALID, path, request=req, data=data)
@@ -1206,6 +1292,38 @@ class DurableRemoteStore:
         matches.sort(key=self._request_sort_key)
         return matches
 
+    def _request_corruption_scope_for_idempotency_key_locked(
+        self, idempotency_key: str
+    ) -> _IdempotencyCorruptionScope:
+        key = _normalized_idempotency_key(idempotency_key)
+        same_key = self._request_corruption_fence_exists(key)
+        unknown_scope = self._request_corruption_fence_exists(UNKNOWN_IDEMPOTENCY_SCOPE)
+        read_error = False
+        reasons: list[str] = []
+        for path in sorted(self.requests_dir.glob("*.json")):
+            loaded = self._load_request_record(path.stem)
+            if loaded.valid:
+                continue
+            if loaded.status == LOAD_READ_ERROR:
+                read_error = True
+            recovered_key = self._negative_request_corruption_identity(
+                loaded.path,
+                data=loaded.data,
+                request=loaded.request,
+            )
+            if recovered_key == key:
+                same_key = True
+            elif not recovered_key and loaded.unavailable:
+                unknown_scope = True
+            if loaded.reason:
+                reasons.append(f"{path.name}:{loaded.reason}")
+        return _IdempotencyCorruptionScope(
+            same_key=same_key,
+            unknown_scope=unknown_scope,
+            read_error=read_error,
+            reasons=tuple(reasons),
+        )
+
     def _canonical_request_from_admission_evidence_locked(
         self,
         idempotency_key: str,
@@ -1276,6 +1394,21 @@ class DurableRemoteStore:
             )
             raise ValueError("ambiguous idempotency recovery: multiple request records")
         return None
+
+    def _ensure_fresh_idempotency_absence_proven_locked(
+        self,
+        idempotency_key: str,
+        *,
+        matches: list[DurableRemoteRequest] | None = None,
+    ) -> None:
+        corruption = self._request_corruption_scope_for_idempotency_key_locked(idempotency_key)
+        if corruption.blocks_fresh_authority:
+            if matches:
+                self._fail_ambiguous_idempotency_recovery_locked(
+                    matches,
+                    event="IDEMPOTENCY_REQUEST_CORRUPTION_FENCED",
+                )
+            raise ValueError(corruption.reason(idempotency_key))
 
     def _validate_index_matches_admission_evidence_locked(
         self,
@@ -1437,10 +1570,19 @@ class DurableRemoteStore:
             if index_load.status == LOAD_READ_ERROR:
                 return False
             try:
-                recovered = self._find_request_by_idempotency_key_locked(req.idempotency_key)
+                matches = self._requests_by_idempotency_key_locked(req.idempotency_key)
+                recovered = self._canonical_request_from_admission_evidence_locked(
+                    req.idempotency_key,
+                    matches=matches,
+                )
             except ValueError:
                 return False
             if recovered is None:
+                corruption = self._request_corruption_scope_for_idempotency_key_locked(
+                    req.idempotency_key
+                )
+                if corruption.blocks_fresh_authority:
+                    return False
                 return index_load.status != LOAD_CORRUPT
             with self._request_lock(recovered.request_id):
                 current = self._get_request_raw(recovered.request_id) or recovered
@@ -1486,9 +1628,17 @@ class DurableRemoteStore:
         index_load = self._load_idempotency_index_record(incoming.idempotency_key)
         index = dict(index_load.data or {}) if index_load.valid else {}
         if not index:
-            recovered = self._find_request_by_idempotency_key_locked(incoming.idempotency_key)
+            matches = self._requests_by_idempotency_key_locked(incoming.idempotency_key)
+            recovered = self._canonical_request_from_admission_evidence_locked(
+                incoming.idempotency_key,
+                matches=matches,
+            )
             if recovered is None:
                 if index_load.status == LOAD_ABSENT:
+                    self._ensure_fresh_idempotency_absence_proven_locked(
+                        incoming.idempotency_key,
+                        matches=matches,
+                    )
                     return None
                 raise ValueError(
                     f"idempotency index {index_load.status.lower()} for key "

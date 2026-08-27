@@ -263,6 +263,140 @@ def test_semantically_malformed_request_record_isolated_while_valid_request_prog
     assert store.get_request(malformed.request_id) is None
 
 
+def test_corrupt_same_key_request_fences_fresh_admission(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-same-key-fresh-admission"
+    malformed = _request(idempotency_key=key)
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        json.dumps(data, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    fresh = _request(idempotency_key=key)
+    with pytest.raises(ValueError, match="request corruption fenced"):
+        store.put_request(fresh)
+
+    assert not (tmp_path / "requests" / f"{fresh.request_id}.json").exists()
+    assert store.deliverable_for_node("windows-desktop", redelivery_after_s=0) == []
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_corrupt_same_key_request_fence_survives_quarantine_and_restart(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-key-survives-quarantine"
+    malformed = _request(idempotency_key=key)
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    corrupt_path = tmp_path / "requests" / f"{malformed.request_id}.json"
+    corrupt_path.write_text(json.dumps(data, sort_keys=True), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="request corruption fenced"):
+        store.put_request(_request(idempotency_key=key))
+    corrupt_path.unlink()
+
+    restarted = DurableRemoteStore(tmp_path)
+    with pytest.raises(ValueError, match="request corruption fenced"):
+        restarted.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
+
+
+def test_valid_binding_with_corrupt_same_key_preserves_canonical_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "valid-binding-plus-corrupt-key"
+    canonical = store.put_request(_request(idempotency_key=key))
+    corrupt = _request(idempotency_key=key)
+    data = corrupt.to_dict()
+    data["params"] = "not-an-object"
+    (tmp_path / "requests" / f"{corrupt.request_id}.json").write_text(
+        json.dumps(data, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    replay = store.put_request(
+        _request(
+            idempotency_key=key,
+            params=canonical.params,
+            candidate_sha=canonical.candidate_sha,
+            node_id=canonical.node_id,
+            operation_type=canonical.operation_type,
+            capability=canonical.capability,
+            risk_class=canonical.risk_class,
+        )
+    )
+
+    assert replay.request_id == canonical.request_id
+    assert not (tmp_path / "requests" / f"{replay.request_id}.json").read_text(
+        encoding="utf-8"
+    ).startswith("{\"params\":\"not-an-object\"")
+    assert list((tmp_path / "corrupt").glob("requests-*.json"))
+
+
+def test_corrupt_index_plus_corrupt_same_key_request_fences_admission(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-index-and-request-key"
+    malformed = _request(idempotency_key=key)
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        json.dumps(data, sort_keys=True),
+        encoding="utf-8",
+    )
+    store._idempotency_index_path(key).write_text("{", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="idempotency index corrupt"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "requests").glob("*.json")) == [
+        tmp_path / "requests" / f"{malformed.request_id}.json"
+    ]
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_unknown_scope_corrupt_request_blocks_unproven_fresh_authority(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    (tmp_path / "requests" / "unknown-corrupt.json").write_text(
+        '{"request_id":',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown-scope corrupt request material"):
+        store.put_request(_request(idempotency_key="fresh-after-unknown-corruption"))
+
+
+def test_incomplete_admission_events_do_not_prove_absence(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "incomplete-events-no-absence-proof"
+    with (tmp_path / "events.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write("{\n")
+
+    with pytest.raises(ValueError, match="admission evidence incomplete"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
+    assert list((tmp_path / "corrupt").glob("events-*.json"))
+
+
+def test_key_scoped_corrupt_request_does_not_block_unrelated_key(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    malformed = _request(idempotency_key="corrupt-key-only")
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        json.dumps(data, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    unrelated = store.put_request(_request(idempotency_key="unrelated-key"))
+
+    assert unrelated.request_id
+    assert [item.request_id for item in store.deliverable_for_node("windows-desktop")] == [
+        unrelated.request_id
+    ]
+
+
 def test_request_path_content_identity_mismatch_is_corrupt_and_isolated(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     valid = store.put_request(_request(idempotency_key="valid-beside-path-mismatch"))

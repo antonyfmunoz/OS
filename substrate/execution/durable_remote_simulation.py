@@ -47,6 +47,8 @@ class SimState:
     persisted_request_material_complete: dict[str, bool] = field(default_factory=dict)
     persisted_request_order: dict[str, int] = field(default_factory=dict)
     corrupt_request_records: set[str] = field(default_factory=set)
+    corrupt_request_keys: set[str] = field(default_factory=set)
+    unknown_scope_request_corruption: bool = False
     corrupt_index_keys: set[str] = field(default_factory=set)
     fenced_idempotency_keys: set[str] = field(default_factory=set)
     corrupt_result_records: set[str] = field(default_factory=set)
@@ -143,6 +145,10 @@ def persist_request_file(
     state.persisted_request_material_complete[request_id] = material_complete
     if corrupt:
         state.corrupt_request_records.add(request_id)
+        if idempotency_key:
+            state.corrupt_request_keys.add(idempotency_key)
+        else:
+            state.unknown_scope_request_corruption = True
     if payload_identity:
         state.persisted_request_payload[request_id] = payload_identity
     if request_id not in state.persisted_request_order:
@@ -167,6 +173,26 @@ def fail_closed_ambiguous_idempotency(state: SimState, idempotency_key: str) -> 
     state.fenced_idempotency_keys.add(idempotency_key)
     for request_id in requests_for_key_in_admission_order(state, idempotency_key):
         state.deliverable_requests.discard(request_id)
+
+
+def positive_idempotency_absence_proven(state: SimState, idempotency_key: str) -> bool:
+    if state.event_journal_read_error or state.event_journal_corrupt:
+        state.record(f"admission_absence_unproven:key={idempotency_key}:events_incomplete")
+        fail_closed_ambiguous_idempotency(state, idempotency_key)
+        return False
+    if state.unknown_scope_request_corruption:
+        state.record(f"admission_absence_unproven:key={idempotency_key}:unknown_scope_corruption")
+        fail_closed_ambiguous_idempotency(state, idempotency_key)
+        return False
+    if idempotency_key in state.corrupt_request_keys:
+        state.record(f"admission_absence_unproven:key={idempotency_key}:corrupt_request")
+        fail_closed_ambiguous_idempotency(state, idempotency_key)
+        return False
+    if idempotency_key in state.fenced_idempotency_keys:
+        state.record(f"admission_absence_unproven:key={idempotency_key}:fenced")
+        fail_closed_ambiguous_idempotency(state, idempotency_key)
+        return False
+    return True
 
 
 def fail_closed_invalid_material(state: SimState, request_id: str) -> None:
@@ -281,6 +307,9 @@ def admit_durable_request(
             return None
     canonical = state.canonical_request_for_key.get(idempotency_key)
     if not canonical:
+        if not positive_idempotency_absence_proven(state, idempotency_key):
+            state.assert_invariants()
+            return None
         state.canonical_request_for_key[idempotency_key] = request_id
         state.admitted_request_for_key.setdefault(idempotency_key, request_id)
         state.payload_for_key[idempotency_key] = payload_identity
@@ -1031,6 +1060,124 @@ def _corrupt_index_conflicting_valid_requests_fail_closed(state: SimState) -> No
     assert "B" not in state.deliverable_requests, state.log
 
 
+def _corrupt_same_key_request_blocks_fresh_admission(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_valid=False,
+        corrupt=True,
+    )
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert "K" in state.fenced_idempotency_keys, state.log
+    assert "K" not in state.canonical_request_for_key, state.log
+    assert "B" not in state.persisted_request_key, state.log
+
+
+def _corrupt_same_key_retry_new_request_id_denied(state: SimState) -> None:
+    _corrupt_same_key_request_blocks_fresh_admission(state)
+
+
+def _corrupt_same_key_survives_restart(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_valid=False,
+        corrupt=True,
+    )
+    restart_mesh(state)
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert "K" in state.fenced_idempotency_keys, state.log
+
+
+def _quarantined_corrupt_request_preserves_key_fence(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_valid=False,
+        corrupt=True,
+    )
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    state.persisted_request_key.pop("A")
+    state.persisted_request_payload.pop("A", None)
+    state.persisted_request_material_valid.pop("A", None)
+    state.persisted_request_material_complete.pop("A", None)
+    state.corrupt_request_records.discard("A")
+    state.record("corrupt_request_quarantined:A")
+    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") is None
+    assert "K" in state.fenced_idempotency_keys, state.log
+
+
+def _valid_binding_plus_corrupt_duplicate_preserves_canonical(state: SimState) -> None:
+    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") == "A"
+    persist_request_file(
+        state,
+        request_id="B",
+        idempotency_key="K",
+        payload_identity="P",
+        material_valid=False,
+        corrupt=True,
+    )
+    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") == "A"
+    assert state.canonical_request_for_key["K"] == "A", state.log
+    assert "B" not in state.deliverable_requests, state.log
+
+
+def _corrupt_index_plus_corrupt_request_fences_key(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_valid=False,
+        corrupt=True,
+    )
+    state.corrupt_index_keys.add("K")
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert "K" in state.fenced_idempotency_keys, state.log
+    assert "K" not in state.canonical_request_for_key, state.log
+
+
+def _unknown_scope_corrupt_request_blocks_unproven_admission(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="",
+        payload_identity="P",
+        material_valid=False,
+        corrupt=True,
+    )
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert "K" in state.fenced_idempotency_keys, state.log
+    assert "K" not in state.canonical_request_for_key, state.log
+
+
+def _unrelated_key_progresses_beside_key_scoped_corruption(state: SimState) -> None:
+    persist_request_file(
+        state,
+        request_id="A",
+        idempotency_key="K",
+        payload_identity="P",
+        material_valid=False,
+        corrupt=True,
+    )
+    assert admit_durable_request(state, request_id="B", idempotency_key="J", payload_identity="P2") == "B"
+    assert state.canonical_request_for_key["J"] == "B", state.log
+    assert "K" not in state.canonical_request_for_key, state.log
+
+
+def _incomplete_event_history_cannot_prove_absence(state: SimState) -> None:
+    state.event_journal_corrupt = True
+    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") is None
+    assert "K" in state.fenced_idempotency_keys, state.log
+    assert "K" not in state.canonical_request_for_key, state.log
+
+
 def _corrupt_result_later_publication_rejected(state: SimState) -> None:
     admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     deliver(state)
@@ -1243,6 +1390,31 @@ SCENARIOS: dict[str, Scenario] = {
     "corrupt_index_rebuilds_only_from_valid_request": _corrupt_index_rebuilds_only_from_valid_request,
     "corrupt_index_no_valid_request_fences_key": _corrupt_index_no_valid_request_fences_key,
     "corrupt_index_conflicting_valid_requests_fail_closed": _corrupt_index_conflicting_valid_requests_fail_closed,
+    "corrupt_same_key_request_blocks_fresh_admission": (
+        _corrupt_same_key_request_blocks_fresh_admission
+    ),
+    "corrupt_same_key_retry_new_request_id_denied": (
+        _corrupt_same_key_retry_new_request_id_denied
+    ),
+    "corrupt_same_key_survives_restart": _corrupt_same_key_survives_restart,
+    "corrupt_quarantined_request_preserves_key_fence": (
+        _quarantined_corrupt_request_preserves_key_fence
+    ),
+    "corrupt_valid_binding_plus_duplicate_preserves_canonical": (
+        _valid_binding_plus_corrupt_duplicate_preserves_canonical
+    ),
+    "corrupt_index_plus_corrupt_request_fences_key": (
+        _corrupt_index_plus_corrupt_request_fences_key
+    ),
+    "corrupt_unknown_scope_request_blocks_unproven_admission": (
+        _unknown_scope_corrupt_request_blocks_unproven_admission
+    ),
+    "corrupt_unrelated_key_progresses_beside_key_scoped_corruption": (
+        _unrelated_key_progresses_beside_key_scoped_corruption
+    ),
+    "corrupt_event_history_incomplete_cannot_prove_absence": (
+        _incomplete_event_history_cannot_prove_absence
+    ),
     "corrupt_result_does_not_terminalize": _corrupt_result_does_not_terminalize,
     "corrupt_result_later_publication_rejected": _corrupt_result_later_publication_rejected,
     "corrupt_path_content_identity_mismatch_isolated": _path_content_identity_mismatch_is_corrupt,
