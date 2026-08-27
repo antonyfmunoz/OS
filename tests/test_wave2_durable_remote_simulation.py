@@ -25,6 +25,18 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
         "corrupt_event_history_incomplete_cannot_prove_absence",
         "corrupt_restart_still_non_executable",
         "corrupt_result_does_not_terminalize",
+        "canonicalization_escaped_json_key_value_bypass",
+        "canonicalization_escaped_field_name_bypass",
+        "canonicalization_attempt_store_escaped_scope",
+        "canonicalization_lease_store_escaped_scope",
+        "canonicalization_duplicate_authority_field_ambiguous",
+        "canonicalization_nested_decoy_identity_unknown_scope",
+        "canonicalization_malformed_raw_token_unknown_scope",
+        "canonicalization_bound_and_corrupt_fenced_represented",
+        "canonicalization_bound_and_corrupt_fenced_blocks_fresh",
+        "canonicalization_terminal_bound_plus_corruption",
+        "canonicalization_restart_preserves_fence",
+        "canonicalization_unrelated_clean_key_progresses",
         "durable_unknown_policy_denied",
         "event_journal_malformed_line_fails_closed",
         "event_journal_read_error_fails_closed",
@@ -92,6 +104,16 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
     assert results["corrupt_unrelated_key_progresses_beside_key_scoped_corruption"]["fail_closed"] is False
     assert results["corrupt_event_history_incomplete_cannot_prove_absence"]["fail_closed"] is True
     assert results["corrupt_result_does_not_terminalize"]["lifecycle"] == "RECONCILIATION_REQUIRED"
+    assert results["canonicalization_escaped_json_key_value_bypass"]["fail_closed"] is True
+    assert results["canonicalization_escaped_field_name_bypass"]["fail_closed"] is True
+    assert results["canonicalization_duplicate_authority_field_ambiguous"]["fail_closed"] is True
+    assert results["canonicalization_nested_decoy_identity_unknown_scope"]["fail_closed"] is True
+    assert results["canonicalization_malformed_raw_token_unknown_scope"]["fail_closed"] is True
+    assert results["canonicalization_bound_and_corrupt_fenced_represented"]["fail_closed"] is False
+    assert results["canonicalization_bound_and_corrupt_fenced_blocks_fresh"]["fail_closed"] is False
+    assert results["canonicalization_terminal_bound_plus_corruption"]["lifecycle"] == "SUCCEEDED"
+    assert results["canonicalization_restart_preserves_fence"]["fail_closed"] is True
+    assert results["canonicalization_unrelated_clean_key_progresses"]["fail_closed"] is False
     assert results["event_journal_malformed_line_fails_closed"]["fail_closed"] is True
     assert results["event_journal_read_error_fails_closed"]["fail_closed"] is True
     assert results["attempt_store_unknown_corruption_blocks_attempt_authority"]["fail_closed"] is True

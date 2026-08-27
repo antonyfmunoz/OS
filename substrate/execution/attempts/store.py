@@ -23,7 +23,6 @@ import hashlib
 import json
 import logging
 import os
-import re
 import tempfile
 import threading
 import time
@@ -173,6 +172,26 @@ def _encoded_kind(value: Any) -> Any:
         # Unencodable: ``_append_line`` would raise too, so no row can result.
         # Return a sentinel that equals nothing, so the guard refuses.
         return object()
+
+
+def _reject_duplicate_json_object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError(f"duplicate JSON object key: {key}")
+        out[key] = value
+    return out
+
+
+def _loads_authority_json_object(raw: bytes | str) -> dict[str, Any]:
+    if isinstance(raw, bytes):
+        text = raw.decode("utf-8")
+    else:
+        text = raw
+    data = json.loads(text, object_pairs_hook=_reject_duplicate_json_object_pairs)
+    if not isinstance(data, dict):
+        raise ValueError("record is not an object")
+    return dict(data)
 
 
 class AttemptStoreConflict(RuntimeError):
@@ -513,27 +532,38 @@ class ExecutionAttemptStore:
             ("grant_id", "grant"),
             ("decision_ref", "decision"),
         ):
-            value = str(row.get(key, "") or "").strip()
+            raw_value = row.get(key)
+            value = raw_value.strip() if isinstance(raw_value, str) else ""
             if value:
                 tokens.add(f"{prefix}:{value}")
         return tokens
 
     @classmethod
-    def _identity_tokens_from_raw(cls, raw: bytes) -> set[str]:
-        try:
-            text = raw.decode("utf-8", errors="ignore")
-        except Exception:
-            return set()
-        recovered: dict[str, str] = {}
-        for key in ("attempt_id", "task_id", "lease_id", "grant_id", "decision_ref"):
-            match = re.search(rf'"{key}"\s*:\s*"([^"]+)"', text)
-            if match:
-                recovered[key] = match.group(1)
-        return cls._identity_tokens(recovered)
-
-    @classmethod
     def _corruption_matches_scope(cls, tokens: set[str], authority_scope: str) -> bool:
         return bool(authority_scope and authority_scope in tokens)
+
+    @staticmethod
+    def _semantic_issue_for_authority_row(path: str, row: dict[str, Any]) -> str:
+        basename = os.path.basename(path)
+        is_attempts = basename in {"a.jsonl", "execution_attempts.jsonl"}
+        is_leases = basename in {"l.jsonl", "environment_leases.jsonl"}
+        if is_attempts:
+            if not isinstance(row.get("attempt_id"), str) or not row["attempt_id"].strip():
+                return "attempt row missing canonical attempt_id"
+            if not isinstance(row.get("task_id"), str) or not row["task_id"].strip():
+                return "attempt row missing canonical task_id"
+            try:
+                int(row.get("attempt_number"))
+            except (TypeError, ValueError):
+                return "attempt row missing canonical attempt_number"
+        if is_leases:
+            if not isinstance(row.get("lease_id"), str) or not row["lease_id"].strip():
+                return "lease row missing canonical lease_id"
+            if not isinstance(row.get("task_id"), str) or not row["task_id"].strip():
+                return "lease row missing canonical task_id"
+            if not isinstance(row.get("status"), str) or not row["status"].strip():
+                return "lease row missing canonical status"
+        return ""
 
     @classmethod
     def _read_lines(
@@ -560,13 +590,26 @@ class ExecutionAttemptStore:
             if not stripped:
                 continue
             try:
-                text = stripped.decode("utf-8")
-                row = json.loads(text)
-            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
-                tokens = cls._identity_tokens_from_raw(raw_line)
+                row = _loads_authority_json_object(stripped)
+            except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
                 reason = (
                     f"authority JSONL line corrupt at line {line_no} "
                     f"offset {line_start}: {type(exc).__name__}: {exc}"
+                )
+                cls._record_corruption(
+                    path,
+                    reason=reason,
+                    raw=raw_line,
+                    line_no=line_no,
+                    identity="",
+                )
+                raise AttemptStoreIntegrityError(reason) from exc
+            tokens = cls._identity_tokens(row)
+            semantic_issue = cls._semantic_issue_for_authority_row(path, row)
+            if semantic_issue:
+                reason = (
+                    f"authority JSONL line semantically invalid at line {line_no} "
+                    f"offset {line_start}: {semantic_issue}"
                 )
                 cls._record_corruption(
                     path,
@@ -579,19 +622,21 @@ class ExecutionAttemptStore:
                     tokens, authority_scope
                 ):
                     continue
-                raise AttemptStoreIntegrityError(reason) from exc
-            if not isinstance(row, dict):
-                reason = (
-                    f"authority JSONL line semantically invalid at line {line_no} "
-                    f"offset {line_start}: record is not an object"
-                )
+                raise AttemptStoreIntegrityError(reason)
+            if allow_scoped_corruption and tokens and not cls._corruption_matches_scope(
+                tokens, authority_scope
+            ):
                 cls._record_corruption(
                     path,
-                    reason=reason,
+                    reason=(
+                        f"authority JSONL line scoped corruption at line {line_no} "
+                        f"offset {line_start}: outside {authority_scope}"
+                    ),
                     raw=raw_line,
                     line_no=line_no,
+                    identity=",".join(sorted(tokens)),
                 )
-                raise AttemptStoreIntegrityError(reason)
+                continue
             rows.append(dict(row))
         return rows
 

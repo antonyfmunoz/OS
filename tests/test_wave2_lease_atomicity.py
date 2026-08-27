@@ -180,7 +180,7 @@ def test_non_object_attempt_line_fails_closed_for_unknown_scope(tmp_path):
 def test_scoped_attempt_corruption_does_not_block_unrelated_attempt(tmp_path):
     paths = _paths(tmp_path)
     store = ExecutionAttemptStore(**paths)
-    corrupt = b'{"attempt_id":"ea-corrupt","task_id":"wp-a"'
+    corrupt = b'{"attempt_id":["bad"],"task_id":"wp-a","attempt_number":1}'
     with open(paths["attempts_path"], "ab") as fh:
         fh.write(corrupt + b"\n")
 
@@ -195,6 +195,93 @@ def test_scoped_attempt_corruption_does_not_block_unrelated_attempt(tmp_path):
     assert is_new is True
     assert created.task_id == "wp-b"
     assert corrupt in open(paths["attempts_path"], "rb").read()
+
+
+def test_malformed_raw_attempt_token_is_unknown_scope_and_blocks_new_authority(tmp_path):
+    from substrate.execution.attempts.store import AttemptStoreIntegrityError
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    corrupt = b'{"attempt_id":"ea-corrupt","task_id":"wp-a"'
+    with open(paths["attempts_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+
+    with pytest.raises(AttemptStoreIntegrityError):
+        store.create_attempt_idempotent(
+            ExecutionAttempt(
+                task_id="wp-b",
+                attempt_number=1,
+                execution_authorization_ref="auth-b",
+            )
+        )
+
+
+def test_escaped_attempt_identity_scopes_corruption_by_decoded_value(tmp_path):
+    from substrate.execution.attempts.store import AttemptStoreIntegrityError
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    corrupt = b'{"attempt_id":["bad"],"task_id":"wp\\u002da","attempt_number":1}'
+    with open(paths["attempts_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+
+    with pytest.raises(AttemptStoreIntegrityError):
+        store.create_attempt_idempotent(
+            ExecutionAttempt(
+                task_id="wp-a",
+                attempt_number=1,
+                execution_authorization_ref="auth-a",
+            )
+        )
+
+    created, is_new = store.create_attempt_idempotent(
+        ExecutionAttempt(
+            task_id="wp-b",
+            attempt_number=1,
+            execution_authorization_ref="auth-b",
+        )
+    )
+
+    assert is_new is True
+    assert created.task_id == "wp-b"
+
+
+def test_duplicate_attempt_identity_fields_do_not_grant_uniqueness(tmp_path):
+    from substrate.execution.attempts.store import AttemptStoreIntegrityError
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    corrupt = b'{"attempt_id":"ea-a","task_id":"wp-a","task_\\u0069d":"wp-b","attempt_number":1}'
+    with open(paths["attempts_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+
+    with pytest.raises(AttemptStoreIntegrityError):
+        store.create_attempt_idempotent(
+            ExecutionAttempt(
+                task_id="wp-a",
+                attempt_number=1,
+                execution_authorization_ref="auth-a",
+            )
+        )
+
+
+def test_nested_attempt_identity_decoy_does_not_scope_corruption(tmp_path):
+    from substrate.execution.attempts.store import AttemptStoreIntegrityError
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    corrupt = b'{"attempt_id":["bad"],"payload":{"task_id":"wp-a"},"attempt_number":1}'
+    with open(paths["attempts_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+
+    with pytest.raises(AttemptStoreIntegrityError):
+        store.create_attempt_idempotent(
+            ExecutionAttempt(
+                task_id="wp-b",
+                attempt_number=1,
+                execution_authorization_ref="auth-b",
+            )
+        )
 
 
 def test_malformed_lease_line_blocks_conflicting_active_lease(tmp_path):
@@ -218,7 +305,7 @@ def test_malformed_lease_line_blocks_conflicting_active_lease(tmp_path):
 def test_scoped_lease_corruption_does_not_block_unrelated_lease(tmp_path):
     paths = _paths(tmp_path)
     store = ExecutionAttemptStore(**paths)
-    corrupt = b'{"lease_id":"l-corrupt","task_id":"wp-a","status":"active"'
+    corrupt = b'{"lease_id":["bad"],"task_id":"wp-a","status":"active"}'
     with open(paths["leases_path"], "ab") as fh:
         fh.write(corrupt + b"\n")
 
@@ -228,6 +315,57 @@ def test_scoped_lease_corruption_does_not_block_unrelated_lease(tmp_path):
 
     assert corrupt in open(paths["leases_path"], "rb").read()
     assert store.active_lease_for_task("wp-b")["lease_id"] == "l-new"
+
+
+def test_malformed_raw_lease_token_is_unknown_scope_and_blocks_new_lease(tmp_path):
+    from substrate.execution.attempts.store import AttemptStoreIntegrityError
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    corrupt = b'{"lease_id":"l-corrupt","task_id":"wp-a","status":"active"'
+    with open(paths["leases_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+
+    with pytest.raises(AttemptStoreIntegrityError):
+        store.append_lease_if_no_active(
+            {"lease_id": "l-new", "task_id": "wp-b", "status": "active"}
+        )
+
+
+def test_escaped_lease_identity_scopes_corruption_by_decoded_value(tmp_path):
+    from substrate.execution.attempts.store import AttemptStoreIntegrityError
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    corrupt = b'{"lease_id":["bad"],"task_id":"wp\\u002da","status":"active"}'
+    with open(paths["leases_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+
+    with pytest.raises(AttemptStoreIntegrityError):
+        store.append_lease_if_no_active(
+            {"lease_id": "l-new", "task_id": "wp-a", "status": "active"}
+        )
+
+    store.append_lease_if_no_active(
+        {"lease_id": "l-other", "task_id": "wp-b", "status": "active"}
+    )
+
+    assert store.active_lease_for_task("wp-b")["lease_id"] == "l-other"
+
+
+def test_duplicate_lease_scope_fields_do_not_grant_lease_authority(tmp_path):
+    from substrate.execution.attempts.store import AttemptStoreIntegrityError
+
+    paths = _paths(tmp_path)
+    store = ExecutionAttemptStore(**paths)
+    corrupt = b'{"lease_id":"l-a","task_id":"wp-a","task_\\u0069d":"wp-b","status":"active"}'
+    with open(paths["leases_path"], "ab") as fh:
+        fh.write(corrupt + b"\n")
+
+    with pytest.raises(AttemptStoreIntegrityError):
+        store.append_lease_if_no_active(
+            {"lease_id": "l-new", "task_id": "wp-a", "status": "active"}
+        )
 
 
 def test_lease_cas_refuses_to_erase_corrupt_line(tmp_path):

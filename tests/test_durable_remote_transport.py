@@ -283,6 +283,130 @@ def test_corrupt_same_key_request_fences_fresh_admission(tmp_path) -> None:
     assert list((tmp_path / "corrupt").glob("fence-*.json"))
 
 
+def test_escaped_idempotency_value_fences_decoded_same_key(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "escaped-key-1"
+    malformed = _request(idempotency_key=key)
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    raw = json.dumps(data, sort_keys=True).replace(key, "escaped-key-\\u0031")
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        raw,
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="request corruption fenced"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert not list((tmp_path / "requests").glob(f"*{key}*.json"))
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_escaped_idempotency_field_name_fences_decoded_same_key(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "escaped-field-key"
+    malformed = _request(idempotency_key=key)
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    raw = json.dumps(data, sort_keys=True).replace(
+        '"idempotency_key"',
+        '"idempotency_\\u006bey"',
+    )
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        raw,
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="request corruption fenced"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_duplicate_idempotency_fields_are_ambiguous_and_fence_fresh_authority(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    request_id = "duplicate-idempotency-field"
+    raw = (
+        '{"request_id":"duplicate-idempotency-field",'
+        '"correlation_id":"c",'
+        '"candidate_sha":"abc123",'
+        '"node_id":"windows-desktop",'
+        '"operation_type":"codex_probe",'
+        '"capability":"shell",'
+        '"params":{"command":"echo ok"},'
+        '"risk_class":"reversible_write",'
+        '"authority_id":"",'
+        '"idempotency_key":"dup-a",'
+        '"idempotency_\\u006bey":"dup-b",'
+        '"lifecycle_state":"QUEUED"}'
+    )
+    (tmp_path / "requests" / f"{request_id}.json").write_text(raw, encoding="utf-8")
+
+    fresh = _request(idempotency_key="dup-a")
+    with pytest.raises(ValueError, match="unknown-scope corrupt request material"):
+        store.put_request(fresh)
+
+    assert not (tmp_path / "requests" / f"{fresh.request_id}.json").exists()
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_nested_idempotency_decoy_does_not_establish_request_scope(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    (tmp_path / "requests" / "nested-decoy.json").write_text(
+        json.dumps(
+            {
+                "request_id": "nested-decoy",
+                "correlation_id": "c",
+                "candidate_sha": "abc123",
+                "node_id": "windows-desktop",
+                "operation_type": "codex_probe",
+                "capability": "shell",
+                "params": {"metadata": {"idempotency_key": "decoy-key"}},
+                "risk_class": "reversible_write",
+                "authority_id": "",
+                "lifecycle_state": "QUEUED",
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown-scope corrupt request material"):
+        store.put_request(_request(idempotency_key="decoy-key"))
+
+
+def test_malformed_raw_idempotency_token_does_not_narrow_corruption_scope(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    (tmp_path / "requests" / "raw-decoy.json").write_text(
+        '{"payload":"\\"idempotency_key\\":\\"raw-decoy-key\\""',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown-scope corrupt request material"):
+        store.put_request(_request(idempotency_key="raw-decoy-key"))
+
+
+def test_escaped_request_path_identity_compares_decoded_canonical_value(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = _request(idempotency_key="path-key-1")
+    req.request_id = "request-path-1"
+    raw = json.dumps(req.to_dict(), sort_keys=True)
+    raw = raw.replace("request-path-1", "request-path-\\u0031")
+    raw = raw.replace("path-key-1", "path-key-\\u0031")
+    (tmp_path / "requests" / "request-path-1.json").write_text(raw, encoding="utf-8")
+
+    loaded = store.get_request("request-path-1")
+
+    assert loaded is not None
+    assert loaded.request_id == "request-path-1"
+    assert loaded.idempotency_key == "path-key-1"
+    assert [item.request_id for item in store.deliverable_for_node("windows-desktop")] == [
+        "request-path-1"
+    ]
+
+
 def test_corrupt_same_key_request_fence_survives_quarantine_and_restart(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     key = "corrupt-key-survives-quarantine"
@@ -328,9 +452,13 @@ def test_valid_binding_with_corrupt_same_key_preserves_canonical_request(tmp_pat
     )
 
     assert replay.request_id == canonical.request_id
+    assert not (tmp_path / "requests" / f"{corrupt.request_id}.json").read_text(
+        encoding="utf-8"
+    ).startswith("{\"params\":\"not-an-object\"")
     assert not (tmp_path / "requests" / f"{replay.request_id}.json").read_text(
         encoding="utf-8"
     ).startswith("{\"params\":\"not-an-object\"")
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
     assert list((tmp_path / "corrupt").glob("requests-*.json"))
 
 

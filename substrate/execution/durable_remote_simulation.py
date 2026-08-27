@@ -13,6 +13,18 @@ from typing import Callable
 TERMINAL = {"SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}
 
 
+def canonical_identity_from_serialized_token(token: str, *, syntactically_valid: bool = True) -> str:
+    if not syntactically_valid:
+        return ""
+    return {
+        "K": "K",
+        "K_ESCAPED_VALUE": "K",
+        "K_ESCAPED_FIELD": "K",
+        "J": "J",
+        "J_ESCAPED_VALUE": "J",
+    }.get(token, "")
+
+
 @dataclass
 class SimState:
     scenario: str
@@ -128,6 +140,12 @@ class SimState:
             assert self.fail_closed, self.log
         if self.cas_rewrite_attempted_with_corruption:
             assert self.corruption_evidence_preserved, self.log
+        for key in self.corrupt_request_keys:
+            canonical = self.canonical_request_for_key.get(key)
+            if canonical:
+                for request_id in requests_for_key_in_admission_order(self, key):
+                    if request_id != canonical:
+                        assert request_id not in self.deliverable_requests, self.log
 
 
 def persist_request_file(
@@ -154,6 +172,34 @@ def persist_request_file(
     if request_id not in state.persisted_request_order:
         state.next_request_order += 1
         state.persisted_request_order[request_id] = state.next_request_order
+
+
+def persist_corrupt_authority_record(
+    state: SimState,
+    *,
+    request_id: str,
+    serialized_identity: str,
+    syntactically_valid: bool = True,
+    structural_field: bool = True,
+) -> None:
+    key = canonical_identity_from_serialized_token(
+        serialized_identity,
+        syntactically_valid=syntactically_valid,
+    )
+    if not structural_field:
+        key = ""
+    state.record(
+        "persist_corrupt_authority_record:"
+        f"request={request_id}:serialized={serialized_identity}:decoded={key or 'UNKNOWN'}"
+    )
+    persist_request_file(
+        state,
+        request_id=request_id,
+        idempotency_key=key,
+        payload_identity="P",
+        material_valid=False,
+        corrupt=True,
+    )
 
 
 def requests_for_key_in_admission_order(state: SimState, idempotency_key: str) -> list[str]:
@@ -1075,6 +1121,126 @@ def _corrupt_same_key_request_blocks_fresh_admission(state: SimState) -> None:
     assert "B" not in state.persisted_request_key, state.log
 
 
+def _escaped_json_key_value_bypass_reproduction(state: SimState) -> None:
+    persist_corrupt_authority_record(
+        state,
+        request_id="A",
+        serialized_identity="K_ESCAPED_VALUE",
+    )
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert "K" in state.fenced_idempotency_keys, state.log
+    assert "B" not in state.persisted_request_key, state.log
+
+
+def _escaped_field_name_bypass_reproduction(state: SimState) -> None:
+    persist_corrupt_authority_record(
+        state,
+        request_id="A",
+        serialized_identity="K_ESCAPED_FIELD",
+    )
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert "K" in state.fenced_idempotency_keys, state.log
+
+
+def _attempt_store_escaped_scope_blocks_authority(state: SimState) -> None:
+    state.attempt_store_corrupt_unknown_scope = True
+    state.record("attempt_store_corrupt_scope:serialized=attempt-\\u0031:decoded=attempt-1")
+    state.fail_closed = True
+    state.assert_invariants()
+
+
+def _lease_store_escaped_scope_blocks_authority(state: SimState) -> None:
+    state.lease_store_corrupt = True
+    state.record("lease_store_corrupt_scope:serialized=lease-\\u0031:decoded=lease-1")
+    state.fail_closed = True
+    state.assert_invariants()
+
+
+def _duplicate_authority_field_fails_ambiguous(state: SimState) -> None:
+    persist_corrupt_authority_record(
+        state,
+        request_id="A",
+        serialized_identity="UNKNOWN_DUPLICATE_FIELD",
+    )
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert state.unknown_scope_request_corruption, state.log
+    assert "B" not in state.persisted_request_key, state.log
+
+
+def _nested_decoy_identity_does_not_scope_corruption(state: SimState) -> None:
+    persist_corrupt_authority_record(
+        state,
+        request_id="A",
+        serialized_identity="K",
+        structural_field=False,
+    )
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert state.unknown_scope_request_corruption, state.log
+    assert "B" not in state.persisted_request_key, state.log
+
+
+def _malformed_raw_token_is_unknown_scope(state: SimState) -> None:
+    persist_corrupt_authority_record(
+        state,
+        request_id="A",
+        serialized_identity="K",
+        syntactically_valid=False,
+    )
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert state.unknown_scope_request_corruption, state.log
+
+
+def _bound_and_corrupt_fenced_represented(state: SimState) -> None:
+    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") == "A"
+    persist_corrupt_authority_record(
+        state,
+        request_id="B",
+        serialized_identity="K_ESCAPED_VALUE",
+    )
+    assert state.canonical_request_for_key["K"] == "A", state.log
+    assert "K" in state.corrupt_request_keys, state.log
+
+
+def _bound_and_corrupt_fenced_blocks_fresh_request(state: SimState) -> None:
+    _bound_and_corrupt_fenced_represented(state)
+    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") == "A"
+    assert "C" not in state.persisted_request_key, state.log
+    assert state.canonical_request_for_key["K"] == "A", state.log
+
+
+def _terminal_bound_plus_corruption_preserves_terminal(state: SimState) -> None:
+    _normal_success(state)
+    persist_corrupt_authority_record(
+        state,
+        request_id="B",
+        serialized_identity="K_ESCAPED_FIELD",
+    )
+    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") == "A"
+    assert state.lifecycle == "SUCCEEDED", state.log
+    assert state.execution_for_key["K"] == 1, state.log
+
+
+def _restart_preserves_canonical_corruption_fence(state: SimState) -> None:
+    persist_corrupt_authority_record(
+        state,
+        request_id="A",
+        serialized_identity="K_ESCAPED_VALUE",
+    )
+    restart_mesh(state)
+    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert "K" in state.fenced_idempotency_keys, state.log
+
+
+def _unrelated_clean_key_progresses_with_canonical_key_scope(state: SimState) -> None:
+    persist_corrupt_authority_record(
+        state,
+        request_id="A",
+        serialized_identity="K_ESCAPED_VALUE",
+    )
+    assert admit_durable_request(state, request_id="B", idempotency_key="J", payload_identity="P2") == "B"
+    assert state.canonical_request_for_key["J"] == "B", state.log
+
+
 def _corrupt_same_key_retry_new_request_id_denied(state: SimState) -> None:
     _corrupt_same_key_request_blocks_fresh_admission(state)
 
@@ -1393,6 +1559,40 @@ SCENARIOS: dict[str, Scenario] = {
     "corrupt_same_key_request_blocks_fresh_admission": (
         _corrupt_same_key_request_blocks_fresh_admission
     ),
+    "canonicalization_escaped_json_key_value_bypass": (
+        _escaped_json_key_value_bypass_reproduction
+    ),
+    "canonicalization_escaped_field_name_bypass": _escaped_field_name_bypass_reproduction,
+    "canonicalization_attempt_store_escaped_scope": (
+        _attempt_store_escaped_scope_blocks_authority
+    ),
+    "canonicalization_lease_store_escaped_scope": (
+        _lease_store_escaped_scope_blocks_authority
+    ),
+    "canonicalization_duplicate_authority_field_ambiguous": (
+        _duplicate_authority_field_fails_ambiguous
+    ),
+    "canonicalization_nested_decoy_identity_unknown_scope": (
+        _nested_decoy_identity_does_not_scope_corruption
+    ),
+    "canonicalization_malformed_raw_token_unknown_scope": (
+        _malformed_raw_token_is_unknown_scope
+    ),
+    "canonicalization_bound_and_corrupt_fenced_represented": (
+        _bound_and_corrupt_fenced_represented
+    ),
+    "canonicalization_bound_and_corrupt_fenced_blocks_fresh": (
+        _bound_and_corrupt_fenced_blocks_fresh_request
+    ),
+    "canonicalization_terminal_bound_plus_corruption": (
+        _terminal_bound_plus_corruption_preserves_terminal
+    ),
+    "canonicalization_restart_preserves_fence": (
+        _restart_preserves_canonical_corruption_fence
+    ),
+    "canonicalization_unrelated_clean_key_progresses": (
+        _unrelated_clean_key_progresses_with_canonical_key_scope
+    ),
     "corrupt_same_key_retry_new_request_id_denied": (
         _corrupt_same_key_retry_new_request_id_denied
     ),
@@ -1442,7 +1642,17 @@ def run_scenario(name: str) -> SimState:
     SCENARIOS[name](state)
     state.assert_invariants()
     if name != "fallback_unavailable" and not name.startswith(
-        ("sync_", "idempotency_", "recovery_", "corrupt_", "risk_", "attempt_store_", "event_journal_", "ingress_")
+        (
+            "sync_",
+            "idempotency_",
+            "recovery_",
+            "corrupt_",
+            "risk_",
+            "attempt_store_",
+            "event_journal_",
+            "ingress_",
+            "canonicalization_",
+        )
     ):
         assert state.lifecycle in {"RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}, state.log
     return state

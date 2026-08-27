@@ -81,6 +81,26 @@ def _normalized_idempotency_key(value: str) -> str:
     return str(value or "").strip()
 
 
+def _reject_duplicate_json_object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError(f"duplicate JSON object key: {key}")
+        out[key] = value
+    return out
+
+
+def _loads_authority_json_object(raw: bytes | str) -> dict[str, Any]:
+    if isinstance(raw, bytes):
+        text = raw.decode("utf-8")
+    else:
+        text = raw
+    data = json.loads(text, object_pairs_hook=_reject_duplicate_json_object_pairs)
+    if not isinstance(data, dict):
+        raise ValueError("json record is not an object")
+    return dict(data)
+
+
 def _logical_payload_params(params: dict[str, Any]) -> dict[str, Any]:
     logical_params = dict(params)
     logical_params.pop("governance_verdict_id", None)
@@ -232,8 +252,8 @@ def _load_json_record(
         )
         return _DurableRecordLoad(LOAD_READ_ERROR, path, reason=reason)
     try:
-        data = json.loads(raw.decode("utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        data = _loads_authority_json_object(raw)
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
         reason = f"{type(exc).__name__}: {exc}"
         _record_persistence_issue(
             path,
@@ -243,17 +263,7 @@ def _load_json_record(
             status=LOAD_CORRUPT,
         )
         return _DurableRecordLoad(LOAD_CORRUPT, path, reason=reason)
-    if not isinstance(data, dict):
-        reason = "json record is not an object"
-        _record_persistence_issue(
-            path,
-            reason=reason,
-            record_kind=record_kind,
-            identity=identity,
-            status=LOAD_CORRUPT,
-        )
-        return _DurableRecordLoad(LOAD_CORRUPT, path, reason=reason)
-    return _DurableRecordLoad(LOAD_VALID, path, data=dict(data))
+    return _DurableRecordLoad(LOAD_VALID, path, data=data)
 
 
 def _corruption_fence_path(path: Path, *, identity: str) -> Path:
@@ -475,17 +485,6 @@ class DurableRemoteStore:
     def _request_corruption_fence_exists(self, identity: str) -> bool:
         return self._request_corruption_fence_path(identity).exists()
 
-    @staticmethod
-    def _recover_request_idempotency_key_from_bytes(path: Path) -> str:
-        try:
-            text = path.read_bytes().decode("utf-8", errors="ignore")
-        except OSError:
-            return ""
-        import re
-
-        match = re.search(r'"idempotency_key"\s*:\s*"([^"]+)"', text)
-        return _normalized_idempotency_key(match.group(1)) if match else ""
-
     def _negative_request_corruption_identity(
         self,
         path: Path,
@@ -498,10 +497,11 @@ class DurableRemoteStore:
             if key:
                 return key
         if isinstance(data, dict):
-            key = _normalized_idempotency_key(str(data.get("idempotency_key", "") or ""))
+            raw_key = data.get("idempotency_key")
+            key = _normalized_idempotency_key(raw_key) if isinstance(raw_key, str) else ""
             if key:
                 return key
-        return self._recover_request_idempotency_key_from_bytes(path)
+        return ""
 
     def _record_request_corruption_fence(
         self,
@@ -1002,19 +1002,9 @@ class DurableRemoteStore:
             if not line.strip():
                 continue
             try:
-                event = json.loads(line.decode("utf-8"))
-            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                event = _loads_authority_json_object(line)
+            except (json.JSONDecodeError, UnicodeDecodeError, ValueError) as exc:
                 reason = f"event journal line {line_no} corrupt: {type(exc).__name__}: {exc}"
-                _record_persistence_issue(
-                    self.events_path,
-                    reason=reason,
-                    record_kind="events",
-                    identity=f"line:{line_no}",
-                    status=LOAD_CORRUPT,
-                )
-                return _DurableEventJournalLoad(bindings, complete=False, reason=reason)
-            if not isinstance(event, dict):
-                reason = f"event journal line {line_no} is not an object"
                 _record_persistence_issue(
                     self.events_path,
                     reason=reason,
@@ -1302,7 +1292,22 @@ class DurableRemoteStore:
         reasons: list[str] = []
         for path in sorted(self.requests_dir.glob("*.json")):
             loaded = self._load_request_record(path.stem)
-            if loaded.valid:
+            if loaded.valid and loaded.request is not None:
+                try:
+                    self._validate_canonical_request_material(loaded.request)
+                except ValueError as exc:
+                    recovered_key = self._record_request_corruption_fence(
+                        loaded.path,
+                        reason=f"request canonical material invalid: {exc}",
+                        data=loaded.data,
+                        request=loaded.request,
+                    )
+                    if recovered_key == key:
+                        same_key = True
+                    elif not recovered_key or recovered_key == UNKNOWN_IDEMPOTENCY_SCOPE:
+                        unknown_scope = True
+                    reasons.append(f"{path.name}:request canonical material invalid: {exc}")
+                    continue
                 continue
             if loaded.status == LOAD_READ_ERROR:
                 read_error = True
