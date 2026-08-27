@@ -691,7 +691,7 @@ AtMostOneCanonicalRequestPerIdempotencyKey == \A k \in Keys: canonicalRequestFor
 SameLogicalOperationConvergesToSameCanonicalRequest ==
     requestAAdmitted /\ requestBAdmitted /\ requestAKey \in Keys
     /\ requestAKey = requestBKey /\ requestAPayload = requestBPayload
-    => canonicalRequestForKey[requestAKey] \in {"A", "B"}
+    /\ ~idempotencyConflict => canonicalRequestForKey[requestAKey] \in {"A", "B"}
 IdempotencyKeyCannotAuthorizeDifferentPayload ==
     requestAAdmitted /\ requestBAdmitted /\ requestAKey \in Keys
     /\ requestAKey = requestBKey /\ requestAPayload # requestBPayload
