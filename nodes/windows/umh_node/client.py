@@ -27,14 +27,14 @@ import struct
 import sys
 import threading
 import time
-import urllib.error
-import urllib.request
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from typing import Any, Callable
 from uuid import uuid4
 
 import websockets
+import aiohttp
 
 from nodes.windows.umh_node.adapters.broadcast import BroadcastAdapter
 from nodes.windows.umh_node.adapters.camera import CameraAdapter
@@ -72,8 +72,50 @@ _TRAFFIC_CLASSES = (
     _TRAFFIC_BULK_MEDIA,
 )
 _AUTHORITY_SEND_BURST_LIMIT = 8
+_WS_SEND_DEADLINE_S = 2.0
+_WS_SEND_ABORT_GRACE_S = 0.25
+_AUTHORITY_SCHEDULER_OVERHEAD_BOUND_S = 0.25
+_WS_SEND_QUEUE_CAPACITY = {
+    _TRAFFIC_AUTHORITY_CONTROL: 8,
+    _TRAFFIC_REQUIRED_CONTROL: 16,
+    _TRAFFIC_ORDINARY: 32,
+    _TRAFFIC_BULK_MEDIA: 4,
+}
+_WS_SEND_PAYLOAD_MAX_BYTES = {
+    _TRAFFIC_AUTHORITY_CONTROL: 256 * 1024,
+    _TRAFFIC_REQUIRED_CONTROL: 256 * 1024,
+    _TRAFFIC_ORDINARY: 256 * 1024,
+    _TRAFFIC_BULK_MEDIA: _BULK_MEDIA_MAX_FRAME_BYTES,
+}
+_WS_SEND_QUEUE_MAX_BYTES = {
+    traffic_class: _WS_SEND_QUEUE_CAPACITY[traffic_class]
+    * _WS_SEND_PAYLOAD_MAX_BYTES[traffic_class]
+    for traffic_class in _TRAFFIC_CLASSES
+}
+_AUTHORITY_LOWER_CLASS_INTERLEAVES_MAX = (
+    _WS_SEND_QUEUE_CAPACITY[_TRAFFIC_AUTHORITY_CONTROL]
+    + _AUTHORITY_SEND_BURST_LIMIT
+    - 1
+) // _AUTHORITY_SEND_BURST_LIMIT
+# Last accepted authority work may wait for one in-flight frame, seven earlier
+# authority frames, and at most one lower-class fairness interleave. Each send
+# either completes or invalidates the transport within _WS_SEND_DEADLINE_S.
+_AUTHORITY_SERVICE_START_BOUND_S = (
+    (
+        _WS_SEND_QUEUE_CAPACITY[_TRAFFIC_AUTHORITY_CONTROL]
+        + _AUTHORITY_LOWER_CLASS_INTERLEAVES_MAX
+    )
+    * _WS_SEND_DEADLINE_S
+    + _AUTHORITY_SCHEDULER_OVERHEAD_BOUND_S
+)
+_AUTHORITY_SERVICE_COMPLETE_BOUND_S = (
+    _AUTHORITY_SERVICE_START_BOUND_S + _WS_SEND_DEADLINE_S
+)
+_AUTHORITY_QUEUE_MAX_WAIT_S = _AUTHORITY_SERVICE_START_BOUND_S
 _CONTROL_TIMEOUT_S = 8.0
 _DURABLE_CLAIM_ACQUIRE_TIMEOUT_S = 30.0
+_CLAIM_AUTHORITY_ENVELOPE_S = _AUTHORITY_SERVICE_COMPLETE_BOUND_S + _CONTROL_TIMEOUT_S
+assert _CLAIM_AUTHORITY_ENVELOPE_S < _DURABLE_CLAIM_ACQUIRE_TIMEOUT_S
 _DURABLE_CLAIM_RETRY_SLEEP_S = 1.0
 _DURABLE_TRAJECTORY_TOMBSTONE_TTL_S = 300.0
 _DURABLE_TRAJECTORY_MAX = 512
@@ -116,6 +158,25 @@ _SECRET_LINE_PATTERNS = (
     re.compile(r"op" + r"://"),
     re.compile(r"\bsk-[A-Za-z0-9_-]{8,}\b"),
 )
+
+
+class TransportQueueOverload(ConnectionError):
+    """A bounded transport queue couldn't truthfully admit a frame."""
+
+
+class TransportSendDeadlineExceeded(TimeoutError):
+    """A send exceeded its finite service bound and invalidated the socket."""
+
+
+@dataclass(frozen=True)
+class _WsSendEntry:
+    seq: int
+    payload: str | bytes
+    future: asyncio.Future[dict[str, Any]]
+    traffic_class: str
+    payload_bytes: int
+    queued_at: float
+    generation: int
 
 
 def _redact_durable_output(text: str) -> str:
@@ -554,14 +615,17 @@ class NodeClient:
         self._shutdown = asyncio.Event()
         self._msg_id = 0
         self._pending_rpc: dict[Any, asyncio.Future[dict[str, Any]]] = {}
+        self._pending_rpc_generations: dict[Any, int] = {}
         self._ws_send_lock: asyncio.Lock | None = None
         self._ws_writer_task: asyncio.Task | None = None
-        self._ws_send_event = asyncio.Event()
-        self._ws_send_queues: dict[str, deque[tuple[int, str | bytes, asyncio.Future[None]]]] = {
+        self._ws_send_queues: dict[str, deque[_WsSendEntry]] = {
             traffic_class: deque() for traffic_class in _TRAFFIC_CLASSES
         }
+        self._ws_send_queue_bytes = {traffic_class: 0 for traffic_class in _TRAFFIC_CLASSES}
         self._ws_send_seq = 0
         self._authority_send_burst = 0
+        self._ws_generation = 0
+        self._ws_transport_healthy = False
 
         self._adapters: dict[str, Any] = {}
         self._init_adapters()
@@ -689,23 +753,86 @@ class NodeClient:
         return self._msg_id
 
     def _ensure_ws_writer_state(self) -> None:
-        if not hasattr(self, "_ws_send_event"):
-            self._ws_send_event = asyncio.Event()
         if not hasattr(self, "_ws_send_queues"):
             self._ws_send_queues = {traffic_class: deque() for traffic_class in _TRAFFIC_CLASSES}
+        if not hasattr(self, "_ws_send_queue_bytes"):
+            self._ws_send_queue_bytes = {
+                traffic_class: sum(
+                    entry.payload_bytes if isinstance(entry, _WsSendEntry) else 0
+                    for entry in self._ws_send_queues[traffic_class]
+                )
+                for traffic_class in _TRAFFIC_CLASSES
+            }
         if not hasattr(self, "_ws_send_seq"):
             self._ws_send_seq = 0
         if not hasattr(self, "_authority_send_burst"):
             self._authority_send_burst = 0
         if not hasattr(self, "_ws_writer_task"):
             self._ws_writer_task = None
+        if not hasattr(self, "_ws_generation"):
+            self._ws_generation = 0
+        if not hasattr(self, "_ws_transport_healthy"):
+            self._ws_transport_healthy = getattr(self, "_ws", None) is not None
+        if not hasattr(self, "_pending_rpc_generations"):
+            self._pending_rpc_generations = {}
 
     def _normalize_traffic_class(self, traffic_class: str) -> str:
         if traffic_class in _TRAFFIC_CLASSES:
             return traffic_class
         return _TRAFFIC_ORDINARY
 
-    def _dequeue_next_ws_send(self) -> tuple[int, str | bytes, asyncio.Future[None]] | None:
+    @staticmethod
+    def _ws_payload_bytes(payload: str | bytes) -> int:
+        if isinstance(payload, bytes):
+            return len(payload)
+        return len(payload.encode("utf-8"))
+
+    def _queue_ws_send(
+        self,
+        payload: str | bytes,
+        *,
+        traffic_class: str,
+        future: asyncio.Future[dict[str, Any]],
+    ) -> _WsSendEntry:
+        self._ensure_ws_writer_state()
+        payload_bytes = self._ws_payload_bytes(payload)
+        queue = self._ws_send_queues[traffic_class]
+        if payload_bytes > _WS_SEND_PAYLOAD_MAX_BYTES[traffic_class]:
+            raise TransportQueueOverload(
+                f"{traffic_class} frame exceeds {_WS_SEND_PAYLOAD_MAX_BYTES[traffic_class]} byte bound"
+            )
+        if (
+            len(queue) >= _WS_SEND_QUEUE_CAPACITY[traffic_class]
+            or self._ws_send_queue_bytes[traffic_class] + payload_bytes
+            > _WS_SEND_QUEUE_MAX_BYTES[traffic_class]
+        ):
+            raise TransportQueueOverload(
+                f"{traffic_class}_OVERLOAD depth={len(queue)} bytes="
+                f"{self._ws_send_queue_bytes[traffic_class]}"
+            )
+        self._ws_send_seq += 1
+        entry = _WsSendEntry(
+            seq=self._ws_send_seq,
+            payload=payload,
+            future=future,
+            traffic_class=traffic_class,
+            payload_bytes=payload_bytes,
+            queued_at=time.monotonic(),
+            generation=self._ws_generation,
+        )
+        queue.append(entry)
+        self._ws_send_queue_bytes[traffic_class] += payload_bytes
+        return entry
+
+    def _pop_ws_send(self, traffic_class: str) -> _WsSendEntry:
+        entry = self._ws_send_queues[traffic_class].popleft()
+        self._ws_send_queue_bytes[traffic_class] = max(
+            0,
+            self._ws_send_queue_bytes[traffic_class] - entry.payload_bytes,
+        )
+        return entry
+
+    def _dequeue_next_ws_send(self) -> _WsSendEntry | None:
         self._ensure_ws_writer_state()
         authority = self._ws_send_queues[_TRAFFIC_AUTHORITY_CONTROL]
         lower_has_work = any(
@@ -716,40 +843,148 @@ class NodeClient:
             self._authority_send_burst < _AUTHORITY_SEND_BURST_LIMIT or not lower_has_work
         ):
             self._authority_send_burst += 1
-            return authority.popleft()
+            return self._pop_ws_send(_TRAFFIC_AUTHORITY_CONTROL)
         for name in (_TRAFFIC_REQUIRED_CONTROL, _TRAFFIC_ORDINARY, _TRAFFIC_BULK_MEDIA):
             queue = self._ws_send_queues[name]
             if queue:
                 self._authority_send_burst = 0
-                return queue.popleft()
+                return self._pop_ws_send(name)
         if authority:
             self._authority_send_burst = 1
-            return authority.popleft()
+            return self._pop_ws_send(_TRAFFIC_AUTHORITY_CONTROL)
         return None
 
     async def _ws_writer_loop(self) -> None:
         while True:
-            await self._ws_send_event.wait()
-            self._ws_send_event.clear()
-            while True:
-                entry = self._dequeue_next_ws_send()
-                if entry is None:
-                    break
-                _seq, payload, future = entry
-                if future.cancelled():
-                    continue
-                if self._ws is None:
-                    if not future.done():
-                        future.set_exception(ConnectionError("node websocket not connected"))
-                    continue
-                try:
-                    await self._ws.send(payload)
-                except Exception as exc:
-                    if not future.done():
-                        future.set_exception(exc)
-                else:
-                    if not future.done():
-                        future.set_result(None)
+            entry = self._dequeue_next_ws_send()
+            if entry is None:
+                return
+            if entry.future.cancelled():
+                continue
+            if entry.generation != self._ws_generation:
+                if not entry.future.done():
+                    entry.future.set_exception(
+                        ConnectionError("stale websocket transport generation")
+                    )
+                continue
+            if self._ws is None:
+                if not entry.future.done():
+                    entry.future.set_exception(ConnectionError("node websocket not connected"))
+                continue
+            queue_wait_s = time.monotonic() - entry.queued_at
+            if (
+                entry.traffic_class == _TRAFFIC_AUTHORITY_CONTROL
+                and queue_wait_s > _AUTHORITY_QUEUE_MAX_WAIT_S
+            ):
+                exc = TransportSendDeadlineExceeded(
+                    "authority frame exceeded bounded queue-wait envelope"
+                )
+                if not entry.future.done():
+                    entry.future.set_exception(exc)
+                await self._invalidate_ws_transport(exc, generation=entry.generation)
+                self._fail_queued_ws_sends(exc)
+                return
+            try:
+                send_s = await self._send_ws_frame_with_deadline(
+                    entry.payload,
+                    generation=entry.generation,
+                )
+            except Exception as exc:
+                if not entry.future.done():
+                    entry.future.set_exception(exc)
+                self._fail_queued_ws_sends(exc)
+                return
+            else:
+                if not entry.future.done():
+                    entry.future.set_result(
+                        {
+                            "seq": entry.seq,
+                            "traffic_class": entry.traffic_class,
+                            "generation": entry.generation,
+                            "queue_wait_ms": round(queue_wait_s * 1000, 3),
+                            "send_ms": round(send_s * 1000, 3),
+                        }
+                    )
+                # Let producers and authority enqueuers run before the next
+                # scheduling decision; a self-replenishing lower queue must
+                # not monopolize the local event loop.
+                await asyncio.sleep(0)
+
+    async def _send_ws_frame_with_deadline(
+        self,
+        payload: str | bytes,
+        *,
+        generation: int,
+    ) -> float:
+        ws = self._ws
+        if (
+            ws is None
+            or generation != self._ws_generation
+            or not self._ws_transport_healthy
+        ):
+            raise ConnectionError("node websocket transport generation unavailable")
+        started = time.monotonic()
+        send_task = asyncio.create_task(ws.send(payload))
+        try:
+            done, _pending = await asyncio.wait({send_task}, timeout=_WS_SEND_DEADLINE_S)
+        except asyncio.CancelledError:
+            await self._invalidate_ws_transport(
+                ConnectionError("websocket writer cancelled during send"),
+                generation=generation,
+            )
+            send_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await send_task
+            raise
+        if send_task in done:
+            try:
+                await send_task
+            except Exception as exc:
+                await self._invalidate_ws_transport(exc, generation=generation)
+                raise
+            return time.monotonic() - started
+
+        exc = TransportSendDeadlineExceeded(
+            f"websocket send exceeded {_WS_SEND_DEADLINE_S:.3f}s deadline"
+        )
+        await self._invalidate_ws_transport(exc, generation=generation)
+        try:
+            await asyncio.wait_for(
+                asyncio.shield(send_task),
+                timeout=_WS_SEND_ABORT_GRACE_S,
+            )
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            send_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await send_task
+        except Exception:
+            pass
+        raise exc
+
+    async def _invalidate_ws_transport(self, exc: Exception, *, generation: int) -> None:
+        if generation != self._ws_generation:
+            return
+        self._connected = False
+        self._ws_transport_healthy = False
+        self._fail_pending_rpc(exc, generation=generation)
+        ws = self._ws
+        if ws is None:
+            return
+        transport = getattr(ws, "transport", None)
+        abort = getattr(transport, "abort", None)
+        if callable(abort):
+            abort()
+            return
+        close = getattr(ws, "close", None)
+        if not callable(close):
+            return
+        try:
+            await asyncio.wait_for(
+                close(code=1011, reason="bounded websocket send failed"),
+                timeout=_WS_SEND_ABORT_GRACE_S,
+            )
+        except Exception:
+            logger.debug("websocket close after send failure did not complete", exc_info=True)
 
     def _ensure_ws_writer_task(self) -> None:
         self._ensure_ws_writer_state()
@@ -759,15 +994,29 @@ class NodeClient:
 
     def _fail_queued_ws_sends(self, exc: Exception) -> None:
         self._ensure_ws_writer_state()
-        for queue in self._ws_send_queues.values():
+        for traffic_class, queue in self._ws_send_queues.items():
             while queue:
-                _seq, _payload, future = queue.popleft()
-                if not future.done():
-                    future.set_exception(exc)
+                entry = queue.popleft()
+                if not entry.future.done():
+                    entry.future.set_exception(exc)
+            self._ws_send_queue_bytes[traffic_class] = 0
+
+    def _fail_pending_rpc(self, exc: Exception, *, generation: int | None = None) -> None:
+        self._ensure_ws_writer_state()
+        for msg_id, future in list(self._pending_rpc.items()):
+            expected_generation = self._pending_rpc_generations.get(msg_id)
+            if generation is not None and expected_generation != generation:
+                continue
+            self._pending_rpc.pop(msg_id, None)
+            self._pending_rpc_generations.pop(msg_id, None)
+            if not future.done():
+                future.set_result({"ok": False, "error": str(exc), "retryable": True})
 
     async def _stop_ws_writer(self) -> None:
         self._ensure_ws_writer_state()
+        self._ws_transport_healthy = False
         self._fail_queued_ws_sends(ConnectionError("node websocket writer stopped"))
+        self._fail_pending_rpc(ConnectionError("node websocket writer stopped"))
         task = self._ws_writer_task
         self._ws_writer_task = None
         if task is not None:
@@ -780,20 +1029,30 @@ class NodeClient:
         payload: str | bytes,
         *,
         traffic_class: str = _TRAFFIC_REQUIRED_CONTROL,
-    ) -> None:
-        if self._ws is None:
+    ) -> dict[str, Any]:
+        self._ensure_ws_writer_state()
+        if self._ws is None or not self._ws_transport_healthy:
             raise ConnectionError("node websocket not connected")
-        self._ensure_ws_writer_task()
         loop = asyncio.get_running_loop()
-        future: asyncio.Future[None] = loop.create_future()
-        self._ws_send_seq += 1
+        future: asyncio.Future[dict[str, Any]] = loop.create_future()
         normalized_class = self._normalize_traffic_class(traffic_class)
-        self._ws_send_queues[normalized_class].append(
-            (self._ws_send_seq, payload, future)
-        )
-        self._ws_send_event.set()
         try:
-            await future
+            self._queue_ws_send(
+                payload,
+                traffic_class=normalized_class,
+                future=future,
+            )
+        except TransportQueueOverload as exc:
+            if normalized_class in {
+                _TRAFFIC_AUTHORITY_CONTROL,
+                _TRAFFIC_REQUIRED_CONTROL,
+            }:
+                await self._invalidate_ws_transport(exc, generation=self._ws_generation)
+                self._fail_queued_ws_sends(exc)
+            raise
+        self._ensure_ws_writer_task()
+        try:
+            return await future
         except asyncio.CancelledError:
             future.cancel()
             raise
@@ -941,7 +1200,9 @@ class NodeClient:
             max_size=4 * 1024 * 1024,
             additional_headers=self._config.auth_header,
         ) as ws:
+            self._ws_generation += 1
             self._ws = ws
+            self._ws_transport_healthy = True
             self._ensure_ws_writer_task()
             try:
                 await self._send_hello()
@@ -964,6 +1225,7 @@ class NodeClient:
             finally:
                 await self._stop_ws_writer()
                 self._connected = False
+                self._ws_transport_healthy = False
                 self._ws = None
 
     async def _send_hello(self) -> None:
@@ -1090,10 +1352,23 @@ class NodeClient:
             logger.debug("unhandled message method: %s", method)
 
     def _handle_rpc_response(self, msg: dict[str, Any]) -> None:
+        self._ensure_ws_writer_state()
         msg_id = msg.get("id")
-        future = self._pending_rpc.pop(msg_id, None)
+        future = self._pending_rpc.get(msg_id)
         if future is None or future.done():
             return
+        expected_generation = self._pending_rpc_generations.get(msg_id)
+        if expected_generation is None or expected_generation != self._ws_generation:
+            logger.warning(
+                "ignored RPC response without current websocket generation binding: "
+                "id=%s expected=%s current=%s",
+                msg_id,
+                expected_generation,
+                self._ws_generation,
+            )
+            return
+        self._pending_rpc.pop(msg_id, None)
+        self._pending_rpc_generations.pop(msg_id, None)
         if "error" in msg:
             future.set_result({"ok": False, "error": msg.get("error")})
             return
@@ -1531,12 +1806,14 @@ class NodeClient:
     ) -> dict[str, Any] | None:
         if not self._connected or self._ws is None:
             return {"ok": False, "error": "node websocket not connected"} if expect_ack else None
+        self._ensure_ws_writer_state()
         msg_id = self._next_id()
         request_id = str(payload.get("request_id", "") or "")
         future: asyncio.Future[dict[str, Any]] | None = None
         if expect_ack:
             future = asyncio.get_running_loop().create_future()
             self._pending_rpc[msg_id] = future
+            self._pending_rpc_generations[msg_id] = self._ws_generation
         message = json.dumps(
             {
                 "jsonrpc": "2.0",
@@ -1552,12 +1829,20 @@ class NodeClient:
                     "NODE_AUTHORITY_SEND_QUEUED",
                     {"method": method, "message_id": msg_id, "traffic_class": _TRAFFIC_AUTHORITY_CONTROL},
                 )
-            await self._send_ws(message, traffic_class=_TRAFFIC_AUTHORITY_CONTROL)
+            send_evidence = await self._send_ws(
+                message,
+                traffic_class=_TRAFFIC_AUTHORITY_CONTROL,
+            )
             if request_id:
                 self._durable_store.record_transport_diagnostic(
                     request_id,
                     "NODE_AUTHORITY_SEND_COMPLETED",
-                    {"method": method, "message_id": msg_id, "traffic_class": _TRAFFIC_AUTHORITY_CONTROL},
+                    {
+                        "method": method,
+                        "message_id": msg_id,
+                        "traffic_class": _TRAFFIC_AUTHORITY_CONTROL,
+                        **send_evidence,
+                    },
                 )
             if not expect_ack or future is None:
                 return None
@@ -1569,8 +1854,30 @@ class NodeClient:
                     {"method": method, "message_id": msg_id},
                 )
             return ack
+        except (TransportQueueOverload, TransportSendDeadlineExceeded, ConnectionError) as exc:
+            self._pending_rpc.pop(msg_id, None)
+            self._pending_rpc_generations.pop(msg_id, None)
+            if request_id:
+                event = (
+                    "NODE_AUTHORITY_CONTROL_OVERLOAD"
+                    if isinstance(exc, TransportQueueOverload)
+                    else "NODE_AUTHORITY_TRANSPORT_UNHEALTHY"
+                )
+                self._durable_store.record_transport_diagnostic(
+                    request_id,
+                    event,
+                    {
+                        "method": method,
+                        "message_id": msg_id,
+                        "traffic_class": _TRAFFIC_AUTHORITY_CONTROL,
+                        "error": str(exc),
+                        "generation": self._ws_generation,
+                    },
+                )
+            return {"ok": False, "error": str(exc), "retryable": True}
         except asyncio.TimeoutError:
             self._pending_rpc.pop(msg_id, None)
+            self._pending_rpc_generations.pop(msg_id, None)
             if request_id:
                 self._durable_store.record_transport_diagnostic(
                     request_id,
@@ -1581,6 +1888,7 @@ class NodeClient:
         except BaseException:
             if expect_ack:
                 self._pending_rpc.pop(msg_id, None)
+                self._pending_rpc_generations.pop(msg_id, None)
             raise
 
     async def _handle_durable_command(self, msg: dict[str, Any]) -> None:
@@ -2512,7 +2820,7 @@ class NodeClient:
                 readback["retryable"] = True
             readback.setdefault("retryable", False)
             return readback
-        return self._validate_durable_claim_authority(
+        validated = self._validate_durable_claim_authority(
             readback,
             req,
             claim_id=claim_id,
@@ -2520,6 +2828,24 @@ class NodeClient:
             label="claim readback",
             allow_monotonic_claim_state=allow_monotonic_claim_state,
         )
+        self._durable_store.record_transport_diagnostic(
+            req.request_id,
+            (
+                "NODE_CLAIM_READBACK_RESPONSE_VALIDATED"
+                if validated.get("ok")
+                else "NODE_CLAIM_READBACK_VALIDATION_ERROR"
+            ),
+            {
+                "claim_id": claim_id,
+                "correlation_id": req.correlation_id,
+                "candidate_sha": req.candidate_sha,
+                "node_id": req.node_id,
+                "readback_id": str(readback.get("_readback_id", "")),
+                "ok": bool(validated.get("ok")),
+                "error": str(validated.get("error", "")),
+            },
+        )
+        return validated
 
     def _validate_durable_claim_authority(
         self,
@@ -2594,63 +2920,121 @@ class NodeClient:
         """Read VPS canonical durable state outside the WebSocket RPC waiter path."""
         request_id = str(payload.get("request_id", "") or "")
         claim_id = str(payload.get("claim_id", "") or "")
+        correlation_id = str(payload.get("correlation_id", "") or "")
+        candidate_sha = str(payload.get("candidate_sha", "") or "")
+        node_id = str(payload.get("node_id", "") or "")
         readback_id = uuid4().hex
+        identity = {
+            "request_id": request_id,
+            "claim_id": claim_id,
+            "correlation_id": correlation_id,
+            "candidate_sha": candidate_sha,
+            "node_id": node_id,
+            "readback_id": readback_id,
+        }
+
+        def _record(stage: str, extra: dict[str, Any] | None = None) -> None:
+            if request_id:
+                self._durable_store.record_transport_diagnostic(
+                    request_id,
+                    f"NODE_CLAIM_READBACK_{stage}",
+                    {**identity, **(extra or {})},
+                )
+
         if timeout_s <= 0:
+            _record("TIMEOUT", {"error": "claim readback deadline expired"})
             return {"ok": False, "error": "claim readback deadline expired", "retryable": False}
         if not self._config.vps_host or not self._config.token:
+            _record("TRANSPORT_ERROR", {"error": "missing node auth"})
             return {
                 "ok": False,
                 "error": "canonical claim readback unavailable: missing node auth",
                 "retryable": False,
             }
-        if request_id:
-            self._durable_store.record_transport_diagnostic(
-                request_id,
-                "NODE_CLAIM_READBACK_START",
-                {
-                    "claim_id": claim_id,
-                    "readback_id": readback_id,
-                    "timeout_s": timeout_s,
-                    "candidate_sha": str(payload.get("candidate_sha", "") or ""),
-                    "node_id": str(payload.get("node_id", "") or ""),
-                },
-            )
+        _record("START", {"timeout_s": timeout_s})
 
-        def _post() -> dict[str, Any]:
+        async def _post() -> dict[str, Any]:
             body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-            req = urllib.request.Request(
-                self._config.relay_http_url.rstrip("/") + "/durable-claim-state",
-                data=body,
-                headers={
-                    "Authorization": f"Bearer {self._config.token}",
-                    "Content-Type": "application/json",
-                },
-                method="POST",
+            timeout = aiohttp.ClientTimeout(
+                total=timeout_s,
+                connect=min(timeout_s, 2.0),
+                sock_connect=min(timeout_s, 2.0),
+                sock_read=timeout_s,
             )
+            trace = aiohttp.TraceConfig()
+
+            async def _headers_sent(
+                _session: aiohttp.ClientSession,
+                _context: Any,
+                _params: Any,
+            ) -> None:
+                _record("REQUEST_SENT", {"request_bytes": len(body)})
+
+            trace.on_request_headers_sent.append(_headers_sent)
+            _record("CONNECT_START")
             try:
-                with urllib.request.urlopen(req, timeout=max(0.1, timeout_s)) as resp:
-                    raw = resp.read(64 * 1024)
-            except urllib.error.HTTPError as exc:
+                async with aiohttp.ClientSession(
+                    timeout=timeout,
+                    trace_configs=[trace],
+                ) as session:
+                    async with session.post(
+                        self._config.relay_http_url.rstrip("/") + "/durable-claim-state",
+                        data=body,
+                        headers={
+                            "Authorization": f"Bearer {self._config.token}",
+                            "Content-Type": "application/json",
+                        },
+                    ) as resp:
+                        _record("HTTP_STATUS", {"status": int(resp.status)})
+                        if not 200 <= resp.status < 300:
+                            return {
+                                "ok": False,
+                                "error": f"canonical claim readback HTTP {resp.status}",
+                                "retryable": 500 <= resp.status < 600,
+                            }
+                        raw = await resp.content.read(64 * 1024 + 1)
+                        _record("RESPONSE_RECEIVED", {"response_bytes": len(raw)})
+            except asyncio.TimeoutError as exc:
+                _record("TIMEOUT", {"error": f"{type(exc).__name__}: {exc}"})
                 return {
                     "ok": False,
-                    "error": f"canonical claim readback HTTP {exc.code}",
-                    "retryable": 500 <= exc.code < 600,
+                    "error": "canonical claim readback timed out",
+                    "retryable": True,
                 }
-            except (OSError, TimeoutError) as exc:
+            except aiohttp.ClientError as exc:
+                _record(
+                    "TRANSPORT_ERROR",
+                    {"error": f"{type(exc).__name__}: {exc}"},
+                )
                 return {
                     "ok": False,
                     "error": f"canonical claim readback unavailable: {exc}",
                     "retryable": True,
                 }
+            except asyncio.CancelledError:
+                _record("CANCELLED")
+                raise
+            if len(raw) > 64 * 1024:
+                _record("VALIDATION_ERROR", {"error": "response exceeds 65536 byte bound"})
+                return {
+                    "ok": False,
+                    "error": "canonical claim readback response too large",
+                    "retryable": False,
+                }
             try:
                 parsed = json.loads(raw.decode("utf-8"))
             except Exception as exc:  # noqa: BLE001
+                _record(
+                    "VALIDATION_ERROR",
+                    {"error": f"{type(exc).__name__}: {exc}"},
+                )
                 return {
                     "ok": False,
                     "error": f"canonical claim readback invalid JSON: {exc}",
                     "retryable": False,
                 }
             if not isinstance(parsed, dict):
+                _record("VALIDATION_ERROR", {"error": "non-object response"})
                 return {
                     "ok": False,
                     "error": "canonical claim readback returned non-object",
@@ -2659,21 +3043,27 @@ class NodeClient:
             return parsed
 
         started = time.monotonic()
-        result = await asyncio.to_thread(_post)
-        if request_id:
-            self._durable_store.record_transport_diagnostic(
-                request_id,
-                "NODE_CLAIM_READBACK_COMPLETED",
-                {
-                    "claim_id": claim_id,
-                    "readback_id": readback_id,
-                    "duration_ms": round((time.monotonic() - started) * 1000, 3),
-                    "ok": bool(result.get("ok")),
-                    "accepted": bool(result.get("accepted")),
-                    "error": str(result.get("error", "")),
-                    "retryable": bool(result.get("retryable", False)),
-                },
-            )
+        try:
+            async with asyncio.timeout(timeout_s + 0.1):
+                result = await _post()
+        except asyncio.TimeoutError:
+            result = {
+                "ok": False,
+                "error": "canonical claim readback bounded wait expired",
+                "retryable": True,
+            }
+            _record("TIMEOUT", {"error": result["error"]})
+        result["_readback_id"] = readback_id
+        _record(
+            "END",
+            {
+                "duration_ms": round((time.monotonic() - started) * 1000, 3),
+                "ok": bool(result.get("ok")),
+                "accepted": bool(result.get("accepted")),
+                "error": str(result.get("error", "")),
+                "retryable": bool(result.get("retryable", False)),
+            },
+        )
         return result
 
     async def _announce_durable_running(

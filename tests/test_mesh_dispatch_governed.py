@@ -2356,7 +2356,11 @@ def test_durable_authority_send_bypasses_queued_bulk_media(tmp_path):
         client._ws = _Ws()
         client._ensure_ws_writer_state()
         bulk_done = asyncio.get_running_loop().create_future()
-        client._ws_send_queues["BULK_MEDIA"].append((1, b"frame", bulk_done))
+        client._queue_ws_send(
+            b"frame",
+            traffic_class="BULK_MEDIA",
+            future=bulk_done,
+        )
         task = asyncio.create_task(
             client._send_durable_event(
                 "durable_command.claimed",
@@ -2381,7 +2385,7 @@ def test_node_client_has_no_ws_send_path_outside_shared_helper() -> None:
         encoding="utf-8",
     ).read()
     assert "async def _send_ws" in source
-    assert source.count("await self._ws.send(") == 1
+    assert source.count("asyncio.create_task(ws.send(payload))") == 1
 
 
 def test_durable_ack_delayed_inside_timeout_succeeds(tmp_path):
@@ -2478,12 +2482,20 @@ def test_ws_send_exception_and_cancellation_do_not_deadlock(tmp_path):
                 raise OSError("synthetic send failure")
             self.sent.append(raw)
 
-    async def _run() -> list[str | bytes]:
+    async def _run() -> tuple[list[str | bytes], bool]:
         client._ws = _Ws()
         try:
             await client._send_ws("first")
         except OSError:
             pass
+        failed_ws = client._ws
+        with pytest.raises(ConnectionError):
+            await client._send_ws("second-on-failed-generation")
+        client._ws_generation += 1
+        client._ws = _Ws()
+        client._ws.fail_next = False
+        client._ws_transport_healthy = True
+        client._connected = True
         await client._send_ws("second")
         blocked = asyncio.create_task(client._send_ws("cancelled"))
         await asyncio.sleep(0)
@@ -2494,9 +2506,11 @@ def test_ws_send_exception_and_cancellation_do_not_deadlock(tmp_path):
             pass
         await client._send_ws("third")
         await client._stop_ws_writer()
-        return client._ws.sent
+        return client._ws.sent, failed_ws is not client._ws
 
-    assert asyncio.run(_run()) in (["second", "third"], ["second", "cancelled", "third"])
+    sent, generation_replaced = asyncio.run(_run())
+    assert sent in (["second", "third"], ["second", "cancelled", "third"])
+    assert generation_replaced is True
 
 
 def test_durable_event_send_exception_cleans_pending_rpc(tmp_path):
@@ -2694,7 +2708,11 @@ def test_terminal_result_uses_authority_queue_ahead_of_bulk_media(tmp_path):
         client._ws = _Ws()
         client._ensure_ws_writer_state()
         bulk_done = asyncio.get_running_loop().create_future()
-        client._ws_send_queues["BULK_MEDIA"].append((1, b"frame", bulk_done))
+        client._queue_ws_send(
+            b"frame",
+            traffic_class="BULK_MEDIA",
+            future=bulk_done,
+        )
         await client._send_durable_event(
             "durable_command.result",
             {
@@ -2792,9 +2810,13 @@ def test_canonical_claim_readback_has_independent_observability_contract() -> No
         encoding="utf-8",
     ).read()
     assert '"/durable-claim-state"' in source
-    assert "asyncio.to_thread(_post)" in source
-    assert "NODE_CLAIM_READBACK_START" in source
-    assert "NODE_CLAIM_READBACK_COMPLETED" in source
+    assert "aiohttp.ClientSession" in source
+    assert "aiohttp.ClientTimeout" in source
+    assert "asyncio.to_thread(_post)" not in source
+    assert 'f"NODE_CLAIM_READBACK_{stage}"' in source
+    assert '_record("START"' in source
+    assert '"END",' in source
+    assert "asyncio.wait_for(" in source
 
 
 def test_duplicate_and_late_ack_do_not_mutate_completed_future(tmp_path):
@@ -2802,7 +2824,9 @@ def test_duplicate_and_late_ack_do_not_mutate_completed_future(tmp_path):
 
     async def _run() -> tuple[dict[str, object], dict[object, object]]:
         future: asyncio.Future[dict[str, object]] = asyncio.get_running_loop().create_future()
+        client._ensure_ws_writer_state()
         client._pending_rpc[7] = future
+        client._pending_rpc_generations[7] = client._ws_generation
         await client._handle_message(
             json.dumps({"jsonrpc": "2.0", "result": {"ok": True}, "id": 7})
         )

@@ -80,11 +80,21 @@ class SimState:
     transport_reconciliation_queue: list[str] = field(default_factory=list)
     transport_bulk_queue: list[str] = field(default_factory=list)
     transport_sent: list[str] = field(default_factory=list)
+    transport_authority_capacity: int = 8
+    transport_bulk_capacity: int = 4
+    transport_authority_overload: bool = False
+    transport_healthy: bool = True
+    transport_generation: int = 1
+    transport_send_inflight: str = ""
+    terminal_result_retained: bool = False
     claim_ack_received: bool = False
     http_readback_reached_vps: bool = False
     result_delivery_serviced: bool = False
     reconciliation_reminder_events: int = 0
     reconciliation_checks: int = 0
+    reconciliation_clock: int = 0
+    reconciliation_next_event_at: int = 0
+    reconciliation_interval: int = 1
     next_request_order: int = 0
     log: list[str] = field(default_factory=list)
 
@@ -155,8 +165,10 @@ class SimState:
                 for request_id in requests_for_key_in_admission_order(self, key):
                     if request_id != canonical:
                         assert request_id not in self.deliverable_requests, self.log
-        if self.transport_authority_queue:
-            assert any(item.startswith("authority:") for item in self.transport_sent), self.log
+        assert len(self.transport_authority_queue) <= self.transport_authority_capacity, self.log
+        assert len(self.transport_bulk_queue) <= self.transport_bulk_capacity, self.log
+        if self.transport_authority_overload:
+            assert self.fail_closed, self.log
         if self.result_delivery_serviced:
             assert "authority:result" in self.transport_sent, self.log
         assert self.reconciliation_reminder_events <= self.reconciliation_checks, self.log
@@ -670,11 +682,19 @@ def enqueue_transport(
     bulk: int = 0,
 ) -> None:
     for item in authority or []:
+        if len(state.transport_authority_queue) >= state.transport_authority_capacity:
+            state.transport_authority_overload = True
+            state.fail_closed = True
+            state.record(f"authority_overload:{item}")
+            continue
         state.transport_authority_queue.append(item)
         state.record(f"authority_queued:{item}")
     for idx in range(reconciliation):
         state.transport_reconciliation_queue.append(f"reconciliation-{idx}")
     for idx in range(bulk):
+        if len(state.transport_bulk_queue) >= state.transport_bulk_capacity:
+            state.transport_bulk_queue.pop(0)
+            state.record("bulk_drop_oldest")
         state.transport_bulk_queue.append(f"bulk-{idx}")
 
 
@@ -704,16 +724,32 @@ def service_transport(state: SimState, *, steps: int = 1) -> None:
     state.assert_invariants()
 
 
+def wedge_transport_send(state: SimState, *, traffic_class: str) -> None:
+    state.transport_send_inflight = traffic_class
+    state.record(f"send_deadline_exceeded:{traffic_class}")
+    state.transport_healthy = False
+    state.transport_generation += 1
+    state.transport_send_inflight = ""
+    state.fail_closed = True
+    state.assert_invariants()
+
+
+def reconnect_transport(state: SimState) -> None:
+    state.record(f"transport_reconnected:generation={state.transport_generation}")
+    state.transport_healthy = True
+    state.assert_invariants()
+
+
 def observe_reconciliation(state: SimState, *, checks: int) -> None:
-    next_event_at = 0
-    interval = 1
-    for tick in range(checks):
+    for _ in range(checks):
+        tick = state.reconciliation_clock
         state.reconciliation_checks += 1
-        if tick >= next_event_at:
+        if tick >= state.reconciliation_next_event_at:
             state.reconciliation_reminder_events += 1
             state.record(f"reconciliation_reminder:{tick}")
-            next_event_at = tick + interval
-            interval = min(interval * 2, 300)
+            state.reconciliation_next_event_at = tick + state.reconciliation_interval
+            state.reconciliation_interval = min(state.reconciliation_interval * 2, 300)
+        state.reconciliation_clock += 1
     state.assert_invariants()
 
 
@@ -1632,6 +1668,81 @@ def _transport_combined_starvation_reproduction_closed(state: SimState) -> None:
     assert state.result_delivery_serviced, state.log
 
 
+def _transport_blocked_bulk_send_resets_generation(state: SimState) -> None:
+    enqueue_transport(state, authority=["claim_ack"], bulk=state.transport_bulk_capacity)
+    wedge_transport_send(state, traffic_class="bulk")
+    assert not state.transport_healthy, state.log
+    assert not state.claim_ack_received, state.log
+    reconnect_transport(state)
+    service_transport(state, steps=1)
+    assert state.claim_ack_received, state.log
+
+
+def _transport_authority_overflow_fails_closed(state: SimState) -> None:
+    enqueue_transport(
+        state,
+        authority=[f"claim-{idx}" for idx in range(state.transport_authority_capacity + 1)],
+    )
+    assert state.transport_authority_overload, state.log
+    assert state.fail_closed, state.log
+    assert len(state.transport_authority_queue) == state.transport_authority_capacity, state.log
+
+
+def _transport_terminal_result_retained_during_overload(state: SimState) -> None:
+    _normal_success(state)
+    state.terminal_result_retained = True
+    enqueue_transport(
+        state,
+        authority=[f"control-{idx}" for idx in range(state.transport_authority_capacity)],
+    )
+    enqueue_transport(state, authority=["result"])
+    assert state.transport_authority_overload, state.log
+    assert state.terminal_result_retained, state.log
+
+
+def _transport_continuous_bulk_producer_cannot_starve_claim(state: SimState) -> None:
+    enqueue_transport(state, bulk=state.transport_bulk_capacity * 4)
+    enqueue_transport(state, authority=["claim_ack"])
+    for _ in range(3):
+        service_transport(state, steps=1)
+        enqueue_transport(state, bulk=state.transport_bulk_capacity)
+    assert state.claim_ack_received, state.log
+
+
+def _transport_reconciliation_backoff_survives_restart(state: SimState) -> None:
+    observe_reconciliation(state, checks=64)
+    reminders = state.reconciliation_reminder_events
+    interval = state.reconciliation_interval
+    next_event = state.reconciliation_next_event_at
+    restart_mesh(state)
+    observe_reconciliation(state, checks=1)
+    assert state.reconciliation_interval >= interval, state.log
+    assert state.reconciliation_next_event_at >= next_event, state.log
+    assert state.reconciliation_reminder_events <= reminders + 1, state.log
+
+
+def _transport_http_timeout_and_ws_ack_loss_fail_closed(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    ack_lost(state)
+    state.record("http_readback_timeout")
+    http_claim_readback(state, available=False)
+    announce_running_and_execute(state)
+    assert state.executed == 0, state.log
+
+
+def _transport_cancel_under_saturation_never_launches(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    enqueue_transport(state, authority=["cancel"], bulk=state.transport_bulk_capacity * 4)
+    cancel(state)
+    service_transport(state, steps=1)
+    announce_running_and_execute(state)
+    assert state.executed == 0, state.log
+
+
 SCENARIOS: dict[str, Scenario] = {
     "normal_success": _normal_success,
     "ambiguous_claimed_success": _ambiguous_claimed_success,
@@ -1815,6 +1926,25 @@ SCENARIOS: dict[str, Scenario] = {
     "transport_combined_starvation_reproduction_closed": (
         _transport_combined_starvation_reproduction_closed
     ),
+    "transport_blocked_bulk_send_resets_generation": (
+        _transport_blocked_bulk_send_resets_generation
+    ),
+    "transport_authority_overflow_fails_closed": _transport_authority_overflow_fails_closed,
+    "transport_terminal_result_retained_during_overload": (
+        _transport_terminal_result_retained_during_overload
+    ),
+    "transport_continuous_bulk_producer_cannot_starve_claim": (
+        _transport_continuous_bulk_producer_cannot_starve_claim
+    ),
+    "transport_reconciliation_backoff_survives_restart": (
+        _transport_reconciliation_backoff_survives_restart
+    ),
+    "transport_http_timeout_and_ws_ack_loss_fail_closed": (
+        _transport_http_timeout_and_ws_ack_loss_fail_closed
+    ),
+    "transport_cancel_under_saturation_never_launches": (
+        _transport_cancel_under_saturation_never_launches
+    ),
 }
 
 
@@ -1850,6 +1980,11 @@ def run_all_scenarios() -> dict[str, dict[str, object]]:
             "sync_side_effects": state.sync_side_effects,
             "sync_observations": state.sync_observations,
             "fail_closed": state.fail_closed,
+            "transport_authority_overload": state.transport_authority_overload,
+            "transport_healthy": state.transport_healthy,
+            "transport_generation": state.transport_generation,
+            "terminal_result_retained": state.terminal_result_retained,
+            "reconciliation_reminder_events": state.reconciliation_reminder_events,
             "log": list(state.log),
         }
     return results

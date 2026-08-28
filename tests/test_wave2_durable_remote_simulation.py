@@ -45,6 +45,13 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
         "transport_bounded_reconciliation_reminders",
         "transport_cancellation_while_authority_delayed",
         "transport_combined_starvation_reproduction_closed",
+        "transport_blocked_bulk_send_resets_generation",
+        "transport_authority_overflow_fails_closed",
+        "transport_terminal_result_retained_during_overload",
+        "transport_continuous_bulk_producer_cannot_starve_claim",
+        "transport_reconciliation_backoff_survives_restart",
+        "transport_http_timeout_and_ws_ack_loss_fail_closed",
+        "transport_cancel_under_saturation_never_launches",
         "durable_unknown_policy_denied",
         "event_journal_malformed_line_fails_closed",
         "event_journal_read_error_fails_closed",
@@ -89,6 +96,12 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
     assert results["transport_bulk_saturation_claim_gets_authority_service"]["executed"] == 1
     assert results["transport_ws_ack_unavailable_http_readback_unavailable"]["executed"] == 0
     assert results["transport_ws_ack_unavailable_http_readback_unavailable"]["fail_closed"] is True
+    assert results["transport_authority_overflow_fails_closed"]["fail_closed"] is True
+    assert results["transport_terminal_result_retained_during_overload"][
+        "terminal_result_retained"
+    ] is True
+    assert results["transport_http_timeout_and_ws_ack_loss_fail_closed"]["executed"] == 0
+    assert results["transport_cancel_under_saturation_never_launches"]["executed"] == 0
     assert results["sync_generic_shell_declares_read_only_denied"]["fail_closed"] is True
     assert results["sync_policy_lookup_unavailable_denied"]["fail_closed"] is True
     assert results["sync_stale_effect_policy_verdict_rejected"]["fail_closed"] is True

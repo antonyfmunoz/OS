@@ -3012,6 +3012,51 @@ def test_residue_reconciliation_reminders_are_bounded(tmp_path, monkeypatch) -> 
     assert events.count("RESIDUE_RECONCILIATION_PENDING") == 2
 
 
+def test_residue_reconciliation_backoff_survives_store_restart(tmp_path, monkeypatch) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    clock = {"t": 100.0}
+    monkeypatch.setattr(durable, "now_s", lambda: clock["t"])
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
+    store.request_cancel(req.request_id)
+    store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
+    )
+
+    clock["t"] = 1000.0
+    store.reconcile_due_requests()
+    current = store.get_request(req.request_id)
+    assert current is not None
+    observation = current.diagnostics["residue_reconciliation_observation"]
+    next_event_after = float(observation["next_event_after"])
+    def reminder_count() -> int:
+        return sum(
+            json.loads(line).get("event") == "RESIDUE_RECONCILIATION_PENDING"
+            for line in (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()
+        )
+
+    before = reminder_count()
+
+    restarted = DurableRemoteStore(tmp_path)
+    clock["t"] = next_event_after - 0.01
+    for _ in range(20):
+        restarted.deliverable_for_node("windows-desktop")
+        restarted.reconcile_due_requests()
+    unchanged = reminder_count()
+    assert unchanged == before
+
+    clock["t"] = next_event_after
+    restarted.reconcile_due_requests()
+    after = reminder_count()
+    assert after == before + 1
+
+
 def test_fail_unresolved_request_terminalizes_and_records_evidence(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
