@@ -1067,6 +1067,12 @@ class NodeClient:
                     entry.payload,
                     generation=entry.generation,
                 )
+            except asyncio.CancelledError:
+                if not entry.future.done():
+                    entry.future.set_exception(
+                        ConnectionError("websocket generation closed during send")
+                    )
+                raise
             except Exception as exc:
                 if not entry.future.done():
                     entry.future.set_exception(exc)

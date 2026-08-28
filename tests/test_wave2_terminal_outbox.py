@@ -124,10 +124,17 @@ def _install_receipting_send(client: NodeClient, sent: list[dict]) -> None:
 
 
 def test_reconnect_autonomously_replays_exact_terminal_result_without_execution(tmp_path) -> None:
-    async def run() -> tuple[dict, list[dict], dict]:
+    async def run() -> tuple[dict, list[dict], dict, int]:
         client = _client(tmp_path)
         request, result = _persist_terminal(client)
         sent: list[dict] = []
+        execution_count = 0
+
+        async def execute_again(*_args, **_kwargs) -> None:
+            nonlocal execution_count
+            execution_count += 1
+
+        client._execute_accepted_durable_claim = execute_again
         _install_receipting_send(client, sent)
 
         replay = asyncio.create_task(client._terminal_result_replay_loop(1))
@@ -140,13 +147,14 @@ def test_reconnect_autonomously_replays_exact_terminal_result_without_execution(
         await replay
         delivery = client._durable_store.terminal_result_delivery_for(request.request_id)
         assert delivery is not None
-        return delivery, sent, result
+        return delivery, sent, result, execution_count
 
-    delivery, sent, result = asyncio.run(run())
+    delivery, sent, result, execution_count = asyncio.run(run())
     assert delivery["delivery_state"] == "ACKNOWLEDGED"
     assert len(sent) == 1
     assert sent[0]["method"] == "durable_command.result"
     assert sent[0]["params"]["result_digest"] == result["result_digest"]
+    assert execution_count == 0
 
 
 def test_node_startup_discovers_pending_terminal_result(tmp_path) -> None:
@@ -207,10 +215,21 @@ def test_lost_result_receipt_replays_same_identity_after_backoff(
     pending = client._durable_store.terminal_result_delivery_for(request.request_id)
     assert first["ok"] is False
     assert pending is not None and pending["delivery_state"] == "PENDING"
+    assert client._durable_store.pending_terminal_result_deliveries(current_time=1000.5) == []
 
     clock[0] += 2.0
     _install_receipting_send(client, sent)
-    assert asyncio.run(client._replay_due_terminal_results(1)) == 1
+    async def replay() -> None:
+        task = asyncio.create_task(client._terminal_result_replay_loop(1))
+        for _ in range(100):
+            delivery = client._durable_store.terminal_result_delivery_for(request.request_id)
+            if delivery is not None and delivery["delivery_state"] == "ACKNOWLEDGED":
+                break
+            await asyncio.sleep(0.01)
+        client._connected = False
+        await task
+
+    asyncio.run(replay())
     acknowledged = client._durable_store.terminal_result_delivery_for(request.request_id)
     assert acknowledged is not None and acknowledged["delivery_state"] == "ACKNOWLEDGED"
     assert sent[0]["params"]["result_id"] == sent[1]["params"]["result_id"]
@@ -290,6 +309,66 @@ def test_generation_teardown_cancels_awaits_and_clears_pending_rpc(tmp_path) -> 
     assert asyncio.run(run()) == (0, 0, True, True)
 
 
+def test_real_message_handlers_are_generation_owned_and_awaited(tmp_path) -> None:
+    async def run() -> tuple[int, int, bool]:
+        client = _client(tmp_path)
+        entered = asyncio.Event()
+
+        async def blocked_handler(_msg) -> None:
+            entered.set()
+            await asyncio.Event().wait()
+
+        client._safe_handle_capability = blocked_handler
+        client._safe_handle_durable_command = blocked_handler
+        await client._handle_message(
+            json.dumps({"method": "capability.execute"}), generation=1
+        )
+        await client._handle_message(
+            json.dumps({"method": "durable_command.request"}), generation=1
+        )
+        await entered.wait()
+        tasks = tuple(client._generation_tasks[1])
+        assert len(tasks) == 2
+        await client._teardown_connection_generation(1, client._ws)
+        return len(client._generation_tasks), len(client._pending_rpc), all(
+            task.done() for task in tasks
+        )
+
+    assert asyncio.run(run()) == (0, 0, True)
+
+
+def test_generation_teardown_awaits_blocked_real_writer(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(client_mod, "_WS_SEND_DEADLINE_S", 30.0)
+
+    class _Ws:
+        async def send(self, _payload) -> None:
+            await asyncio.Event().wait()
+
+    async def run() -> tuple[bool, int]:
+        client = _client(tmp_path)
+        ws = _Ws()
+        client._ws = ws
+        send = asyncio.create_task(
+            client._send_ws(
+                "blocked",
+                traffic_class="AUTHORITY_CONTROL",
+                generation=1,
+            )
+        )
+        for _ in range(100):
+            if any(
+                client._generation_task_labels.get(task) == "websocket-send"
+                for task in client._generation_tasks[1]
+            ):
+                break
+            await asyncio.sleep(0.01)
+        await client._teardown_connection_generation(1, ws)
+        result = await asyncio.gather(send, return_exceptions=True)
+        return isinstance(result[0], BaseException), len(client._generation_tasks)
+
+    assert asyncio.run(run()) == (True, 0)
+
+
 def test_stubborn_generation_task_blocks_replacement_authority(
     tmp_path,
     monkeypatch,
@@ -334,12 +413,20 @@ def test_connection_churn_leaves_no_tasks_futures_or_generation_queues(tmp_path)
         async def send(self, payload) -> None:
             self.sent.append(payload)
 
-    async def run() -> tuple[int, int, int]:
+    async def run() -> tuple[int, int, int, bool]:
         client = _client(tmp_path)
+        client._ensure_ws_writer_state()
+        old_queues = dict(client._ws_send_queues)
         await client._teardown_connection_generation(1, client._ws)
+        fresh_queue_ownership = True
         for _ in range(12):
             ws = _Ws()
             generation = client._activate_connection_generation(ws)
+            fresh_queue_ownership = fresh_queue_ownership and all(
+                client._ws_send_queues[name] is not old_queues[name]
+                for name in client._ws_send_queues
+            )
+            old_queues = dict(client._ws_send_queues)
             client._connected = True
             await client._send_ws(
                 "control",
@@ -355,9 +442,10 @@ def test_connection_churn_leaves_no_tasks_futures_or_generation_queues(tmp_path)
             len(client._generation_tasks),
             len(client._pending_rpc),
             sum(len(queue) for queue in client._ws_send_queues.values()),
+            fresh_queue_ownership,
         )
 
-    assert asyncio.run(run()) == (0, 0, 0)
+    assert asyncio.run(run()) == (0, 0, 0, True)
 
 
 def test_result_replay_and_stale_handler_are_isolated_across_generation(tmp_path) -> None:
