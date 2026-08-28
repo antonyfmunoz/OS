@@ -37,6 +37,14 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
         "canonicalization_terminal_bound_plus_corruption",
         "canonicalization_restart_preserves_fence",
         "canonicalization_unrelated_clean_key_progresses",
+        "transport_bulk_saturation_claim_gets_authority_service",
+        "transport_bulk_saturation_result_gets_authority_service",
+        "transport_reconciliation_cannot_starve_new_claim",
+        "transport_ws_ack_unavailable_http_readback_healthy",
+        "transport_ws_ack_unavailable_http_readback_unavailable",
+        "transport_bounded_reconciliation_reminders",
+        "transport_cancellation_while_authority_delayed",
+        "transport_combined_starvation_reproduction_closed",
         "durable_unknown_policy_denied",
         "event_journal_malformed_line_fails_closed",
         "event_journal_read_error_fails_closed",
@@ -78,6 +86,9 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
     assert results["sync_stale_verdict_rejected"]["fail_closed"] is True
     assert results["sync_payload_substitution_rejected"]["fail_closed"] is True
     assert results["sync_declared_read_only_for_canonical_write_denied"]["fail_closed"] is True
+    assert results["transport_bulk_saturation_claim_gets_authority_service"]["executed"] == 1
+    assert results["transport_ws_ack_unavailable_http_readback_unavailable"]["executed"] == 0
+    assert results["transport_ws_ack_unavailable_http_readback_unavailable"]["fail_closed"] is True
     assert results["sync_generic_shell_declares_read_only_denied"]["fail_closed"] is True
     assert results["sync_policy_lookup_unavailable_denied"]["fail_closed"] is True
     assert results["sync_stale_effect_policy_verdict_rejected"]["fail_closed"] is True

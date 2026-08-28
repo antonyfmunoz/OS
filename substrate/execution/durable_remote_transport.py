@@ -39,6 +39,8 @@ STATE_ORDER = {
     "CANCELLED": 5,
     "SUCCEEDED": 5,
 }
+_RESIDUE_RECONCILIATION_INITIAL_REMINDER_S = 1.0
+_RESIDUE_RECONCILIATION_MAX_REMINDER_S = 300.0
 
 
 def _request_budget(
@@ -1848,6 +1850,64 @@ class DurableRemoteStore:
             or req.cleanup.get("process_residue")
         )
 
+    def _residue_reconciliation_reminder_due_locked(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        current: float,
+    ) -> bool:
+        observation = req.diagnostics.get("residue_reconciliation_observation")
+        if not isinstance(observation, dict):
+            return True
+        next_event_after = observation.get("next_event_after")
+        try:
+            return current >= float(next_event_after)
+        except (TypeError, ValueError):
+            return True
+
+    def _record_residue_reconciliation_pending_locked(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        current: float,
+        reason: str,
+    ) -> DurableRemoteRequest:
+        req.diagnostics["residue_reconciliation_pending"] = True
+        observation = req.diagnostics.get("residue_reconciliation_observation")
+        if not isinstance(observation, dict):
+            observation = {
+                "first_observed_at": current,
+                "event_count": 0,
+                "check_count": 0,
+            }
+            req.diagnostics["residue_reconciliation_observation"] = observation
+        observation["last_checked_at"] = current
+        observation["check_count"] = int(observation.get("check_count", 0) or 0) + 1
+        if not self._residue_reconciliation_reminder_due_locked(req, current=current):
+            _atomic_write_json(self._request_path(req.request_id), req.to_dict())
+            return req
+        event_count = int(observation.get("event_count", 0) or 0) + 1
+        delay_s = min(
+            _RESIDUE_RECONCILIATION_MAX_REMINDER_S,
+            _RESIDUE_RECONCILIATION_INITIAL_REMINDER_S * (2 ** min(event_count - 1, 12)),
+        )
+        observation["event_count"] = event_count
+        observation["last_event_at"] = current
+        observation["next_event_after"] = current + delay_s
+        observation["next_interval_s"] = delay_s
+        observation["reason"] = reason
+        self._update_request_locked(
+            req,
+            "RESIDUE_RECONCILIATION_PENDING",
+            event_data={
+                "reason": reason,
+                "check_count": observation["check_count"],
+                "event_count": event_count,
+                "next_event_after": observation["next_event_after"],
+            },
+        )
+        return req
+
     def _cancellation_ack_rejection_reason(
         self,
         req: DurableRemoteRequest,
@@ -2035,9 +2095,11 @@ class DurableRemoteStore:
             and current >= req.reconciliation_deadline_at
         ):
             if self._has_process_residue_diagnostic(req):
-                req.diagnostics.setdefault("residue_reconciliation_pending", True)
-                self._update_request_locked(req, "RESIDUE_RECONCILIATION_PENDING")
-                return req
+                return self._record_residue_reconciliation_pending_locked(
+                    req,
+                    current=current,
+                    reason="reconciliation_deadline_expired",
+                )
             req = self._reconcile_request_locked(
                 req,
                 reason="reconciliation_deadline_expired",
@@ -2705,9 +2767,11 @@ class DurableRemoteStore:
         if req.lifecycle_state != "RECONCILIATION_REQUIRED":
             return req
         if self._has_process_residue_diagnostic(req):
-            req.diagnostics.setdefault("residue_reconciliation_pending", True)
-            self._update_request_locked(req, "RESIDUE_RECONCILIATION_PENDING")
-            return req
+            return self._record_residue_reconciliation_pending_locked(
+                req,
+                current=now_s(),
+                reason=reason,
+            )
         req.diagnostics["reconciled_fail_closed"] = {
             "reason": reason,
             "prior_state": "RECONCILIATION_REQUIRED",

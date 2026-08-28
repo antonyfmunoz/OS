@@ -14,6 +14,7 @@ Architecture: CONTROL PLANE and MEDIA PLANE are hard-separated.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -59,6 +60,17 @@ from substrate.execution.durable_remote_transport import (
 logger = logging.getLogger(__name__)
 
 _MEDIA_QUEUE_MAX = 4
+_TRAFFIC_AUTHORITY_CONTROL = "AUTHORITY_CONTROL"
+_TRAFFIC_REQUIRED_CONTROL = "REQUIRED_CONTROL"
+_TRAFFIC_ORDINARY = "ORDINARY"
+_TRAFFIC_BULK_MEDIA = "BULK_MEDIA"
+_TRAFFIC_CLASSES = (
+    _TRAFFIC_AUTHORITY_CONTROL,
+    _TRAFFIC_REQUIRED_CONTROL,
+    _TRAFFIC_ORDINARY,
+    _TRAFFIC_BULK_MEDIA,
+)
+_AUTHORITY_SEND_BURST_LIMIT = 8
 _CONTROL_TIMEOUT_S = 8.0
 _DURABLE_CLAIM_ACQUIRE_TIMEOUT_S = 30.0
 _DURABLE_CLAIM_RETRY_SLEEP_S = 1.0
@@ -542,6 +554,13 @@ class NodeClient:
         self._msg_id = 0
         self._pending_rpc: dict[Any, asyncio.Future[dict[str, Any]]] = {}
         self._ws_send_lock: asyncio.Lock | None = None
+        self._ws_writer_task: asyncio.Task | None = None
+        self._ws_send_event = asyncio.Event()
+        self._ws_send_queues: dict[str, deque[tuple[int, str | bytes, asyncio.Future[None]]]] = {
+            traffic_class: deque() for traffic_class in _TRAFFIC_CLASSES
+        }
+        self._ws_send_seq = 0
+        self._authority_send_burst = 0
 
         self._adapters: dict[str, Any] = {}
         self._init_adapters()
@@ -655,7 +674,7 @@ class NodeClient:
                     self._media_queue.clear()
                     break
                 try:
-                    await self._send_ws(msg)
+                    await self._send_ws(msg, traffic_class=_TRAFFIC_BULK_MEDIA)
                 except Exception as exc:
                     logger.debug("media send failed: %s", exc)
                     self._media_queue.clear()
@@ -665,15 +684,115 @@ class NodeClient:
         self._msg_id += 1
         return self._msg_id
 
-    async def _send_ws(self, payload: str | bytes) -> None:
+    def _ensure_ws_writer_state(self) -> None:
+        if not hasattr(self, "_ws_send_event"):
+            self._ws_send_event = asyncio.Event()
+        if not hasattr(self, "_ws_send_queues"):
+            self._ws_send_queues = {traffic_class: deque() for traffic_class in _TRAFFIC_CLASSES}
+        if not hasattr(self, "_ws_send_seq"):
+            self._ws_send_seq = 0
+        if not hasattr(self, "_authority_send_burst"):
+            self._authority_send_burst = 0
+        if not hasattr(self, "_ws_writer_task"):
+            self._ws_writer_task = None
+
+    def _normalize_traffic_class(self, traffic_class: str) -> str:
+        if traffic_class in _TRAFFIC_CLASSES:
+            return traffic_class
+        return _TRAFFIC_ORDINARY
+
+    def _dequeue_next_ws_send(self) -> tuple[int, str | bytes, asyncio.Future[None]] | None:
+        self._ensure_ws_writer_state()
+        authority = self._ws_send_queues[_TRAFFIC_AUTHORITY_CONTROL]
+        lower_has_work = any(
+            self._ws_send_queues[name]
+            for name in (_TRAFFIC_REQUIRED_CONTROL, _TRAFFIC_ORDINARY, _TRAFFIC_BULK_MEDIA)
+        )
+        if authority and (
+            self._authority_send_burst < _AUTHORITY_SEND_BURST_LIMIT or not lower_has_work
+        ):
+            self._authority_send_burst += 1
+            return authority.popleft()
+        for name in (_TRAFFIC_REQUIRED_CONTROL, _TRAFFIC_ORDINARY, _TRAFFIC_BULK_MEDIA):
+            queue = self._ws_send_queues[name]
+            if queue:
+                self._authority_send_burst = 0
+                return queue.popleft()
+        if authority:
+            self._authority_send_burst = 1
+            return authority.popleft()
+        return None
+
+    async def _ws_writer_loop(self) -> None:
+        while True:
+            await self._ws_send_event.wait()
+            self._ws_send_event.clear()
+            while True:
+                entry = self._dequeue_next_ws_send()
+                if entry is None:
+                    break
+                _seq, payload, future = entry
+                if future.cancelled():
+                    continue
+                if self._ws is None:
+                    if not future.done():
+                        future.set_exception(ConnectionError("node websocket not connected"))
+                    continue
+                try:
+                    await self._ws.send(payload)
+                except Exception as exc:
+                    if not future.done():
+                        future.set_exception(exc)
+                else:
+                    if not future.done():
+                        future.set_result(None)
+
+    def _ensure_ws_writer_task(self) -> None:
+        self._ensure_ws_writer_state()
+        task = self._ws_writer_task
+        if task is None or task.done():
+            self._ws_writer_task = asyncio.create_task(self._ws_writer_loop())
+
+    def _fail_queued_ws_sends(self, exc: Exception) -> None:
+        self._ensure_ws_writer_state()
+        for queue in self._ws_send_queues.values():
+            while queue:
+                _seq, _payload, future = queue.popleft()
+                if not future.done():
+                    future.set_exception(exc)
+
+    async def _stop_ws_writer(self) -> None:
+        self._ensure_ws_writer_state()
+        self._fail_queued_ws_sends(ConnectionError("node websocket writer stopped"))
+        task = self._ws_writer_task
+        self._ws_writer_task = None
+        if task is not None:
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+    async def _send_ws(
+        self,
+        payload: str | bytes,
+        *,
+        traffic_class: str = _TRAFFIC_REQUIRED_CONTROL,
+    ) -> None:
         if self._ws is None:
             raise ConnectionError("node websocket not connected")
-        send_lock = self._ws_send_lock
-        if send_lock is None:
-            await self._ws.send(payload)
-            return
-        async with send_lock:
-            await self._ws.send(payload)
+        self._ensure_ws_writer_task()
+        loop = asyncio.get_running_loop()
+        future: asyncio.Future[None] = loop.create_future()
+        self._ws_send_seq += 1
+        normalized_class = self._normalize_traffic_class(traffic_class)
+        self._ws_send_queues[normalized_class].append(
+            (self._ws_send_seq, payload, future)
+        )
+        self._ws_send_event.set()
+        try:
+            await future
+        except asyncio.CancelledError:
+            future.cancel()
+            raise
 
     def _build_capabilities(self) -> list[dict[str, str]]:
         caps = []
@@ -801,6 +920,7 @@ class NodeClient:
         if self._media_drain_task:
             self._media_drain_task.cancel()
             self._media_drain_task = None
+        await self._stop_ws_writer()
         self._camera_executor.shutdown(wait=False, cancel_futures=True)
         if self._ws:
             await self._ws.close()
@@ -818,24 +938,29 @@ class NodeClient:
             additional_headers=self._config.auth_header,
         ) as ws:
             self._ws = ws
-            await self._send_hello()
-            self._connected = True
-            self._media_queue.clear()
-            logger.info("connected to VPS mesh server")
-
-            heartbeat_task = asyncio.create_task(self._heartbeat_loop())
-            self._media_drain_task = asyncio.create_task(self._media_drain_loop())
-            workspace_task = asyncio.create_task(self._workspace_emission_loop())
+            self._ensure_ws_writer_task()
             try:
-                async for raw in ws:
-                    await self._handle_message(raw)
+                await self._send_hello()
+                self._connected = True
+                self._media_queue.clear()
+                logger.info("connected to VPS mesh server")
+
+                heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+                self._media_drain_task = asyncio.create_task(self._media_drain_loop())
+                workspace_task = asyncio.create_task(self._workspace_emission_loop())
+                try:
+                    async for raw in ws:
+                        await self._handle_message(raw)
+                finally:
+                    heartbeat_task.cancel()
+                    workspace_task.cancel()
+                    if self._media_drain_task:
+                        self._media_drain_task.cancel()
+                        self._media_drain_task = None
             finally:
-                heartbeat_task.cancel()
-                workspace_task.cancel()
-                if self._media_drain_task:
-                    self._media_drain_task.cancel()
-                    self._media_drain_task = None
+                await self._stop_ws_writer()
                 self._connected = False
+                self._ws = None
 
     async def _send_hello(self) -> None:
         hostname = self._config.hostname or socket.gethostname()
@@ -1403,6 +1528,7 @@ class NodeClient:
         if not self._connected or self._ws is None:
             return {"ok": False, "error": "node websocket not connected"} if expect_ack else None
         msg_id = self._next_id()
+        request_id = str(payload.get("request_id", "") or "")
         future: asyncio.Future[dict[str, Any]] | None = None
         if expect_ack:
             future = asyncio.get_running_loop().create_future()
@@ -1416,12 +1542,37 @@ class NodeClient:
             }
         )
         try:
-            await self._send_ws(message)
+            if request_id:
+                self._durable_store.record_transport_diagnostic(
+                    request_id,
+                    "NODE_AUTHORITY_SEND_QUEUED",
+                    {"method": method, "message_id": msg_id, "traffic_class": _TRAFFIC_AUTHORITY_CONTROL},
+                )
+            await self._send_ws(message, traffic_class=_TRAFFIC_AUTHORITY_CONTROL)
+            if request_id:
+                self._durable_store.record_transport_diagnostic(
+                    request_id,
+                    "NODE_AUTHORITY_SEND_COMPLETED",
+                    {"method": method, "message_id": msg_id, "traffic_class": _TRAFFIC_AUTHORITY_CONTROL},
+                )
             if not expect_ack or future is None:
                 return None
-            return await asyncio.wait_for(future, timeout=timeout_s)
+            ack = await asyncio.wait_for(future, timeout=timeout_s)
+            if request_id:
+                self._durable_store.record_transport_diagnostic(
+                    request_id,
+                    "NODE_AUTHORITY_ACK_RECEIVED",
+                    {"method": method, "message_id": msg_id},
+                )
+            return ack
         except asyncio.TimeoutError:
             self._pending_rpc.pop(msg_id, None)
+            if request_id:
+                self._durable_store.record_transport_diagnostic(
+                    request_id,
+                    "NODE_AUTHORITY_ACK_TIMEOUT",
+                    {"method": method, "message_id": msg_id, "timeout_s": timeout_s},
+                )
             return {"ok": False, "error": f"{method} acknowledgement timed out"}
         except BaseException:
             if expect_ack:
@@ -2437,6 +2588,9 @@ class NodeClient:
         timeout_s: float,
     ) -> dict[str, Any]:
         """Read VPS canonical durable state outside the WebSocket RPC waiter path."""
+        request_id = str(payload.get("request_id", "") or "")
+        claim_id = str(payload.get("claim_id", "") or "")
+        readback_id = uuid4().hex
         if timeout_s <= 0:
             return {"ok": False, "error": "claim readback deadline expired", "retryable": False}
         if not self._config.vps_host or not self._config.token:
@@ -2445,6 +2599,18 @@ class NodeClient:
                 "error": "canonical claim readback unavailable: missing node auth",
                 "retryable": False,
             }
+        if request_id:
+            self._durable_store.record_transport_diagnostic(
+                request_id,
+                "NODE_CLAIM_READBACK_START",
+                {
+                    "claim_id": claim_id,
+                    "readback_id": readback_id,
+                    "timeout_s": timeout_s,
+                    "candidate_sha": str(payload.get("candidate_sha", "") or ""),
+                    "node_id": str(payload.get("node_id", "") or ""),
+                },
+            )
 
         def _post() -> dict[str, Any]:
             body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
@@ -2488,7 +2654,23 @@ class NodeClient:
                 }
             return parsed
 
-        return await asyncio.to_thread(_post)
+        started = time.monotonic()
+        result = await asyncio.to_thread(_post)
+        if request_id:
+            self._durable_store.record_transport_diagnostic(
+                request_id,
+                "NODE_CLAIM_READBACK_COMPLETED",
+                {
+                    "claim_id": claim_id,
+                    "readback_id": readback_id,
+                    "duration_ms": round((time.monotonic() - started) * 1000, 3),
+                    "ok": bool(result.get("ok")),
+                    "accepted": bool(result.get("accepted")),
+                    "error": str(result.get("error", "")),
+                    "retryable": bool(result.get("retryable", False)),
+                },
+            )
+        return result
 
     async def _announce_durable_running(
         self,

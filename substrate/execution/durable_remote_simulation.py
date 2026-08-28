@@ -76,6 +76,15 @@ class SimState:
     result_converged_for_request: set[str] = field(default_factory=set)
     deliverable_requests: set[str] = field(default_factory=set)
     idempotency_conflict: bool = False
+    transport_authority_queue: list[str] = field(default_factory=list)
+    transport_reconciliation_queue: list[str] = field(default_factory=list)
+    transport_bulk_queue: list[str] = field(default_factory=list)
+    transport_sent: list[str] = field(default_factory=list)
+    claim_ack_received: bool = False
+    http_readback_reached_vps: bool = False
+    result_delivery_serviced: bool = False
+    reconciliation_reminder_events: int = 0
+    reconciliation_checks: int = 0
     next_request_order: int = 0
     log: list[str] = field(default_factory=list)
 
@@ -146,6 +155,11 @@ class SimState:
                 for request_id in requests_for_key_in_admission_order(self, key):
                     if request_id != canonical:
                         assert request_id not in self.deliverable_requests, self.log
+        if self.transport_authority_queue:
+            assert any(item.startswith("authority:") for item in self.transport_sent), self.log
+        if self.result_delivery_serviced:
+            assert "authority:result" in self.transport_sent, self.log
+        assert self.reconciliation_reminder_events <= self.reconciliation_checks, self.log
 
 
 def persist_request_file(
@@ -645,6 +659,71 @@ def foreign_running(state: SimState) -> None:
     elif state.claim_id and state.claim_id != foreign_claim:
         state.fail_closed = True
         state.lifecycle = "FAILED"
+    state.assert_invariants()
+
+
+def enqueue_transport(
+    state: SimState,
+    *,
+    authority: list[str] | None = None,
+    reconciliation: int = 0,
+    bulk: int = 0,
+) -> None:
+    for item in authority or []:
+        state.transport_authority_queue.append(item)
+        state.record(f"authority_queued:{item}")
+    for idx in range(reconciliation):
+        state.transport_reconciliation_queue.append(f"reconciliation-{idx}")
+    for idx in range(bulk):
+        state.transport_bulk_queue.append(f"bulk-{idx}")
+
+
+def service_transport(state: SimState, *, steps: int = 1) -> None:
+    authority_burst = 0
+    for _ in range(steps):
+        lower_has_work = bool(state.transport_reconciliation_queue or state.transport_bulk_queue)
+        if state.transport_authority_queue and (authority_burst < 8 or not lower_has_work):
+            item = state.transport_authority_queue.pop(0)
+            state.transport_sent.append(f"authority:{item}")
+            state.record(f"authority_sent:{item}")
+            if item == "claim_ack":
+                state.claim_ack_received = True
+            if item == "result":
+                state.result_delivery_serviced = True
+            authority_burst += 1
+            continue
+        authority_burst = 0
+        if state.transport_reconciliation_queue:
+            item = state.transport_reconciliation_queue.pop(0)
+            state.transport_sent.append(f"reconciliation:{item}")
+        elif state.transport_bulk_queue:
+            item = state.transport_bulk_queue.pop(0)
+            state.transport_sent.append(f"bulk:{item}")
+        else:
+            break
+    state.assert_invariants()
+
+
+def observe_reconciliation(state: SimState, *, checks: int) -> None:
+    next_event_at = 0
+    interval = 1
+    for tick in range(checks):
+        state.reconciliation_checks += 1
+        if tick >= next_event_at:
+            state.reconciliation_reminder_events += 1
+            state.record(f"reconciliation_reminder:{tick}")
+            next_event_at = tick + interval
+            interval = min(interval * 2, 300)
+    state.assert_invariants()
+
+
+def http_claim_readback(state: SimState, *, available: bool) -> None:
+    state.record(f"http_claim_readback:{available}")
+    state.http_readback_reached_vps = available
+    if available and state.claim_id:
+        state.canonical_claim_proven = True
+    elif not state.claim_ack_received:
+        state.fail_closed = True
     state.assert_invariants()
 
 
@@ -1473,6 +1552,86 @@ def _altered_payload_verdict_rejected(state: SimState) -> None:
     assert not verify_operation_bound_verdict(state, payload_matches=False)
 
 
+def _transport_bulk_saturation_claim_gets_authority_service(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    enqueue_transport(state, authority=["claim_ack"], bulk=32)
+    service_transport(state, steps=1)
+    assert state.claim_ack_received, state.log
+    canonical_read(state)
+    announce_running_and_execute(state)
+
+
+def _transport_bulk_saturation_result_gets_authority_service(state: SimState) -> None:
+    _normal_success(state)
+    enqueue_transport(state, authority=["result"], bulk=32)
+    service_transport(state, steps=1)
+    assert state.result_delivery_serviced, state.log
+
+
+def _transport_reconciliation_cannot_starve_new_claim(state: SimState) -> None:
+    observe_reconciliation(state, checks=64)
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    enqueue_transport(state, authority=["claim_ack"], reconciliation=32, bulk=16)
+    service_transport(state, steps=1)
+    assert state.claim_ack_received, state.log
+
+
+def _transport_ws_ack_unavailable_http_readback_healthy(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    ack_lost(state)
+    http_claim_readback(state, available=True)
+    announce_running_and_execute(state)
+    assert state.executed == 1, state.log
+
+
+def _transport_ws_ack_unavailable_http_readback_unavailable(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    ack_lost(state)
+    http_claim_readback(state, available=False)
+    announce_running_and_execute(state)
+    assert state.executed == 0, state.log
+    assert state.fail_closed, state.log
+
+
+def _transport_bounded_reconciliation_reminders(state: SimState) -> None:
+    observe_reconciliation(state, checks=146)
+    assert state.reconciliation_reminder_events < 16, state.log
+
+
+def _transport_cancellation_while_authority_delayed(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    ack_lost(state)
+    cancel(state)
+    http_claim_readback(state, available=False)
+    announce_running_and_execute(state)
+    assert state.executed == 0, state.log
+
+
+def _transport_combined_starvation_reproduction_closed(state: SimState) -> None:
+    observe_reconciliation(state, checks=64)
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    ack_lost(state)
+    enqueue_transport(state, authority=["result"], reconciliation=16, bulk=32)
+    service_transport(state, steps=1)
+    http_claim_readback(state, available=True)
+    announce_running_and_execute(state)
+    terminal(state)
+    assert state.executed == 1, state.log
+    assert state.result_delivery_serviced, state.log
+
+
 SCENARIOS: dict[str, Scenario] = {
     "normal_success": _normal_success,
     "ambiguous_claimed_success": _ambiguous_claimed_success,
@@ -1634,6 +1793,28 @@ SCENARIOS: dict[str, Scenario] = {
         _lease_store_corruption_blocks_conflicting_lease
     ),
     "attempt_store_cas_rewrite_preserves_corruption": _cas_rewrite_preserves_corruption_evidence,
+    "transport_bulk_saturation_claim_gets_authority_service": (
+        _transport_bulk_saturation_claim_gets_authority_service
+    ),
+    "transport_bulk_saturation_result_gets_authority_service": (
+        _transport_bulk_saturation_result_gets_authority_service
+    ),
+    "transport_reconciliation_cannot_starve_new_claim": (
+        _transport_reconciliation_cannot_starve_new_claim
+    ),
+    "transport_ws_ack_unavailable_http_readback_healthy": (
+        _transport_ws_ack_unavailable_http_readback_healthy
+    ),
+    "transport_ws_ack_unavailable_http_readback_unavailable": (
+        _transport_ws_ack_unavailable_http_readback_unavailable
+    ),
+    "transport_bounded_reconciliation_reminders": _transport_bounded_reconciliation_reminders,
+    "transport_cancellation_while_authority_delayed": (
+        _transport_cancellation_while_authority_delayed
+    ),
+    "transport_combined_starvation_reproduction_closed": (
+        _transport_combined_starvation_reproduction_closed
+    ),
 }
 
 
@@ -1652,6 +1833,7 @@ def run_scenario(name: str) -> SimState:
             "event_journal_",
             "ingress_",
             "canonicalization_",
+            "transport_",
         )
     ):
         assert state.lifecycle in {"RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}, state.log

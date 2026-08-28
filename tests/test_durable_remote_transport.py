@@ -2968,6 +2968,50 @@ def test_reconcile_due_requests_advances_without_node_delivery(tmp_path, monkeyp
     assert final.lifecycle_state == "FAILED"
 
 
+def test_residue_reconciliation_reminders_are_bounded(tmp_path, monkeypatch) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    clock = {"t": 100.0}
+    monkeypatch.setattr(durable, "now_s", lambda: clock["t"])
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
+    store.request_cancel(req.request_id)
+    store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
+    )
+
+    clock["t"] = 1000.0
+    for _ in range(20):
+        store.deliverable_for_node("windows-desktop")
+        store.reconcile_due_requests()
+
+    events = [
+        json.loads(line)["event"]
+        for line in (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert events.count("RESIDUE_RECONCILIATION_PENDING") == 1
+
+    current = store.get_request(req.request_id)
+    assert current is not None
+    observation = current.diagnostics["residue_reconciliation_observation"]
+    assert observation["check_count"] > 1
+    assert observation["event_count"] == 1
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    clock["t"] = float(observation["next_event_after"])
+    store.reconcile_due_requests()
+    events = [
+        json.loads(line)["event"]
+        for line in (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert events.count("RESIDUE_RECONCILIATION_PENDING") == 2
+
+
 def test_fail_unresolved_request_terminalizes_and_records_evidence(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
