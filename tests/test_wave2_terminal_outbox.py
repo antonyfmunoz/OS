@@ -235,6 +235,30 @@ def test_lost_result_receipt_replays_same_identity_after_backoff(
     assert sent[0]["params"]["result_id"] == sent[1]["params"]["result_id"]
 
 
+def test_terminal_result_send_failure_preserves_pending_delivery(tmp_path) -> None:
+    client = _client(tmp_path)
+    request, result = _persist_terminal(client, suffix="send-failure")
+
+    async def failed_send(*_args, **_kwargs):
+        raise ConnectionError("connection generation closed")
+
+    client._send_ws = failed_send
+    response = asyncio.run(
+        client._send_durable_event(
+            "durable_command.result",
+            {"request_id": request.request_id},
+        )
+    )
+
+    delivery = client._durable_store.terminal_result_delivery_for(request.request_id)
+    assert response["ok"] is False
+    assert response["retryable"] is True
+    assert delivery is not None
+    assert delivery["delivery_state"] == "PENDING"
+    assert delivery["last_error"] == "connection generation closed"
+    assert client._durable_store.result_for(request.request_id) == result
+
+
 def test_result_receipt_with_foreign_identity_remains_pending(tmp_path) -> None:
     client = _client(tmp_path)
     request, _result = _persist_terminal(client, suffix="foreign-receipt")

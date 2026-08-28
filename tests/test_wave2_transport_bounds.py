@@ -158,10 +158,13 @@ def test_blocked_maximum_media_send_invalidates_transport_and_preserves_authorit
                 timeout_s=0.1,
             )
         )
-        bulk_result, authority_result = await asyncio.gather(
-            bulk,
-            authority,
-            return_exceptions=True,
+        bulk_result, authority_result = await asyncio.wait_for(
+            asyncio.gather(
+                bulk,
+                authority,
+                return_exceptions=True,
+            ),
+            timeout=0.5,
         )
         await client._stop_ws_writer()
         return (
