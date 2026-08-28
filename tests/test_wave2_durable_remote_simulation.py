@@ -52,6 +52,14 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
         "transport_reconciliation_backoff_survives_restart",
         "transport_http_timeout_and_ws_ack_loss_fail_closed",
         "transport_cancel_under_saturation_never_launches",
+        "terminal_result_send_timeout_then_reconnect_replay",
+        "terminal_result_startup_replay",
+        "terminal_result_ack_lost_replays_same_identity",
+        "terminal_result_conflict_fails_closed",
+        "transport_old_generation_handler_cannot_send_on_reconnect",
+        "transport_pending_rpc_failed_during_generation_teardown",
+        "transport_stubborn_generation_task_blocks_reconnect",
+        "terminal_result_and_stale_handler_generation_race",
         "durable_unknown_policy_denied",
         "event_journal_malformed_line_fails_closed",
         "event_journal_read_error_fails_closed",
@@ -102,6 +110,11 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
     ] is True
     assert results["transport_http_timeout_and_ws_ack_loss_fail_closed"]["executed"] == 0
     assert results["transport_cancel_under_saturation_never_launches"]["executed"] == 0
+    assert results["terminal_result_send_timeout_then_reconnect_replay"]["executed"] == 1
+    assert results["terminal_result_conflict_fails_closed"]["fail_closed"] is True
+    assert results["transport_stubborn_generation_task_blocks_reconnect"][
+        "fail_closed"
+    ] is True
     assert results["sync_generic_shell_declares_read_only_denied"]["fail_closed"] is True
     assert results["sync_policy_lookup_unavailable_denied"]["fail_closed"] is True
     assert results["sync_stale_effect_policy_verdict_rejected"]["fail_closed"] is True

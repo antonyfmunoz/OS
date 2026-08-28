@@ -1383,6 +1383,7 @@ class NodeMeshServer:
         from substrate.execution.durable_remote_transport import sha256_json
 
         incoming_digest = ""
+        receipt: dict[str, Any] = {}
         ok = False
         error = ""
         try:
@@ -1455,6 +1456,26 @@ class NodeMeshServer:
                 )
                 if not ok:
                     error = f"result rejected into {updated.lifecycle_state}"
+                else:
+                    result_identity = {
+                        "request_id": req.request_id,
+                        "correlation_id": req.correlation_id,
+                        "idempotency_key": req.idempotency_key,
+                        "candidate_sha": req.candidate_sha,
+                        "node_id": req.node_id,
+                        "operation_type": req.operation_type,
+                        "capability": req.capability,
+                        "payload_digest": req.payload_digest,
+                        "claim_id": claim_id,
+                        "state": state,
+                        "result_digest": incoming_digest,
+                        "cleanup_digest": sha256_json(cleanup),
+                    }
+                    receipt = {
+                        "ok": True,
+                        **result_identity,
+                        "result_id": sha256_json(result_identity),
+                    }
         except Exception as exc:  # noqa: BLE001
             error = str(exc)
         if msg_id is not None:
@@ -1462,7 +1483,7 @@ class NodeMeshServer:
                 ws,
                 {
                     "jsonrpc": "2.0",
-                    "result": {"ok": ok, "error": error},
+                    "result": receipt if ok else {"ok": False, "error": error},
                     "id": msg_id,
                 },
                 connection_id,

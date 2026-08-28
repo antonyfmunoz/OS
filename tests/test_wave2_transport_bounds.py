@@ -92,6 +92,11 @@ def _client(tmp_path) -> NodeClient:
     client._media_event = asyncio.Event()
     client._adapters = {}
     client._ws_generation = 1
+    client._active_ws_generation = 1
+    client._ws_queue_generation = 1
+    client._generation_tasks = {1: set()}
+    client._generation_task_labels = {}
+    client._generation_teardown_failed = False
     client._ws_transport_healthy = True
     return client
 
@@ -558,9 +563,40 @@ def test_durable_lifecycle_frames_are_explicit_authority_control(
         client = _client(tmp_path)
         observed_class = ""
 
-        async def send(_payload, *, traffic_class):
+        async def send(raw_payload, *, traffic_class, generation=None):
             nonlocal observed_class
             observed_class = traffic_class
+            message = json.loads(raw_payload)
+            if method == "durable_command.result":
+                delivery = client._durable_store.terminal_result_delivery_for(
+                    message["params"]["request_id"]
+                )
+                assert delivery is not None
+                response = {
+                        "id": message["id"],
+                        "result": {
+                            "ok": True,
+                            **{
+                                key: delivery[key]
+                                for key in (
+                                    "request_id",
+                                    "correlation_id",
+                                    "candidate_sha",
+                                    "node_id",
+                                    "claim_id",
+                                    "state",
+                                    "result_digest",
+                                    "result_id",
+                                )
+                            },
+                        },
+                    }
+                asyncio.get_running_loop().call_soon(
+                    lambda: client._handle_rpc_response(
+                        response,
+                        generation=generation,
+                    )
+                )
             return {
                 "seq": 1,
                 "traffic_class": traffic_class,
@@ -571,13 +607,34 @@ def test_durable_lifecycle_frames_are_explicit_authority_control(
 
         client._ws = SimpleNamespace()
         client._send_ws = send
+        payload = {
+            "request_id": "req-classification",
+            "claim_id": "claim-classification",
+            "state": "CLAIMED",
+        }
+        if method == "durable_command.result":
+            req = _request()
+            client._durable_store.put_request(req)
+            client._durable_store.mark_claimed(
+                req.request_id,
+                claim_id="claim-classification",
+                process_tree={"root_pid": 0},
+            )
+            client._durable_store.publish_result(
+                req.request_id,
+                claim_id="claim-classification",
+                state="FAILED",
+                result={"success": False, "error": "classification"},
+                cleanup={"process_residue": []},
+            )
+            payload = {
+                "request_id": req.request_id,
+                "claim_id": "claim-classification",
+                "state": "FAILED",
+            }
         await client._send_durable_event(
             method,
-            {
-                "request_id": "req-classification",
-                "claim_id": "claim-classification",
-                "state": "CLAIMED",
-            },
+            payload,
         )
         return observed_class
 
@@ -811,6 +868,7 @@ def test_stale_rpc_response_cannot_satisfy_new_transport_generation(tmp_path) ->
         client._pending_rpc[7] = future
         client._pending_rpc_generations[7] = 1
         client._ws_generation = 2
+        client._active_ws_generation = 2
         client._handle_rpc_response({"id": 7, "result": {"ok": True}})
         stale_rejected = not future.done()
         client._pending_rpc_generations[7] = 2

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import contextvars
 import json
 import logging
 import os
@@ -117,6 +118,9 @@ _DURABLE_CLAIM_ACQUIRE_TIMEOUT_S = 30.0
 _CLAIM_AUTHORITY_ENVELOPE_S = _AUTHORITY_SERVICE_COMPLETE_BOUND_S + _CONTROL_TIMEOUT_S
 assert _CLAIM_AUTHORITY_ENVELOPE_S < _DURABLE_CLAIM_ACQUIRE_TIMEOUT_S
 _DURABLE_CLAIM_RETRY_SLEEP_S = 1.0
+_CONNECTION_GENERATION_TEARDOWN_S = 2.0
+_RESULT_REPLAY_IDLE_POLL_S = 1.0
+_RESULT_REPLAY_BATCH = _WS_SEND_QUEUE_CAPACITY[_TRAFFIC_AUTHORITY_CONTROL]
 _DURABLE_TRAJECTORY_TOMBSTONE_TTL_S = 300.0
 _DURABLE_TRAJECTORY_MAX = 512
 _DURABLE_CLAIM_PROOF_STATES = frozenset(
@@ -166,6 +170,16 @@ class TransportQueueOverload(ConnectionError):
 
 class TransportSendDeadlineExceeded(TimeoutError):
     """A send exceeded its finite service bound and invalidated the socket."""
+
+
+class TransportGenerationTeardownFailed(ConnectionError):
+    """A connection generation could not reach bounded task quiescence."""
+
+
+_connection_generation_context: contextvars.ContextVar[int | None] = contextvars.ContextVar(
+    "umh_connection_generation",
+    default=None,
+)
 
 
 @dataclass(frozen=True)
@@ -625,7 +639,12 @@ class NodeClient:
         self._ws_send_seq = 0
         self._authority_send_burst = 0
         self._ws_generation = 0
+        self._active_ws_generation: int | None = None
+        self._ws_queue_generation = 0
         self._ws_transport_healthy = False
+        self._generation_tasks: dict[int, set[asyncio.Task[Any]]] = {}
+        self._generation_task_labels: dict[asyncio.Task[Any], str] = {}
+        self._generation_teardown_failed = False
 
         self._adapters: dict[str, Any] = {}
         self._init_adapters()
@@ -775,6 +794,155 @@ class NodeClient:
             self._ws_transport_healthy = getattr(self, "_ws", None) is not None
         if not hasattr(self, "_pending_rpc_generations"):
             self._pending_rpc_generations = {}
+        if not hasattr(self, "_active_ws_generation"):
+            self._active_ws_generation = self._ws_generation if self._ws is not None else None
+        if not hasattr(self, "_ws_queue_generation"):
+            self._ws_queue_generation = self._ws_generation
+        if not hasattr(self, "_generation_tasks"):
+            self._generation_tasks = {}
+        if not hasattr(self, "_generation_task_labels"):
+            self._generation_task_labels = {}
+        if not hasattr(self, "_generation_teardown_failed"):
+            self._generation_teardown_failed = False
+
+    def _active_generation(self) -> int:
+        self._ensure_ws_writer_state()
+        generation = self._active_ws_generation
+        if generation is None and self._ws is not None and self._ws_transport_healthy:
+            # Compatibility for focused unit fixtures that construct a client
+            # without running the connection lifecycle.
+            generation = self._ws_generation
+        return int(generation or 0)
+
+    def _activate_connection_generation(self, ws: Any) -> int:
+        self._ensure_ws_writer_state()
+        if self._generation_teardown_failed:
+            raise TransportGenerationTeardownFailed(
+                "prior websocket generation did not quiesce"
+            )
+        if self._active_ws_generation is not None:
+            raise TransportGenerationTeardownFailed(
+                "refusing overlapping websocket connection generations"
+            )
+        self._ws_generation += 1
+        generation = self._ws_generation
+        self._active_ws_generation = generation
+        self._ws_queue_generation = generation
+        self._ws = ws
+        self._ws_transport_healthy = True
+        self._ws_send_queues = {
+            traffic_class: deque() for traffic_class in _TRAFFIC_CLASSES
+        }
+        self._ws_send_queue_bytes = {
+            traffic_class: 0 for traffic_class in _TRAFFIC_CLASSES
+        }
+        self._authority_send_burst = 0
+        self._ws_writer_task = None
+        self._generation_tasks[generation] = set()
+        return generation
+
+    async def _run_generation_task(
+        self,
+        generation: int,
+        awaitable: Any,
+    ) -> Any:
+        token = _connection_generation_context.set(generation)
+        try:
+            return await awaitable
+        finally:
+            _connection_generation_context.reset(token)
+
+    def _create_generation_task(
+        self,
+        awaitable: Any,
+        *,
+        generation: int,
+        label: str,
+    ) -> asyncio.Task[Any]:
+        self._ensure_ws_writer_state()
+        if generation != self._active_generation():
+            close = getattr(awaitable, "close", None)
+            if callable(close):
+                close()
+            raise ConnectionError("stale websocket transport generation")
+        task = asyncio.create_task(self._run_generation_task(generation, awaitable))
+        tasks = self._generation_tasks.setdefault(generation, set())
+        tasks.add(task)
+        self._generation_task_labels[task] = label
+
+        def _complete(done: asyncio.Task[Any]) -> None:
+            close = getattr(awaitable, "close", None)
+            if callable(close):
+                close()
+            self._generation_tasks.get(generation, set()).discard(done)
+            self._generation_task_labels.pop(done, None)
+            if done.cancelled():
+                return
+            try:
+                error = done.exception()
+            except asyncio.CancelledError:
+                return
+            if error is not None:
+                logger.debug(
+                    "connection generation task failed: generation=%s label=%s error=%s",
+                    generation,
+                    label,
+                    error,
+                )
+
+        task.add_done_callback(_complete)
+        return task
+
+    async def _teardown_connection_generation(self, generation: int, ws: Any) -> None:
+        self._ensure_ws_writer_state()
+        if self._active_ws_generation == generation:
+            self._active_ws_generation = None
+        self._connected = False
+        self._ws_transport_healthy = False
+        closed = ConnectionError(f"websocket generation {generation} closed")
+        self._fail_pending_rpc(closed, generation=generation)
+        self._fail_queued_ws_sends(closed, generation=generation)
+
+        current = asyncio.current_task()
+        tasks = {
+            task
+            for task in self._generation_tasks.get(generation, set())
+            if task is not current and not task.done()
+        }
+        for task in tasks:
+            task.cancel()
+        pending: set[asyncio.Task[Any]] = set()
+        if tasks:
+            done, pending = await asyncio.wait(
+                tasks,
+                timeout=_CONNECTION_GENERATION_TEARDOWN_S,
+            )
+            if done:
+                await asyncio.gather(*done, return_exceptions=True)
+        if pending:
+            self._generation_teardown_failed = True
+            transport = getattr(ws, "transport", None)
+            abort = getattr(transport, "abort", None)
+            if callable(abort):
+                abort()
+            labels = sorted(
+                self._generation_task_labels.get(task, "unknown") for task in pending
+            )
+            raise TransportGenerationTeardownFailed(
+                "TRANSPORT_GENERATION_TEARDOWN_FAILED: " + ",".join(labels)
+            )
+
+        self._generation_tasks.pop(generation, None)
+        self._ws_writer_task = None
+        self._media_drain_task = None
+        if self._ws_queue_generation == generation:
+            self._ws_send_queues = {
+                traffic_class: deque() for traffic_class in _TRAFFIC_CLASSES
+            }
+            self._ws_send_queue_bytes = {
+                traffic_class: 0 for traffic_class in _TRAFFIC_CLASSES
+            }
+            self._ws_queue_generation = 0
 
     def _normalize_traffic_class(self, traffic_class: str) -> str:
         if traffic_class in _TRAFFIC_CLASSES:
@@ -793,8 +961,18 @@ class NodeClient:
         *,
         traffic_class: str,
         future: asyncio.Future[dict[str, Any]],
+        generation: int | None = None,
     ) -> _WsSendEntry:
         self._ensure_ws_writer_state()
+        expected_generation = generation or self._active_generation()
+        if (
+            not expected_generation
+            or expected_generation != self._active_generation()
+            or self._ws_queue_generation not in {0, expected_generation}
+        ):
+            raise ConnectionError("stale websocket transport generation")
+        if self._ws_queue_generation == 0:
+            self._ws_queue_generation = expected_generation
         payload_bytes = self._ws_payload_bytes(payload)
         queue = self._ws_send_queues[traffic_class]
         if payload_bytes > _WS_SEND_PAYLOAD_MAX_BYTES[traffic_class]:
@@ -818,7 +996,7 @@ class NodeClient:
             traffic_class=traffic_class,
             payload_bytes=payload_bytes,
             queued_at=time.monotonic(),
-            generation=self._ws_generation,
+            generation=expected_generation,
         )
         queue.append(entry)
         self._ws_send_queue_bytes[traffic_class] += payload_bytes
@@ -854,14 +1032,14 @@ class NodeClient:
             return self._pop_ws_send(_TRAFFIC_AUTHORITY_CONTROL)
         return None
 
-    async def _ws_writer_loop(self) -> None:
+    async def _ws_writer_loop(self, generation: int) -> None:
         while True:
             entry = self._dequeue_next_ws_send()
             if entry is None:
                 return
             if entry.future.cancelled():
                 continue
-            if entry.generation != self._ws_generation:
+            if entry.generation != generation or generation != self._active_generation():
                 if not entry.future.done():
                     entry.future.set_exception(
                         ConnectionError("stale websocket transport generation")
@@ -919,12 +1097,16 @@ class NodeClient:
         ws = self._ws
         if (
             ws is None
-            or generation != self._ws_generation
+            or generation != self._active_generation()
             or not self._ws_transport_healthy
         ):
             raise ConnectionError("node websocket transport generation unavailable")
         started = time.monotonic()
-        send_task = asyncio.create_task(ws.send(payload))
+        send_task = self._create_generation_task(
+            ws.send(payload),
+            generation=generation,
+            label="websocket-send",
+        )
         try:
             done, _pending = await asyncio.wait({send_task}, timeout=_WS_SEND_DEADLINE_S)
         except asyncio.CancelledError:
@@ -962,7 +1144,7 @@ class NodeClient:
         raise exc
 
     async def _invalidate_ws_transport(self, exc: Exception, *, generation: int) -> None:
-        if generation != self._ws_generation:
+        if generation != self._active_generation():
             return
         self._connected = False
         self._ws_transport_healthy = False
@@ -986,20 +1168,40 @@ class NodeClient:
         except Exception:
             logger.debug("websocket close after send failure did not complete", exc_info=True)
 
-    def _ensure_ws_writer_task(self) -> None:
+    def _ensure_ws_writer_task(self, *, generation: int | None = None) -> None:
         self._ensure_ws_writer_state()
+        expected_generation = generation or self._active_generation()
+        if not expected_generation or expected_generation != self._active_generation():
+            raise ConnectionError("stale websocket transport generation")
         task = self._ws_writer_task
         if task is None or task.done():
-            self._ws_writer_task = asyncio.create_task(self._ws_writer_loop())
+            self._ws_writer_task = self._create_generation_task(
+                self._ws_writer_loop(expected_generation),
+                generation=expected_generation,
+                label="serialized-ws-writer",
+            )
 
-    def _fail_queued_ws_sends(self, exc: Exception) -> None:
+    def _fail_queued_ws_sends(
+        self,
+        exc: Exception,
+        *,
+        generation: int | None = None,
+    ) -> None:
         self._ensure_ws_writer_state()
         for traffic_class, queue in self._ws_send_queues.items():
+            retained: deque[_WsSendEntry] = deque()
             while queue:
                 entry = queue.popleft()
+                if generation is not None and entry.generation != generation:
+                    retained.append(entry)
+                    continue
                 if not entry.future.done():
                     entry.future.set_exception(exc)
-            self._ws_send_queue_bytes[traffic_class] = 0
+                self._ws_send_queue_bytes[traffic_class] = max(
+                    0,
+                    self._ws_send_queue_bytes[traffic_class] - entry.payload_bytes,
+                )
+            queue.extend(retained)
 
     def _fail_pending_rpc(self, exc: Exception, *, generation: int | None = None) -> None:
         self._ensure_ws_writer_state()
@@ -1029,9 +1231,17 @@ class NodeClient:
         payload: str | bytes,
         *,
         traffic_class: str = _TRAFFIC_REQUIRED_CONTROL,
+        generation: int | None = None,
     ) -> dict[str, Any]:
         self._ensure_ws_writer_state()
-        if self._ws is None or not self._ws_transport_healthy:
+        context_generation = _connection_generation_context.get()
+        expected_generation = generation or context_generation or self._active_generation()
+        if (
+            self._ws is None
+            or not self._ws_transport_healthy
+            or not expected_generation
+            or expected_generation != self._active_generation()
+        ):
             raise ConnectionError("node websocket not connected")
         loop = asyncio.get_running_loop()
         future: asyncio.Future[dict[str, Any]] = loop.create_future()
@@ -1041,16 +1251,17 @@ class NodeClient:
                 payload,
                 traffic_class=normalized_class,
                 future=future,
+                generation=expected_generation,
             )
         except TransportQueueOverload as exc:
             if normalized_class in {
                 _TRAFFIC_AUTHORITY_CONTROL,
                 _TRAFFIC_REQUIRED_CONTROL,
             }:
-                await self._invalidate_ws_transport(exc, generation=self._ws_generation)
+                await self._invalidate_ws_transport(exc, generation=expected_generation)
                 self._fail_queued_ws_sends(exc)
             raise
-        self._ensure_ws_writer_task()
+        self._ensure_ws_writer_task(generation=expected_generation)
         try:
             return await future
         except asyncio.CancelledError:
@@ -1162,6 +1373,10 @@ class NodeClient:
                 backoff = min(backoff * 2, max_backoff)
             except asyncio.CancelledError:
                 break
+            except TransportGenerationTeardownFailed:
+                self._connected = False
+                self._shutdown.set()
+                raise
             except Exception as exc:
                 logger.error("unexpected error: %s, reconnecting in %.0fs", exc, backoff)
                 self._connected = False
@@ -1180,13 +1395,13 @@ class NodeClient:
                     adapter.stop()
             except Exception as exc:  # noqa: BLE001
                 logger.debug("adapter shutdown failed for %s: %s", name, exc)
-        if self._media_drain_task:
-            self._media_drain_task.cancel()
-            self._media_drain_task = None
-        await self._stop_ws_writer()
+        generation = self._active_generation()
+        ws = self._ws
+        if generation and ws is not None:
+            await self._teardown_connection_generation(generation, ws)
         self._camera_executor.shutdown(wait=False, cancel_futures=True)
-        if self._ws:
-            await self._ws.close()
+        if ws:
+            await ws.close()
 
     async def _connect_and_serve(self) -> None:
         url = self._config.ws_url
@@ -1200,33 +1415,49 @@ class NodeClient:
             max_size=4 * 1024 * 1024,
             additional_headers=self._config.auth_header,
         ) as ws:
-            self._ws_generation += 1
-            self._ws = ws
-            self._ws_transport_healthy = True
-            self._ensure_ws_writer_task()
+            generation = self._activate_connection_generation(ws)
+            self._ensure_ws_writer_task(generation=generation)
             try:
                 await self._send_hello()
                 self._connected = True
                 self._media_queue.clear()
                 logger.info("connected to VPS mesh server")
 
-                heartbeat_task = asyncio.create_task(self._heartbeat_loop())
-                self._media_drain_task = asyncio.create_task(self._media_drain_loop())
-                workspace_task = asyncio.create_task(self._workspace_emission_loop())
-                try:
-                    async for raw in ws:
-                        await self._handle_message(raw)
-                finally:
-                    heartbeat_task.cancel()
-                    workspace_task.cancel()
-                    if self._media_drain_task:
-                        self._media_drain_task.cancel()
-                        self._media_drain_task = None
+                self._create_generation_task(
+                    self._heartbeat_loop(),
+                    generation=generation,
+                    label="heartbeat",
+                )
+                self._media_drain_task = self._create_generation_task(
+                    self._media_drain_loop(),
+                    generation=generation,
+                    label="media-drain",
+                )
+                self._create_generation_task(
+                    self._workspace_emission_loop(),
+                    generation=generation,
+                    label="workspace-emission",
+                )
+                self._create_generation_task(
+                    self._terminal_result_replay_loop(generation),
+                    generation=generation,
+                    label="terminal-result-replay",
+                )
+                reader = self._create_generation_task(
+                    self._read_ws_loop(ws, generation),
+                    generation=generation,
+                    label="websocket-reader",
+                )
+                await reader
             finally:
-                await self._stop_ws_writer()
-                self._connected = False
-                self._ws_transport_healthy = False
+                await self._teardown_connection_generation(generation, ws)
                 self._ws = None
+
+    async def _read_ws_loop(self, ws: Any, generation: int) -> None:
+        async for raw in ws:
+            if generation != self._active_generation():
+                raise ConnectionError("stale websocket reader generation")
+            await self._handle_message(raw, generation=generation)
 
     async def _send_hello(self) -> None:
         hostname = self._config.hostname or socket.gethostname()
@@ -1336,35 +1567,50 @@ class NodeClient:
             except Exception as exc:
                 logger.debug("workspace emission failed: %s", exc)
 
-    async def _handle_message(self, raw: str) -> None:
+    async def _handle_message(self, raw: str, *, generation: int | None = None) -> None:
         msg = json.loads(raw)
         method = msg.get("method", "")
+        expected_generation = generation or self._active_generation()
 
         if method == "capability.execute":
-            asyncio.create_task(self._safe_handle_capability(msg))
+            self._create_generation_task(
+                self._safe_handle_capability(msg),
+                generation=expected_generation,
+                label="capability-handler",
+            )
         elif method == "durable_command.request":
-            asyncio.create_task(self._safe_handle_durable_command(msg))
+            self._create_generation_task(
+                self._safe_handle_durable_command(msg),
+                generation=expected_generation,
+                label="durable-command-handler",
+            )
         elif method == "outcome.notify":
             logger.info("outcome received: %s", msg.get("params", {}).get("summary", ""))
         elif "result" in msg or "error" in msg:
-            self._handle_rpc_response(msg)
+            self._handle_rpc_response(msg, generation=expected_generation)
         else:
             logger.debug("unhandled message method: %s", method)
 
-    def _handle_rpc_response(self, msg: dict[str, Any]) -> None:
+    def _handle_rpc_response(
+        self,
+        msg: dict[str, Any],
+        *,
+        generation: int | None = None,
+    ) -> None:
         self._ensure_ws_writer_state()
         msg_id = msg.get("id")
         future = self._pending_rpc.get(msg_id)
         if future is None or future.done():
             return
         expected_generation = self._pending_rpc_generations.get(msg_id)
-        if expected_generation is None or expected_generation != self._ws_generation:
+        response_generation = generation or self._active_generation()
+        if expected_generation is None or expected_generation != response_generation:
             logger.warning(
                 "ignored RPC response without current websocket generation binding: "
                 "id=%s expected=%s current=%s",
                 msg_id,
                 expected_generation,
-                self._ws_generation,
+                response_generation,
             )
             return
         self._pending_rpc.pop(msg_id, None)
@@ -1796,6 +2042,63 @@ class NodeClient:
         self._durable_store.update_request(current, "TRAJECTORY_IDENTITY_MISMATCH")
         await self._fail_unresolved_durable_request(current, reason=reason)
 
+    def _canonical_terminal_result_payload(self, request_id: str) -> dict[str, Any]:
+        delivery = self._durable_store.stage_terminal_result_delivery(request_id)
+        result = self._durable_store.result_for(request_id)
+        request = self._durable_store.get_request(request_id)
+        if result is None or request is None:
+            raise ValueError("terminal result delivery material is unavailable")
+        if request.lifecycle_state not in TERMINAL_STATES | {"RECONCILIATION_REQUIRED"}:
+            raise ValueError("terminal result delivery request is not terminal evidence")
+        if result.get("result_digest") != delivery.get("result_digest"):
+            raise ValueError("terminal result delivery digest mismatch")
+        return {
+            "request_id": request.request_id,
+            "correlation_id": request.correlation_id,
+            "candidate_sha": request.candidate_sha,
+            "node_id": request.node_id,
+            "claim_id": str(result.get("claim_id", "") or ""),
+            "state": str(result.get("state", "") or ""),
+            "result": dict(result.get("result") or {}),
+            "cleanup": dict(result.get("cleanup") or {}),
+            "result_id": str(delivery.get("result_id", "") or ""),
+            "result_digest": str(delivery.get("result_digest", "") or ""),
+            "idempotent_replay": True,
+        }
+
+    async def _terminal_result_replay_loop(self, generation: int) -> None:
+        """Autonomously deliver due terminal evidence; never execute work."""
+        while generation == self._active_generation() and self._connected:
+            delivered = await self._replay_due_terminal_results(generation)
+            if not delivered:
+                await asyncio.sleep(_RESULT_REPLAY_IDLE_POLL_S)
+                continue
+            await asyncio.sleep(0)
+
+    async def _replay_due_terminal_results(self, generation: int) -> int:
+        pending = self._durable_store.pending_terminal_result_deliveries(
+            limit=_RESULT_REPLAY_BATCH,
+        )
+        attempted = 0
+        for delivery in pending:
+            if generation != self._active_generation() or not self._connected:
+                break
+            request_id = str(delivery.get("request_id", "") or "")
+            if not request_id:
+                continue
+            payload = self._canonical_terminal_result_payload(request_id)
+            attempted += 1
+            ack = await self._send_durable_event(
+                "durable_command.result",
+                payload,
+                expect_ack=True,
+                generation=generation,
+            )
+            if not isinstance(ack, dict) or ack.get("ok") is not True:
+                if not self._ws_transport_healthy:
+                    break
+        return attempted
+
     async def _send_durable_event(
         self,
         method: str,
@@ -1803,17 +2106,58 @@ class NodeClient:
         *,
         expect_ack: bool = False,
         timeout_s: float = _CONTROL_TIMEOUT_S,
+        generation: int | None = None,
     ) -> dict[str, Any] | None:
         if not self._connected or self._ws is None:
             return {"ok": False, "error": "node websocket not connected"} if expect_ack else None
         self._ensure_ws_writer_state()
+        expected_generation = (
+            generation
+            or _connection_generation_context.get()
+            or self._active_generation()
+        )
+        terminal_request_id = ""
+        if method == "durable_command.result":
+            terminal_request_id = str(payload.get("request_id", "") or "")
+            try:
+                payload = self._canonical_terminal_result_payload(terminal_request_id)
+                self._durable_store.record_terminal_result_delivery_attempt(
+                    terminal_request_id
+                )
+            except (KeyError, ValueError) as exc:
+                persisted_reconciliation_evidence = (
+                    terminal_request_id
+                    and self._durable_store.has_persisted_rejected_result_evidence(
+                        terminal_request_id,
+                        claim_id=str(payload.get("claim_id", "") or ""),
+                        state=str(payload.get("state", "") or ""),
+                        result=dict(payload.get("result") or {}),
+                        cleanup=dict(payload.get("cleanup") or {}),
+                    )
+                )
+                if persisted_reconciliation_evidence:
+                    self._durable_store.record_transport_diagnostic(
+                        terminal_request_id,
+                        "RECONCILIATION_RESULT_EVIDENCE_SEND",
+                        {"error": str(exc)},
+                    )
+                else:
+                    if terminal_request_id:
+                        self._durable_store.record_transport_diagnostic(
+                            terminal_request_id,
+                            "TERMINAL_RESULT_DELIVERY_REJECTED",
+                            {"error": str(exc)},
+                        )
+                    return {"ok": False, "error": str(exc), "retryable": False}
+            else:
+                expect_ack = True
         msg_id = self._next_id()
         request_id = str(payload.get("request_id", "") or "")
         future: asyncio.Future[dict[str, Any]] | None = None
         if expect_ack:
             future = asyncio.get_running_loop().create_future()
             self._pending_rpc[msg_id] = future
-            self._pending_rpc_generations[msg_id] = self._ws_generation
+            self._pending_rpc_generations[msg_id] = expected_generation
         message = json.dumps(
             {
                 "jsonrpc": "2.0",
@@ -1832,6 +2176,7 @@ class NodeClient:
             send_evidence = await self._send_ws(
                 message,
                 traffic_class=_TRAFFIC_AUTHORITY_CONTROL,
+                generation=expected_generation,
             )
             if request_id:
                 self._durable_store.record_transport_diagnostic(
@@ -1853,6 +2198,19 @@ class NodeClient:
                     "NODE_AUTHORITY_ACK_RECEIVED",
                     {"method": method, "message_id": msg_id},
                 )
+            if method == "durable_command.result" and terminal_request_id:
+                try:
+                    self._durable_store.mark_terminal_result_delivery_acknowledged(
+                        terminal_request_id,
+                        ack,
+                    )
+                except ValueError as exc:
+                    self._durable_store.record_transport_diagnostic(
+                        terminal_request_id,
+                        "TERMINAL_RESULT_RECEIPT_REJECTED",
+                        {"message_id": msg_id, "error": str(exc)},
+                    )
+                    return {"ok": False, "error": str(exc), "retryable": False}
             return ack
         except (TransportQueueOverload, TransportSendDeadlineExceeded, ConnectionError) as exc:
             self._pending_rpc.pop(msg_id, None)
@@ -1871,8 +2229,13 @@ class NodeClient:
                         "message_id": msg_id,
                         "traffic_class": _TRAFFIC_AUTHORITY_CONTROL,
                         "error": str(exc),
-                        "generation": self._ws_generation,
+                        "generation": expected_generation,
                     },
+                )
+            if terminal_request_id:
+                self._durable_store.record_terminal_result_delivery_attempt(
+                    terminal_request_id,
+                    error=str(exc),
                 )
             return {"ok": False, "error": str(exc), "retryable": True}
         except asyncio.TimeoutError:
@@ -1883,6 +2246,11 @@ class NodeClient:
                     request_id,
                     "NODE_AUTHORITY_ACK_TIMEOUT",
                     {"method": method, "message_id": msg_id, "timeout_s": timeout_s},
+                )
+            if terminal_request_id:
+                self._durable_store.record_terminal_result_delivery_attempt(
+                    terminal_request_id,
+                    error=f"{method} acknowledgement timed out",
                 )
             return {"ok": False, "error": f"{method} acknowledgement timed out"}
         except BaseException:

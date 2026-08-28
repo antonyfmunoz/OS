@@ -87,6 +87,9 @@ class SimState:
     transport_generation: int = 1
     transport_send_inflight: str = ""
     terminal_result_retained: bool = False
+    terminal_result_id: str = ""
+    terminal_result_acknowledged: bool = False
+    terminal_replay_attempts: int = 0
     claim_ack_received: bool = False
     http_readback_reached_vps: bool = False
     result_delivery_serviced: bool = False
@@ -95,6 +98,13 @@ class SimState:
     reconciliation_clock: int = 0
     reconciliation_next_event_at: int = 0
     reconciliation_interval: int = 1
+    connection_generation_active: bool = True
+    connection_generation_closing: bool = False
+    connection_generation_tasks: int = 0
+    connection_generation_quiesced: bool = True
+    pending_generation_rpcs: int = 0
+    stale_generation_send_rejected: bool = False
+    generation_teardown_failed: bool = False
     next_request_order: int = 0
     log: list[str] = field(default_factory=list)
 
@@ -171,6 +181,17 @@ class SimState:
             assert self.fail_closed, self.log
         if self.result_delivery_serviced:
             assert "authority:result" in self.transport_sent, self.log
+        if self.terminal_result_acknowledged:
+            assert self.terminal_result_retained, self.log
+            assert self.terminal_result_id, self.log
+        if self.connection_generation_active:
+            assert not self.connection_generation_closing, self.log
+            assert not self.generation_teardown_failed, self.log
+        if self.connection_generation_quiesced:
+            assert self.connection_generation_tasks == 0, self.log
+            assert self.pending_generation_rpcs == 0, self.log
+        if self.generation_teardown_failed:
+            assert not self.connection_generation_active, self.log
         assert self.reconciliation_reminder_events <= self.reconciliation_checks, self.log
 
 
@@ -735,8 +756,58 @@ def wedge_transport_send(state: SimState, *, traffic_class: str) -> None:
 
 
 def reconnect_transport(state: SimState) -> None:
+    assert state.connection_generation_quiesced, state.log
+    assert not state.generation_teardown_failed, state.log
     state.record(f"transport_reconnected:generation={state.transport_generation}")
     state.transport_healthy = True
+    state.connection_generation_active = True
+    state.connection_generation_closing = False
+    state.assert_invariants()
+
+
+def persist_terminal_result(state: SimState, *, result_id: str = "result-A") -> None:
+    state.terminal_result_retained = True
+    if state.terminal_result_id:
+        assert state.terminal_result_id == result_id, state.log
+    state.terminal_result_id = result_id
+    state.record(f"terminal_result_persisted:{result_id}")
+    state.assert_invariants()
+
+
+def close_connection_generation(state: SimState, *, cooperative: bool = True) -> None:
+    state.connection_generation_active = False
+    state.connection_generation_closing = True
+    state.transport_healthy = False
+    state.pending_generation_rpcs = 0
+    if cooperative:
+        state.connection_generation_tasks = 0
+        state.connection_generation_quiesced = True
+        state.connection_generation_closing = False
+        state.transport_generation += 1
+        state.record("connection_generation_quiesced")
+    else:
+        state.connection_generation_quiesced = False
+        state.generation_teardown_failed = True
+        state.fail_closed = True
+        state.record("connection_generation_teardown_failed")
+    state.assert_invariants()
+
+
+def replay_terminal_result(state: SimState, *, accepted: bool = True) -> None:
+    assert state.terminal_result_retained, state.log
+    assert state.terminal_result_id, state.log
+    assert state.connection_generation_active, state.log
+    before_execution = state.executed
+    state.terminal_replay_attempts += 1
+    enqueue_transport(state, authority=["result"])
+    service_transport(state, steps=1)
+    if accepted:
+        state.terminal_result_acknowledged = True
+        state.record(f"terminal_result_acknowledged:{state.terminal_result_id}")
+    else:
+        state.record(f"terminal_result_conflict:{state.terminal_result_id}")
+        state.fail_closed = True
+    assert state.executed == before_execution, state.log
     state.assert_invariants()
 
 
@@ -1743,6 +1814,93 @@ def _transport_cancel_under_saturation_never_launches(state: SimState) -> None:
     assert state.executed == 0, state.log
 
 
+def _terminal_result_send_timeout_then_reconnect_replay(state: SimState) -> None:
+    _normal_success(state)
+    persist_terminal_result(state)
+    close_connection_generation(state)
+    assert state.terminal_result_retained, state.log
+    reconnect_transport(state)
+    replay_terminal_result(state)
+    assert state.terminal_result_acknowledged, state.log
+    assert state.executed == 1, state.log
+
+
+def _terminal_result_startup_replay(state: SimState) -> None:
+    state.executed = 1
+    state.canonical_claim_proven = True
+    state.claim_id = "claim-A"
+    state.lifecycle = "SUCCEEDED"
+    persist_terminal_result(state, result_id="startup-result")
+    close_connection_generation(state)
+    reconnect_transport(state)
+    replay_terminal_result(state)
+    assert state.terminal_replay_attempts == 1, state.log
+
+
+def _terminal_result_ack_lost_replays_same_identity(state: SimState) -> None:
+    _normal_success(state)
+    persist_terminal_result(state, result_id="stable-result")
+    replay_terminal_result(state, accepted=False)
+    state.fail_closed = False
+    state.terminal_result_acknowledged = False
+    close_connection_generation(state)
+    reconnect_transport(state)
+    replay_terminal_result(state, accepted=True)
+    assert state.terminal_result_id == "stable-result", state.log
+    assert state.terminal_replay_attempts == 2, state.log
+    assert state.executed == 1, state.log
+
+
+def _terminal_result_conflict_fails_closed(state: SimState) -> None:
+    _normal_success(state)
+    persist_terminal_result(state)
+    replay_terminal_result(state, accepted=False)
+    assert state.fail_closed, state.log
+    assert state.terminal_result_retained, state.log
+    assert not state.terminal_result_acknowledged, state.log
+
+
+def _old_generation_handler_cannot_send_on_reconnect(state: SimState) -> None:
+    state.connection_generation_tasks = 1
+    state.connection_generation_quiesced = False
+    close_connection_generation(state)
+    reconnect_transport(state)
+    state.stale_generation_send_rejected = True
+    state.record("stale_generation_send_rejected")
+    assert state.stale_generation_send_rejected, state.log
+
+
+def _pending_rpc_failed_during_generation_teardown(state: SimState) -> None:
+    state.connection_generation_tasks = 1
+    state.connection_generation_quiesced = False
+    state.pending_generation_rpcs = 1
+    close_connection_generation(state)
+    assert state.pending_generation_rpcs == 0, state.log
+    assert state.connection_generation_quiesced, state.log
+
+
+def _stubborn_generation_task_blocks_reconnect(state: SimState) -> None:
+    state.connection_generation_tasks = 1
+    state.connection_generation_quiesced = False
+    close_connection_generation(state, cooperative=False)
+    assert state.generation_teardown_failed, state.log
+    assert not state.connection_generation_active, state.log
+
+
+def _terminal_result_and_stale_handler_generation_race(state: SimState) -> None:
+    _normal_success(state)
+    persist_terminal_result(state, result_id="race-result")
+    state.connection_generation_tasks = 1
+    state.connection_generation_quiesced = False
+    close_connection_generation(state)
+    reconnect_transport(state)
+    state.stale_generation_send_rejected = True
+    replay_terminal_result(state)
+    assert state.terminal_result_acknowledged, state.log
+    assert state.stale_generation_send_rejected, state.log
+    assert state.executed == 1, state.log
+
+
 SCENARIOS: dict[str, Scenario] = {
     "normal_success": _normal_success,
     "ambiguous_claimed_success": _ambiguous_claimed_success,
@@ -1944,6 +2102,26 @@ SCENARIOS: dict[str, Scenario] = {
     ),
     "transport_cancel_under_saturation_never_launches": (
         _transport_cancel_under_saturation_never_launches
+    ),
+    "terminal_result_send_timeout_then_reconnect_replay": (
+        _terminal_result_send_timeout_then_reconnect_replay
+    ),
+    "terminal_result_startup_replay": _terminal_result_startup_replay,
+    "terminal_result_ack_lost_replays_same_identity": (
+        _terminal_result_ack_lost_replays_same_identity
+    ),
+    "terminal_result_conflict_fails_closed": _terminal_result_conflict_fails_closed,
+    "transport_old_generation_handler_cannot_send_on_reconnect": (
+        _old_generation_handler_cannot_send_on_reconnect
+    ),
+    "transport_pending_rpc_failed_during_generation_teardown": (
+        _pending_rpc_failed_during_generation_teardown
+    ),
+    "transport_stubborn_generation_task_blocks_reconnect": (
+        _stubborn_generation_task_blocks_reconnect
+    ),
+    "terminal_result_and_stale_handler_generation_race": (
+        _terminal_result_and_stale_handler_generation_race
     ),
 }
 

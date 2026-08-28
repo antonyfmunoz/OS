@@ -843,11 +843,33 @@ class _DurableAckWs:
     async def send(self, raw: str) -> None:
         msg = json.loads(raw)
         self.sent.append(msg)
-        if msg.get("method") != "durable_command.claimed":
+        if msg.get("method") == "durable_command.result":
+            delivery = self.client._durable_store.terminal_result_delivery_for(
+                msg["params"]["request_id"]
+            )
+            assert delivery is not None
+            result = {
+                "ok": True,
+                **{
+                    key: delivery[key]
+                    for key in (
+                        "request_id",
+                        "correlation_id",
+                        "candidate_sha",
+                        "node_id",
+                        "claim_id",
+                        "state",
+                        "result_digest",
+                        "result_id",
+                    )
+                },
+            }
+        elif msg.get("method") == "durable_command.claimed":
+            result = self.claim_acks.pop(0) if self.claim_acks else {"ok": True, "error": ""}
+            if result.get("ok") and "authority_source" not in result:
+                result = {**_canonical_claim_ack(self.client, msg["params"]), **result}
+        else:
             return
-        result = self.claim_acks.pop(0) if self.claim_acks else {"ok": True, "error": ""}
-        if result.get("ok") and "authority_source" not in result:
-            result = {**_canonical_claim_ack(self.client, msg["params"]), **result}
 
         async def _respond() -> None:
             await self.client._handle_message(
@@ -868,6 +890,7 @@ def _durable_node_client(tmp_path, node_id: str = "windows-desktop"):
     client._connected = True
     client._msg_id = 0
     client._pending_rpc = {}
+    client._pending_rpc_generations = {}
     client._ws_send_lock = asyncio.Lock()
     client._durable_store = DurableRemoteStore(tmp_path)
     client._durable_processes = {}
@@ -877,6 +900,13 @@ def _durable_node_client(tmp_path, node_id: str = "windows-desktop"):
     client._media_queue = deque(maxlen=4)
     client._media_event = asyncio.Event()
     client._adapters = {}
+    client._ws_generation = 1
+    client._active_ws_generation = 1
+    client._ws_queue_generation = 1
+    client._generation_tasks = {1: set()}
+    client._generation_task_labels = {}
+    client._generation_teardown_failed = False
+    client._ws_transport_healthy = True
     return client
 
 
@@ -1014,6 +1044,48 @@ def test_vps_durable_result_rejects_malformed_result_before_publication(tmp_path
     assert server._durable_store.result_for(req.request_id) is None
     assert ws.sent[-1]["result"]["ok"] is False
     assert "result must be an object" in ws.sent[-1]["result"]["error"]
+
+
+def test_vps_durable_result_replay_is_idempotent_and_conflict_fails_closed(tmp_path):
+    server = _durable_mesh_server(tmp_path)
+    req = server._durable_store.put_request(_durable_request())
+    server._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
+    server._durable_store.mark_running(req.request_id, claim_id="claim-1")
+    ws = _MeshHandlerWs()
+    canonical = {
+        "request_id": req.request_id,
+        "claim_id": "claim-1",
+        "state": "SUCCEEDED",
+        "result": {"success": True, "stdout": "canonical"},
+        "cleanup": {"process_residue": [], "cleanup_verified": True},
+    }
+
+    async def run() -> None:
+        await server._handle_durable_result(
+            "windows-desktop", canonical, "msg-1", ws, "conn-1"
+        )
+        await server._handle_durable_result(
+            "windows-desktop", canonical, "msg-2", ws, "conn-1"
+        )
+        await server._handle_durable_result(
+            "windows-desktop",
+            {
+                **canonical,
+                "result": {"success": True, "stdout": "conflicting"},
+            },
+            "msg-3",
+            ws,
+            "conn-1",
+        )
+
+    asyncio.run(run())
+
+    stored = server._durable_store.result_for(req.request_id)
+    assert ws.sent[0]["result"]["ok"] is True
+    assert ws.sent[1]["result"] == ws.sent[0]["result"]
+    assert ws.sent[2]["result"]["ok"] is False
+    assert stored is not None
+    assert stored["result"]["stdout"] == "canonical"
 
 
 def test_node_durable_delivery_rejects_malformed_request_material(tmp_path):
@@ -2385,7 +2457,7 @@ def test_node_client_has_no_ws_send_path_outside_shared_helper() -> None:
         encoding="utf-8",
     ).read()
     assert "async def _send_ws" in source
-    assert source.count("asyncio.create_task(ws.send(payload))") == 1
+    assert source.count("ws.send(payload)") == 1
 
 
 def test_durable_ack_delayed_inside_timeout_succeeds(tmp_path):
@@ -2492,6 +2564,9 @@ def test_ws_send_exception_and_cancellation_do_not_deadlock(tmp_path):
         with pytest.raises(ConnectionError):
             await client._send_ws("second-on-failed-generation")
         client._ws_generation += 1
+        client._active_ws_generation = client._ws_generation
+        client._ws_queue_generation = client._ws_generation
+        client._generation_tasks[client._ws_generation] = set()
         client._ws = _Ws()
         client._ws.fail_next = False
         client._ws_transport_healthy = True
@@ -2702,10 +2777,49 @@ def test_terminal_result_uses_authority_queue_ahead_of_bulk_media(tmp_path):
             if isinstance(raw, bytes):
                 self.sent.append("media")
                 return
-            self.sent.append(str(json.loads(raw).get("method")))
+            message = json.loads(raw)
+            self.sent.append(str(message.get("method")))
+            delivery = client._durable_store.terminal_result_delivery_for(
+                message["params"]["request_id"]
+            )
+            assert delivery is not None
+            receipt = {
+                "ok": True,
+                **{
+                    key: delivery[key]
+                    for key in (
+                        "request_id",
+                        "correlation_id",
+                        "candidate_sha",
+                        "node_id",
+                        "claim_id",
+                        "state",
+                        "result_digest",
+                        "result_id",
+                    )
+                },
+            }
+            await client._handle_message(
+                json.dumps(
+                    {"jsonrpc": "2.0", "result": receipt, "id": message.get("id")}
+                )
+            )
 
     async def _run() -> list[str]:
         client._ws = _Ws()
+        request = client._durable_store.put_request(_durable_request())
+        client._durable_store.mark_claimed(
+            request.request_id,
+            claim_id="claim-1",
+            process_tree={"root_pid": 0},
+        )
+        client._durable_store.publish_result(
+            request.request_id,
+            claim_id="claim-1",
+            state="SUCCEEDED",
+            result={"success": True},
+            cleanup={"process_residue": []},
+        )
         client._ensure_ws_writer_state()
         bulk_done = asyncio.get_running_loop().create_future()
         client._queue_ws_send(
@@ -2716,7 +2830,7 @@ def test_terminal_result_uses_authority_queue_ahead_of_bulk_media(tmp_path):
         await client._send_durable_event(
             "durable_command.result",
             {
-                "request_id": "req-1",
+                "request_id": request.request_id,
                 "claim_id": "claim-1",
                 "state": "SUCCEEDED",
                 "result": {"success": True},

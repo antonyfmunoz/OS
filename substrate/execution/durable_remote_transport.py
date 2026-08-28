@@ -41,6 +41,8 @@ STATE_ORDER = {
 }
 _RESIDUE_RECONCILIATION_INITIAL_REMINDER_S = 1.0
 _RESIDUE_RECONCILIATION_MAX_REMINDER_S = 300.0
+_RESULT_DELIVERY_INITIAL_RETRY_S = 1.0
+_RESULT_DELIVERY_MAX_RETRY_S = 300.0
 
 
 def _request_budget(
@@ -453,10 +455,12 @@ class DurableRemoteStore:
         self.root = Path(root) if root is not None else default_controller_root()
         self.requests_dir = self.root / "requests"
         self.results_dir = self.root / "results"
+        self.result_outbox_dir = self.root / "result_outbox"
         self.idempotency_dir = self.root / "idempotency"
         self.events_path = self.root / "events.jsonl"
         self.requests_dir.mkdir(parents=True, exist_ok=True)
         self.results_dir.mkdir(parents=True, exist_ok=True)
+        self.result_outbox_dir.mkdir(parents=True, exist_ok=True)
         self.idempotency_dir.mkdir(parents=True, exist_ok=True)
 
     def _request_path(self, request_id: str) -> Path:
@@ -464,6 +468,9 @@ class DurableRemoteStore:
 
     def _result_path(self, request_id: str) -> Path:
         return self.results_dir / f"{request_id}.json"
+
+    def _result_delivery_path(self, request_id: str) -> Path:
+        return self.result_outbox_dir / f"{request_id}.json"
 
     def _rejected_result_path(self, request_id: str, digest: str) -> Path:
         return self.results_dir / f"{request_id}.rejected-{digest[:16]}-{uuid4().hex[:8]}.json"
@@ -2834,6 +2841,243 @@ class DurableRemoteStore:
         loaded = self._load_result_record(request_id)
         return dict(loaded.data or {}) if loaded.valid else None
 
+    def has_persisted_rejected_result_evidence(
+        self,
+        request_id: str,
+        *,
+        claim_id: str,
+        state: str,
+        result: dict[str, Any],
+        cleanup: dict[str, Any],
+    ) -> bool:
+        for path in self.results_dir.glob(f"{request_id}.rejected-*.json"):
+            loaded = _load_json_record(path, record_kind="results", identity=request_id)
+            if not loaded.valid:
+                continue
+            data = dict(loaded.data or {})
+            if (
+                data.get("request_id") == request_id
+                and data.get("claim_id") == claim_id
+                and data.get("state") == state
+                and data.get("result") == result
+                and data.get("cleanup") == cleanup
+            ):
+                return True
+        return False
+
+    def _load_result_delivery_record(self, request_id: str) -> _DurableRecordLoad:
+        path = self._result_delivery_path(request_id)
+        loaded = _load_json_record(path, record_kind="result_outbox", identity=request_id)
+        if not loaded.valid:
+            return loaded
+        data = dict(loaded.data or {})
+        if str(data.get("request_id", "") or "").strip() != request_id:
+            reason = "result delivery path/content identity mismatch"
+            _record_persistence_issue(
+                path,
+                reason=reason,
+                record_kind="result_outbox",
+                identity=request_id,
+            )
+            return _DurableRecordLoad(LOAD_CORRUPT, path, data=data, reason=reason)
+        if str(data.get("delivery_state", "")) not in {"PENDING", "ACKNOWLEDGED"}:
+            reason = "result delivery state invalid"
+            _record_persistence_issue(
+                path,
+                reason=reason,
+                record_kind="result_outbox",
+                identity=request_id,
+            )
+            return _DurableRecordLoad(LOAD_CORRUPT, path, data=data, reason=reason)
+        if not str(data.get("result_id", "") or "").strip():
+            reason = "result delivery identity missing"
+            _record_persistence_issue(
+                path,
+                reason=reason,
+                record_kind="result_outbox",
+                identity=request_id,
+            )
+            return _DurableRecordLoad(LOAD_CORRUPT, path, data=data, reason=reason)
+        return _DurableRecordLoad(LOAD_VALID, path, data=data)
+
+    @staticmethod
+    def _terminal_result_identity(
+        request: DurableRemoteRequest,
+        result: dict[str, Any],
+    ) -> dict[str, Any]:
+        identity = {
+            "request_id": request.request_id,
+            "correlation_id": request.correlation_id,
+            "idempotency_key": request.idempotency_key,
+            "candidate_sha": request.candidate_sha,
+            "node_id": request.node_id,
+            "operation_type": request.operation_type,
+            "capability": request.capability,
+            "payload_digest": request.payload_digest,
+            "claim_id": str(result.get("claim_id", "") or ""),
+            "state": str(result.get("state", "") or ""),
+            "result_digest": str(result.get("result_digest", "") or ""),
+            "cleanup_digest": str(result.get("cleanup_digest", "") or ""),
+        }
+        identity["result_id"] = sha256_json(identity)
+        return identity
+
+    def stage_terminal_result_delivery(self, request_id: str) -> dict[str, Any]:
+        """Durably stage exact terminal evidence for transport delivery."""
+        with self._request_lock(request_id):
+            request_load = self._load_request_record(request_id)
+            result_load = self._load_result_record(request_id)
+            if not request_load.valid or request_load.request is None:
+                raise ValueError("terminal result delivery requires a valid request record")
+            if not result_load.valid:
+                raise ValueError("terminal result delivery requires a valid result record")
+            request = request_load.request
+            result = dict(result_load.data or {})
+            if request.lifecycle_state not in TERMINAL_STATES | RECOVERY_STATES:
+                raise ValueError(
+                    "terminal result delivery requires terminal or reconciliation state"
+                )
+            identity = self._terminal_result_identity(request, result)
+            if not identity["claim_id"] or not identity["result_digest"]:
+                raise ValueError("terminal result delivery identity is incomplete")
+
+            existing_load = self._load_result_delivery_record(request_id)
+            if existing_load.unavailable:
+                raise ValueError(
+                    f"terminal result delivery record unavailable: {existing_load.reason}"
+                )
+            if existing_load.valid:
+                existing = dict(existing_load.data or {})
+                if existing.get("result_id") != identity["result_id"]:
+                    raise ValueError("terminal result delivery identity conflict")
+                return existing
+
+            now = now_s()
+            record = {
+                **identity,
+                "delivery_state": "PENDING",
+                "attempt_count": 0,
+                "last_attempt_at": 0.0,
+                "next_attempt_at": now,
+                "last_error": "",
+                "acknowledged_at": 0.0,
+                "receipt": {},
+                "created_at": now,
+                "updated_at": now,
+            }
+            _atomic_write_json(self._result_delivery_path(request_id), record)
+            self._event(request_id, "TERMINAL_RESULT_DELIVERY_PENDING")
+            return record
+
+    def pending_terminal_result_deliveries(
+        self,
+        *,
+        current_time: float | None = None,
+        limit: int = 8,
+    ) -> list[dict[str, Any]]:
+        """Discover due terminal deliveries, including records predating the outbox."""
+        for path in sorted(self.results_dir.glob("*.json")):
+            request_id = path.stem
+            if ".rejected-" in request_id:
+                continue
+            try:
+                self.stage_terminal_result_delivery(request_id)
+            except (KeyError, ValueError):
+                continue
+
+        now = now_s() if current_time is None else current_time
+        pending: list[dict[str, Any]] = []
+        for path in sorted(self.result_outbox_dir.glob("*.json")):
+            loaded = self._load_result_delivery_record(path.stem)
+            if not loaded.valid:
+                continue
+            record = dict(loaded.data or {})
+            if record.get("delivery_state") != "PENDING":
+                continue
+            if float(record.get("next_attempt_at", 0.0) or 0.0) > now:
+                continue
+            pending.append(record)
+            if len(pending) >= max(1, limit):
+                break
+        return pending
+
+    def record_terminal_result_delivery_attempt(
+        self,
+        request_id: str,
+        *,
+        error: str = "",
+    ) -> dict[str, Any]:
+        with self._request_lock(request_id):
+            loaded = self._load_result_delivery_record(request_id)
+            if not loaded.valid:
+                raise ValueError("terminal result delivery record is not valid")
+            record = dict(loaded.data or {})
+            if record.get("delivery_state") == "ACKNOWLEDGED":
+                return record
+            now = now_s()
+            prior_attempts = int(record.get("attempt_count", 0) or 0)
+            attempts = prior_attempts if error and prior_attempts else prior_attempts + 1
+            delay = min(
+                _RESULT_DELIVERY_INITIAL_RETRY_S * (2 ** min(attempts - 1, 16)),
+                _RESULT_DELIVERY_MAX_RETRY_S,
+            )
+            record.update(
+                {
+                    "attempt_count": attempts,
+                    "last_attempt_at": now,
+                    "next_attempt_at": now + delay,
+                    "last_error": error,
+                    "updated_at": now,
+                }
+            )
+            _atomic_write_json(self._result_delivery_path(request_id), record)
+            return record
+
+    def mark_terminal_result_delivery_acknowledged(
+        self,
+        request_id: str,
+        receipt: dict[str, Any],
+    ) -> dict[str, Any]:
+        with self._request_lock(request_id):
+            loaded = self._load_result_delivery_record(request_id)
+            if not loaded.valid:
+                raise ValueError("terminal result delivery record is not valid")
+            record = dict(loaded.data or {})
+            required = {
+                "request_id": record.get("request_id"),
+                "correlation_id": record.get("correlation_id"),
+                "candidate_sha": record.get("candidate_sha"),
+                "node_id": record.get("node_id"),
+                "claim_id": record.get("claim_id"),
+                "state": record.get("state"),
+                "result_digest": record.get("result_digest"),
+                "result_id": record.get("result_id"),
+            }
+            mismatches = [key for key, value in required.items() if receipt.get(key) != value]
+            if receipt.get("ok") is not True or mismatches:
+                raise ValueError(
+                    "terminal result receipt identity mismatch"
+                    + (f": {','.join(mismatches)}" if mismatches else "")
+                )
+            now = now_s()
+            record.update(
+                {
+                    "delivery_state": "ACKNOWLEDGED",
+                    "acknowledged_at": now,
+                    "next_attempt_at": 0.0,
+                    "last_error": "",
+                    "receipt": dict(receipt),
+                    "updated_at": now,
+                }
+            )
+            _atomic_write_json(self._result_delivery_path(request_id), record)
+            self._event(request_id, "TERMINAL_RESULT_DELIVERY_ACKNOWLEDGED")
+            return record
+
+    def terminal_result_delivery_for(self, request_id: str) -> dict[str, Any] | None:
+        loaded = self._load_result_delivery_record(request_id)
+        return dict(loaded.data or {}) if loaded.valid else None
+
     def remove_request(self, request_id: str, *, force_terminal: bool = False) -> None:
         current = self.get_request(request_id)
         if (
@@ -2842,7 +3086,11 @@ class DurableRemoteStore:
             and not force_terminal
         ):
             raise ValueError("refusing to remove terminal durable request without force_terminal")
-        for path in (self._request_path(request_id), self._result_path(request_id)):
+        for path in (
+            self._request_path(request_id),
+            self._result_path(request_id),
+            self._result_delivery_path(request_id),
+        ):
             try:
                 path.unlink()
             except FileNotFoundError:
