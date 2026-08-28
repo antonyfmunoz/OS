@@ -2712,6 +2712,26 @@ def test_terminal_result_uses_authority_queue_ahead_of_bulk_media(tmp_path):
     assert asyncio.run(_run()) == ["durable_command.result", "media"]
 
 
+def test_oversized_media_frame_is_dropped_before_ws_writer(tmp_path):
+    from nodes.windows.umh_node import client as client_mod
+
+    client = _durable_node_client(tmp_path)
+
+    async def _run() -> int:
+        client._loop = asyncio.get_running_loop()
+        client._ws = object()
+        client._on_camera_frame(
+            {
+                "content_type": "camera.frame",
+                "image_jpeg": b"x" * (client_mod._BULK_MEDIA_MAX_FRAME_BYTES + 1),
+            }
+        )
+        await asyncio.sleep(0)
+        return len(client._media_queue)
+
+    assert asyncio.run(_run()) == 0
+
+
 def test_heartbeat_and_durable_control_share_serialized_writer(tmp_path, monkeypatch):
     client = _durable_node_client(tmp_path)
     client._config.signals.metrics_interval_s = 0

@@ -60,6 +60,7 @@ from substrate.execution.durable_remote_transport import (
 logger = logging.getLogger(__name__)
 
 _MEDIA_QUEUE_MAX = 4
+_BULK_MEDIA_MAX_FRAME_BYTES = 1024 * 1024
 _TRAFFIC_AUTHORITY_CONTROL = "AUTHORITY_CONTROL"
 _TRAFFIC_REQUIRED_CONTROL = "REQUIRED_CONTROL"
 _TRAFFIC_ORDINARY = "ORDINARY"
@@ -651,6 +652,9 @@ class NodeClient:
                 return
             meta_bytes = json.dumps(frame_data).encode()
             msg = struct.pack(">I", len(meta_bytes)) + meta_bytes + jpeg_bytes
+            if len(msg) > _BULK_MEDIA_MAX_FRAME_BYTES:
+                logger.debug("media frame dropped: %d bytes exceeds bulk frame bound", len(msg))
+                return
             self._media_queue.append(msg)
             self._loop.call_soon_threadsafe(self._media_event.set)
         except Exception as exc:
