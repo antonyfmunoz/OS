@@ -537,6 +537,47 @@ def test_cancellation_uses_authority_service_during_bulk_pressure(tmp_path) -> N
     assert sent.count("bulk") == client_mod._WS_SEND_QUEUE_CAPACITY["BULK_MEDIA"]
 
 
+@pytest.mark.parametrize(
+    "method",
+    [
+        "durable_command.claimed",
+        "durable_command.result",
+        "durable_command.cancelled",
+    ],
+)
+def test_durable_lifecycle_frames_are_explicit_authority_control(
+    tmp_path, method
+) -> None:
+    async def run() -> str:
+        client = _client(tmp_path)
+        observed_class = ""
+
+        async def send(_payload, *, traffic_class):
+            nonlocal observed_class
+            observed_class = traffic_class
+            return {
+                "seq": 1,
+                "traffic_class": traffic_class,
+                "generation": client._ws_generation,
+                "queue_wait_ms": 0.0,
+                "send_ms": 0.0,
+            }
+
+        client._ws = SimpleNamespace()
+        client._send_ws = send
+        await client._send_durable_event(
+            method,
+            {
+                "request_id": "req-classification",
+                "claim_id": "claim-classification",
+                "state": "CLAIMED",
+            },
+        )
+        return observed_class
+
+    assert asyncio.run(run()) == "AUTHORITY_CONTROL"
+
+
 def test_http_readback_records_bound_identity_and_success_stages(tmp_path, monkeypatch) -> None:
     client = _client(tmp_path)
     req = client._durable_store.put_request(_request())
