@@ -303,7 +303,7 @@ def test_generation_teardown_cancels_awaits_and_clears_pending_rpc(tmp_path) -> 
             len(client._generation_tasks),
             len(client._pending_rpc),
             all(task.done() for task in tasks),
-            bool((await future)["retryable"]),
+            bool((await asyncio.wait_for(future, timeout=0.5))["retryable"]),
         )
 
     assert asyncio.run(run()) == (0, 0, True, True)
@@ -363,7 +363,10 @@ def test_generation_teardown_awaits_blocked_real_writer(tmp_path, monkeypatch) -
                 break
             await asyncio.sleep(0.01)
         await client._teardown_connection_generation(1, ws)
-        result = await asyncio.gather(send, return_exceptions=True)
+        result = await asyncio.wait_for(
+            asyncio.gather(send, return_exceptions=True),
+            timeout=0.5,
+        )
         return isinstance(result[0], BaseException), len(client._generation_tasks)
 
     assert asyncio.run(run()) == (True, 0)
@@ -437,7 +440,7 @@ def test_connection_churn_leaves_no_tasks_futures_or_generation_queues(tmp_path)
             client._pending_rpc[generation] = future
             client._pending_rpc_generations[generation] = generation
             await client._teardown_connection_generation(generation, ws)
-            assert (await future)["retryable"] is True
+            assert (await asyncio.wait_for(future, timeout=0.5))["retryable"] is True
         return (
             len(client._generation_tasks),
             len(client._pending_rpc),
