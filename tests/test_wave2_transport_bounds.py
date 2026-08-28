@@ -33,6 +33,12 @@ class _AsyncHttpResponse:
         return self.body
 
 
+class _NeverCompletingHttpResponse(_AsyncHttpResponse):
+    async def read(self, _limit: int) -> bytes:
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+
 class _AsyncHttpSession:
     def __init__(self, response=None, failure: BaseException | None = None, **kwargs) -> None:
         self.response = response
@@ -662,6 +668,45 @@ def test_http_readback_failures_are_causally_distinguishable(
     assert expected_stage in names
 
 
+def test_http_readback_never_completing_response_has_finite_outer_bound(
+    tmp_path, monkeypatch
+) -> None:
+    client = _client(tmp_path)
+    req = client._durable_store.put_request(_request())
+    monkeypatch.setattr(
+        client_mod.aiohttp,
+        "ClientSession",
+        lambda **kwargs: _AsyncHttpSession(
+            response=_NeverCompletingHttpResponse(200, b""),
+            **kwargs,
+        ),
+    )
+
+    async def run():
+        return await asyncio.wait_for(
+            client._read_canonical_durable_claim_state(
+                {
+                    "request_id": req.request_id,
+                    "claim_id": "claim-http",
+                    "correlation_id": req.correlation_id,
+                    "candidate_sha": req.candidate_sha,
+                    "node_id": req.node_id,
+                },
+                timeout_s=0.02,
+            ),
+            timeout=0.2,
+        )
+
+    result = asyncio.run(run())
+    current = client._durable_store.get_request(req.request_id)
+    names = [
+        event["event"]
+        for event in current.diagnostics["transport_control"]["events"]
+    ]
+    assert result["ok"] is False
+    assert "NODE_CLAIM_READBACK_TIMEOUT" in names
+
+
 def test_http_readback_non_2xx_and_invalid_json_are_distinct(tmp_path, monkeypatch) -> None:
     client = _client(tmp_path)
     req = client._durable_store.put_request(_request())
@@ -829,3 +874,45 @@ def test_historical_starvation_shape_uses_http_readback_under_continuous_bulk(
     assert claim_sends == 1
     assert bulk_sends >= 2
     assert readbacks == 1
+
+
+def test_authority_overload_cannot_satisfy_claim_acquisition(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr(client_mod, "_DURABLE_CLAIM_ACQUIRE_TIMEOUT_S", 0.1)
+
+    async def run() -> dict[str, object]:
+        client = _client(tmp_path)
+        release = asyncio.Event()
+        client._ws = SimpleNamespace(transport=_AbortableTransport(release))
+        client._ws.send = lambda _payload: release.wait()
+        req = client._durable_store.put_request(_request())
+        client._ensure_ws_writer_state()
+        queued = []
+        for index in range(client_mod._WS_SEND_QUEUE_CAPACITY["AUTHORITY_CONTROL"]):
+            future = asyncio.get_running_loop().create_future()
+            client._queue_ws_send(
+                json.dumps({"index": index}),
+                traffic_class="AUTHORITY_CONTROL",
+                future=future,
+            )
+            queued.append(future)
+
+        async def unavailable(_payload, **_kwargs):
+            return {
+                "ok": False,
+                "error": "canonical readback unavailable",
+                "retryable": False,
+            }
+
+        client._read_canonical_durable_claim_state = unavailable
+        result = await client._acquire_durable_claim(
+            req,
+            claim_id="claim-overload-acquire",
+            process_tree={},
+        )
+        await asyncio.gather(*queued, return_exceptions=True)
+        await client._stop_ws_writer()
+        return result
+
+    result = asyncio.run(run())
+    assert result["ok"] is False
+    assert "readback unavailable" in result["error"]
