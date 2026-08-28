@@ -1578,12 +1578,12 @@ def test_durable_remote_shell_replay_uses_canonical_admitted_request(
 def test_codex_probe_request_id_is_stable_for_exact_sha() -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
 
-    assert dispatch._codex_probe_request_id("abc123") == "codex-spark-abc123"
-    assert dispatch._codex_probe_request_id(" abc123\n") == "codex-spark-abc123"
-    assert dispatch._codex_probe_request_id("abc/123") == "codex-spark-abc-123"
+    assert dispatch._codex_probe_request_id("abc123") == "codex-sol-abc123"
+    assert dispatch._codex_probe_request_id(" abc123\n") == "codex-sol-abc123"
+    assert dispatch._codex_probe_request_id("abc/123") == "codex-sol-abc-123"
 
 
-def test_codex_spark_probe_retry_reuses_stable_logical_idempotency(
+def test_codex_sol_probe_retry_reuses_stable_logical_idempotency(
     monkeypatch, tmp_path
 ) -> None:
     dispatch = load_wave2_script("wave2_field_dispatch")
@@ -1620,7 +1620,7 @@ def test_codex_spark_probe_retry_reuses_stable_logical_idempotency(
                     "stdout": json.dumps(
                         {
                             "ok": True,
-                            "request_id": "codex-spark-sha-final",
+                            "request_id": "codex-sol-sha-final",
                             "usage": {"input_tokens": 1, "output_tokens": 1},
                         }
                     ),
@@ -1633,12 +1633,12 @@ def test_codex_spark_probe_retry_reuses_stable_logical_idempotency(
 
     monkeypatch.setattr(store, "put_request", put_and_succeed)
 
-    first = dispatch._beast_codex_spark_probe(runner, "sha-final", poll_timeout_seconds=5)
-    second = dispatch._beast_codex_spark_probe(runner, "sha-final", poll_timeout_seconds=5)
+    first = dispatch._beast_codex_sol_probe(runner, "sha-final", poll_timeout_seconds=5)
+    second = dispatch._beast_codex_sol_probe(runner, "sha-final", poll_timeout_seconds=5)
 
     assert first["ok"] is True
     assert second["ok"] is True
-    assert first["request_id"] == second["request_id"] == "codex-spark-sha-final"
+    assert first["request_id"] == second["request_id"] == "codex-sol-sha-final"
     assert first["transport"]["request_id"] == second["transport"]["request_id"]
     assert len(list((tmp_path / "requests").glob("*.json"))) == 1
     stored = store.get_request(str(first["transport"]["request_id"]))

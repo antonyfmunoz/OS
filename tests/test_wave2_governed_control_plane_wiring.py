@@ -527,7 +527,7 @@ def test_preflight_requires_deployed_activation_rehearsal(monkeypatch) -> None:
     monkeypatch.setattr(dispatch, "_shell_summary", lambda *_a, **_kw: {"returncode": 0})
     monkeypatch.setattr(runner, "shell", lambda *_a, **_kw: object())
     monkeypatch.setattr(dispatch, "_authority_contract_probe", lambda _runner: {"ok": True})
-    monkeypatch.setattr(dispatch, "_beast_codex_spark_probe", lambda _runner, sha: {"ok": True})
+    monkeypatch.setattr(dispatch, "_beast_codex_sol_probe", lambda _runner, sha: {"ok": True})
     monkeypatch.setattr(
         dispatch,
         "activation_rehearsal",
@@ -545,7 +545,7 @@ def test_preflight_requires_deployed_activation_rehearsal(monkeypatch) -> None:
     assert result["activation_rehearsal"]["sha"] == "sha-under-test"
 
 
-def test_preflight_requires_real_beast_codex_spark_probe(monkeypatch) -> None:
+def test_preflight_requires_real_beast_codex_sol_probe(monkeypatch) -> None:
     from tests.wave2_script_import import load_wave2_script
 
     dispatch = load_wave2_script("wave2_field_dispatch")
@@ -562,18 +562,18 @@ def test_preflight_requires_real_beast_codex_spark_probe(monkeypatch) -> None:
     )
     monkeypatch.setattr(
         dispatch,
-        "_beast_codex_spark_probe",
+        "_beast_codex_sol_probe",
         lambda _runner, sha: {"ok": False, "sha": sha, "failure_reason": "model mismatch"},
     )
 
     result = dispatch.preflight(runner, "sha-under-test")
 
     assert result["ok"] is False
-    assert "codex_spark_probe" in result["failure_reason"]
-    assert result["codex_spark_probe"]["sha"] == "sha-under-test"
+    assert "codex_sol_probe" in result["failure_reason"]
+    assert result["codex_sol_probe"]["sha"] == "sha-under-test"
 
 
-def test_beast_codex_spark_probe_fails_closed_on_bad_mesh_or_bad_probe(monkeypatch) -> None:
+def test_beast_codex_sol_probe_fails_closed_on_bad_mesh_or_bad_probe(monkeypatch) -> None:
     from tests.wave2_script_import import load_wave2_script
 
     dispatch = load_wave2_script("wave2_field_dispatch")
@@ -584,24 +584,24 @@ def test_beast_codex_spark_probe_fails_closed_on_bad_mesh_or_bad_probe(monkeypat
         "_durable_remote_shell",
         lambda *_a, **_kw: {"ok": False, "raw_status": "FAILED", "error": "mesh down"},
     )
-    result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
+    result = dispatch._beast_codex_sol_probe(runner, "sha-under-test")
     assert result["ok"] is False
-    assert result["failure_reason"] == "real Beast Codex/Spark production path not proven"
+    assert result["failure_reason"] == "real Beast Codex/Sol production path not proven"
 
 
-def test_beast_codex_spark_probe_uses_bounded_argv_lifecycle(monkeypatch) -> None:
+def test_beast_codex_sol_probe_uses_bounded_argv_lifecycle(monkeypatch) -> None:
     from tests.wave2_script_import import load_wave2_script
 
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
-    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda _sha: "codex-spark-test")
+    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda _sha: "codex-sol-test")
 
     calls: list[dict[str, object]] = []
     probe = {
         "ok": True,
         "execution_identity": {
             "provider_requested": "codex",
-            "model_requested": "gpt-5.3-codex-spark",
+            "model_requested": "gpt-5.6-sol",
             "explicit_model_argument_present": True,
             "terminal_status": "completed",
             "output_content_present": True,
@@ -621,37 +621,37 @@ def test_beast_codex_spark_probe_uses_bounded_argv_lifecycle(monkeypatch) -> Non
 
     monkeypatch.setattr(dispatch, "_durable_remote_shell", _durable)
 
-    result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
+    result = dispatch._beast_codex_sol_probe(runner, "sha-under-test")
 
     assert result["ok"] is True
-    assert result["request_id"] == "codex-spark-test"
+    assert result["request_id"] == "codex-sol-test"
     assert result["probe"]["ok"] is True
     assert result["cleanup"]["process_residue"] == []
     assert len(calls) == 1
     call = calls[0]
     assert call["command"] == ""
     assert call["cwd"] == dispatch._BEAST_WT
-    assert call["operation_type"] == "wave2_codex_spark_probe"
-    assert call["correlation_id"] == "codex-spark-codex-spark-test"
+    assert call["operation_type"] == "wave2_codex_sol_probe"
+    assert call["correlation_id"] == "codex-sol-codex-sol-test"
     assert call["candidate_sha"] == "sha-under-test"
     assert call["command_timeout"] == 220
     assert call["argv"] == result["argv"]
     argv = result["argv"]
     assert "--model" in argv
-    assert argv[argv.index("--model") + 1] == "gpt-5.3-codex-spark"
+    assert argv[argv.index("--model") + 1] == "gpt-5.6-sol"
     assert "--request-id" in argv
-    assert argv[argv.index("--request-id") + 1] == "codex-spark-test"
+    assert argv[argv.index("--request-id") + 1] == "codex-sol-test"
     assert all("EncodedCommand" not in part for part in argv)
     assert result["launcher_command_chars"] < 1000
 
 
-def test_beast_codex_spark_probe_fails_closed_on_nonterminal_transport(monkeypatch) -> None:
+def test_beast_codex_sol_probe_fails_closed_on_nonterminal_transport(monkeypatch) -> None:
     from tests.wave2_script_import import load_wave2_script
 
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
     monkeypatch.setattr(
-        dispatch, "_codex_probe_request_id", lambda _sha: "codex-spark-cancelled"
+        dispatch, "_codex_probe_request_id", lambda _sha: "codex-sol-cancelled"
     )
     monkeypatch.setattr(
         dispatch,
@@ -665,19 +665,19 @@ def test_beast_codex_spark_probe_fails_closed_on_nonterminal_transport(monkeypat
         },
     )
 
-    result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
+    result = dispatch._beast_codex_sol_probe(runner, "sha-under-test")
 
     assert result["ok"] is False
     assert result["transport"]["raw_status"] == "CANCELLED"
     assert result["cleanup"]["process_residue"] == []
 
 
-def test_beast_codex_spark_probe_fails_closed_on_jsonl_error_event(monkeypatch) -> None:
+def test_beast_codex_sol_probe_fails_closed_on_jsonl_error_event(monkeypatch) -> None:
     from tests.wave2_script_import import load_wave2_script
 
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
-    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda _sha: "codex-spark-error")
+    monkeypatch.setattr(dispatch, "_codex_probe_request_id", lambda _sha: "codex-sol-error")
 
     observed = {
         "ok": False,
@@ -705,20 +705,20 @@ def test_beast_codex_spark_probe_fails_closed_on_jsonl_error_event(monkeypatch) 
         },
     )
 
-    result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
+    result = dispatch._beast_codex_sol_probe(runner, "sha-under-test")
 
     assert result["ok"] is False
-    assert result["failure_reason"] == "real Beast Codex/Spark production path not proven"
+    assert result["failure_reason"] == "real Beast Codex/Sol production path not proven"
     assert result["probe"]["execution_identity"]["event_types"][2] == "error"
 
 
-def test_beast_codex_spark_probe_fails_if_cleanup_leaves_residue(monkeypatch) -> None:
+def test_beast_codex_sol_probe_fails_if_cleanup_leaves_residue(monkeypatch) -> None:
     from tests.wave2_script_import import load_wave2_script
 
     dispatch = load_wave2_script("wave2_field_dispatch")
     runner = dispatch.Runner(dry_run=False)
     monkeypatch.setattr(
-        dispatch, "_codex_probe_request_id", lambda _sha: "codex-spark-residue"
+        dispatch, "_codex_probe_request_id", lambda _sha: "codex-sol-residue"
     )
 
     monkeypatch.setattr(
@@ -731,9 +731,9 @@ def test_beast_codex_spark_probe_fails_if_cleanup_leaves_residue(monkeypatch) ->
             "cleanup": {"process_residue": [{"ProcessId": 9}]},
         },
     )
-    result = dispatch._beast_codex_spark_probe(runner, "sha-under-test")
+    result = dispatch._beast_codex_sol_probe(runner, "sha-under-test")
     assert result["ok"] is False
-    assert result["failure_reason"] == "real Beast Codex/Spark production path not proven"
+    assert result["failure_reason"] == "real Beast Codex/Sol production path not proven"
 
 
 def test_preflight_authority_contract_probe_fails_if_route_rewraps_source_decisions(

@@ -7,7 +7,7 @@ import os
 from substrate.execution.attempts.model_executor_contract import ModelExecutor
 
 _DEFAULT_PROVIDER = "codex"
-_DEFAULT_CODEX_MODEL = "gpt-5.3-codex-spark"
+_DEFAULT_CODEX_MODEL = "gpt-5.6-sol"
 _TEST_ONLY_PROVIDERS = {"deterministic", "conformance"}
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Bounded real Codex/Spark production-path probe for Wave 2 pre-field gates."""
+"""Bounded real Codex/Sol production-path probe for Wave 2 pre-field gates."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 
-_PHASE_SCHEMA_VERSION = "wave2_codex_spark_probe.phase.v1"
+_PHASE_SCHEMA_VERSION = "wave2_codex_sol_probe.phase.v1"
 _PHASE_EVENTS: list[dict[str, object]] = []
 
 
@@ -270,7 +270,7 @@ def run_probe(
 
     run_parent = Path(os.environ.get("UMH_RUN_ROOT", tempfile.gettempdir()))
     run_parent.mkdir(parents=True, exist_ok=True)
-    run_root = tempfile.mkdtemp(prefix="umh_codex_spark_probe_", dir=str(run_parent))
+    run_root = tempfile.mkdtemp(prefix="umh_codex_sol_probe_", dir=str(run_parent))
     out: dict = {}
     home = None
     try:
@@ -289,7 +289,7 @@ def run_probe(
             version=executor.identity.version,
         )
         home = open_attempt_credential_home(
-            attempt_id="beast-spark-production-probe",
+            attempt_id="beast-sol-production-probe",
             run_root=run_root,
             provider=executor.identity.provider,
         )
@@ -356,16 +356,16 @@ def run_probe(
         packet = ModelWorkPacketInput(
             prompt=(
                 "Return a compact JSON object with keys probe and content. "
-                "The content value must be the phrase UMH Spark production path live."
+                "The content value must be the phrase UMH Sol production path live."
             ),
             worktree_path=worktree,
             timeout_seconds=timeout,
             max_turns=1,
-            attempt_id="beast-spark-production-probe",
+            attempt_id="beast-sol-production-probe",
             package_hash="pre-field-probe",
             proof_binding={
                 "candidate_sha": sha,
-                "probe": "beast_codex_spark_production_path",
+                "probe": "beast_codex_sol_production_path",
                 "request_id": request_id,
             },
         )
@@ -438,7 +438,7 @@ def run_probe(
 
             completed = _run_codex_process_tree(
                 invocation.argv,
-                caller="wave2_codex_spark_probe",
+                caller="wave2_codex_sol_probe",
                 timeout=packet.timeout_seconds,
                 cwd=invocation.cwd,
                 env=env,
@@ -578,7 +578,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sha", required=True)
     parser.add_argument("--worktree", default=str(Path.cwd()))
-    parser.add_argument("--model", default="gpt-5.3-codex-spark")
+    parser.add_argument("--model", default="gpt-5.6-sol")
     parser.add_argument("--expected-version", default="codex-cli 0.147.0")
     parser.add_argument("--timeout", type=int, default=120)
     parser.add_argument("--request-id", default="")

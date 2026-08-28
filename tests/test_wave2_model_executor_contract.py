@@ -61,7 +61,7 @@ def test_provider_selection_defaults_to_codex_and_can_select_deterministic(monke
     monkeypatch.delenv("UMH_CODEX_MODEL", raising=False)
     monkeypatch.delenv("UMH_ALLOW_TEST_MODEL_EXECUTOR", raising=False)
     assert selected_provider_name() == "codex"
-    assert selected_codex_model() == "gpt-5.3-codex-spark"
+    assert selected_codex_model() == "gpt-5.6-sol"
     assert type(build_model_executor()).__name__ == "CodexModelExecutor"
 
     monkeypatch.setenv("UMH_MODEL_EXECUTOR_PROVIDER", "deterministic")
@@ -1276,7 +1276,7 @@ def test_codex_tools_revoked_a_becomes_enforced_readonly_policy(tmp_path, monkey
     seen = {}
 
     class FakeExecutor:
-        identity = ModelExecutorIdentity("codex", "gpt-5.3-codex-spark", "v", "FakeCodex")
+        identity = ModelExecutorIdentity("codex", "gpt-5.6-sol", "v", "FakeCodex")
 
         def readiness(self, *, env=None):
             return ModelExecutorReadiness(True, self.identity, authenticated=True)
@@ -1372,7 +1372,7 @@ def test_codex_rejects_unsupported_capability_restrictions_before_invocation(tmp
     invoked = {"build": False}
 
     class FakeExecutor:
-        identity = ModelExecutorIdentity("codex", "gpt-5.3-codex-spark", "v", "FakeCodex")
+        identity = ModelExecutorIdentity("codex", "gpt-5.6-sol", "v", "FakeCodex")
 
         def readiness(self, *, env=None):
             return ModelExecutorReadiness(True, self.identity, authenticated=True)
@@ -1428,7 +1428,7 @@ def test_codex_retry_without_denial_uses_normal_writable_policy(tmp_path, monkey
     seen = {}
 
     class FakeExecutor:
-        identity = ModelExecutorIdentity("codex", "gpt-5.3-codex-spark", "v", "FakeCodex")
+        identity = ModelExecutorIdentity("codex", "gpt-5.6-sol", "v", "FakeCodex")
 
         def readiness(self, *, env=None):
             return ModelExecutorReadiness(True, self.identity, authenticated=True)

@@ -1948,7 +1948,7 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
 
     out["authority_contract_probe"] = _authority_contract_probe(runner)
     out["activation_rehearsal"] = activation_rehearsal(runner, sha, iterations=3)
-    out["codex_spark_probe"] = _beast_codex_spark_probe(runner, sha)
+    out["codex_sol_probe"] = _beast_codex_sol_probe(runner, sha)
 
     # PREFLIGHT VERDICT (finding SEC-C3): mesh relay, the executor daemon in an
     # interactive session, and Beast->origin reachability are all REQUIRED. A
@@ -1961,7 +1961,7 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
         "query_session",
         "authority_contract_probe",
         "activation_rehearsal",
-        "codex_spark_probe",
+        "codex_sol_probe",
         "start_command_shape",
     )
     failed = [k for k in required if isinstance(out.get(k), dict) and out[k].get("ok") is False]
@@ -1976,19 +1976,19 @@ def preflight(runner: Runner, sha: str) -> dict[str, Any]:
 
 def _codex_probe_request_id(sha: str) -> str:
     candidate = re.sub(r"[^A-Za-z0-9_.-]+", "-", str(sha or "").strip()).strip("-")
-    return f"codex-spark-{candidate or 'unknown-sha'}"
+    return f"codex-sol-{candidate or 'unknown-sha'}"
 
 
 def _codex_probe_argv(*, sha: str, request_id: str) -> list[str]:
     return [
         "python",
-        rf"{_BEAST_WT}\scripts\wave2_codex_spark_probe.py",
+        rf"{_BEAST_WT}\scripts\wave2_codex_sol_probe.py",
         "--sha",
         sha,
         "--worktree",
         _BEAST_WT,
         "--model",
-        "gpt-5.3-codex-spark",
+        "gpt-5.6-sol",
         "--expected-version",
         "codex-cli 0.147.0",
         "--timeout",
@@ -2003,7 +2003,7 @@ def _codex_probe_dir(request_id: str) -> str:
 
 
 def _codex_probe_launch_command(*, sha: str, request_id: str) -> str:
-    """Launch the real Codex/Spark probe asynchronously on Beast.
+    """Launch the real Codex/Sol probe asynchronously on Beast.
 
     The synchronous mesh shell path is intentionally short-lived: it only writes
     a manifest and starts a wrapper. The wrapper owns the long Codex invocation
@@ -2016,8 +2016,8 @@ def _codex_probe_launch_command(*, sha: str, request_id: str) -> str:
     result_path = rf"{probe_dir}\result.json"
     stdout_path = rf"{probe_dir}\stdout.jsonl"
     stderr_path = rf"{probe_dir}\stderr.log"
-    probe_script = rf"{_BEAST_WT}\scripts\wave2_codex_spark_probe.py"
-    model = "gpt-5.3-codex-spark"
+    probe_script = rf"{_BEAST_WT}\scripts\wave2_codex_sol_probe.py"
+    model = "gpt-5.6-sol"
     version = "codex-cli 0.147.0"
     wrapper = rf"""
 $ErrorActionPreference = 'Continue'
@@ -2116,7 +2116,7 @@ $wrapperProc = Start-Process -FilePath 'powershell' `
   -WorkingDirectory '{_BEAST_WT}' -WindowStyle Hidden -PassThru
 $manifest = [ordered]@{{
   request_id=$requestId; candidate_sha='{sha}'; provider='codex';
-  model='gpt-5.3-codex-spark'; expected_version='codex-cli 0.147.0';
+  model='gpt-5.6-sol'; expected_version='codex-cli 0.147.0';
   wrapper_pid=$wrapperProc.Id; wrapper_path=$wrapperPath; status_path='{status_path}';
   result_path='{result_path}'; stdout_path='{stdout_path}'; stderr_path='{stderr_path}';
   worktree='{_BEAST_WT}'; probe_script='{probe_script}'; cli_path=$cliPath;
@@ -2154,7 +2154,7 @@ foreach ($pid in ($pids | Select-Object -Unique)) {{
 }}
 $broad = @(Get-CimInstance Win32_Process | Where-Object {{
   ([string]$_.CommandLine) -like "*{request_id}*" -or
-  ([string]$_.CommandLine) -like "*wave2_codex_spark_probe.py*"
+  ([string]$_.CommandLine) -like "*wave2_codex_sol_probe.py*"
 }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate,SessionId)
 [pscustomobject]@{{
   request_id='{request_id}'; manifest=$manifest; status=$status; result=$result;
@@ -2188,14 +2188,14 @@ foreach ($pid in ($ids | Select-Object -Unique)) {{
   if ($null -ne $p) {{
     $before += ($p | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate,SessionId)
     $cmd = [string]$p.CommandLine
-    if ($cmd -like "*{request_id}*" -or $cmd -like "*{probe_dir}*" -or $cmd -like "*wave2_codex_spark_probe.py*") {{
+    if ($cmd -like "*{request_id}*" -or $cmd -like "*{probe_dir}*" -or $cmd -like "*wave2_codex_sol_probe.py*") {{
       $out = (& cmd.exe /c "taskkill /PID $pid /T" 2>&1 | Out-String)
       Start-Sleep -Seconds 3
       $alive = Get-CimInstance Win32_Process -Filter ("ProcessId=" + [int]$pid)
       $forced = $false
       if ($null -ne $alive) {{
         $cmd2 = [string]$alive.CommandLine
-        if ($cmd2 -like "*{request_id}*" -or $cmd2 -like "*{probe_dir}*" -or $cmd2 -like "*wave2_codex_spark_probe.py*") {{
+        if ($cmd2 -like "*{request_id}*" -or $cmd2 -like "*{probe_dir}*" -or $cmd2 -like "*wave2_codex_sol_probe.py*") {{
           $out = $out + (& cmd.exe /c "taskkill /PID $pid /T /F" 2>&1 | Out-String)
           $forced = $true
         }} else {{
@@ -2211,7 +2211,7 @@ foreach ($pid in ($ids | Select-Object -Unique)) {{
 Start-Sleep -Seconds 1
 $residue = @(Get-CimInstance Win32_Process | Where-Object {{
   ([string]$_.CommandLine) -like "*{request_id}*" -or
-  ([string]$_.CommandLine) -like "*wave2_codex_spark_probe.py*"
+  ([string]$_.CommandLine) -like "*wave2_codex_sol_probe.py*"
 }} | Select-Object ProcessId,ParentProcessId,Name,CommandLine,CreationDate,SessionId)
 $removed = $false
 if ($residue.Count -eq 0 -and (Test-Path -LiteralPath $dir)) {{
@@ -2227,10 +2227,10 @@ if ($residue.Count -eq 0 -and (Test-Path -LiteralPath $dir)) {{
     return _powershell_encoded_command(ps)
 
 
-def _beast_codex_spark_probe(
+def _beast_codex_sol_probe(
     runner: Runner, sha: str, *, poll_timeout_seconds: int = 260, poll_interval_seconds: int = 5
 ) -> dict[str, Any]:
-    """Run the exact Beast Codex/Spark production-path probe as a preflight gate."""
+    """Run the exact Beast Codex/Sol production-path probe as a preflight gate."""
     if runner.dry_run:
         return {"dry_run": True, "ok": True}
     request_id = _codex_probe_request_id(sha)
@@ -2245,8 +2245,8 @@ def _beast_codex_spark_probe(
         max_len=262144,
         command_timeout=220,
         dispatch_timeout=poll_timeout_seconds,
-        operation_type="wave2_codex_spark_probe",
-        correlation_id=f"codex-spark-{request_id}",
+        operation_type="wave2_codex_sol_probe",
+        correlation_id=f"codex-sol-{request_id}",
         candidate_sha=sha,
     )
     probe: dict[str, Any] | None = None
@@ -2276,7 +2276,7 @@ def _beast_codex_spark_probe(
         "probe": probe,
         "cleanup": cleanup,
         "parse_error": parse_error,
-        "failure_reason": None if ok else "real Beast Codex/Spark production path not proven",
+        "failure_reason": None if ok else "real Beast Codex/Sol production path not proven",
     }
 
 

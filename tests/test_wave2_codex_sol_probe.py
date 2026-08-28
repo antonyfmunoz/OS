@@ -13,11 +13,11 @@ from substrate.execution.attempts.model_executor_contract import (
     ModelTerminalResult,
 )
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "wave2_codex_spark_probe.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "wave2_codex_sol_probe.py"
 
 
 def _probe_module():
-    spec = importlib.util.spec_from_file_location("wave2_codex_spark_probe_under_test", SCRIPT)
+    spec = importlib.util.spec_from_file_location("wave2_codex_sol_probe_under_test", SCRIPT)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -30,7 +30,7 @@ def test_probe_uses_provider_policy_and_spark_model_without_fallback() -> None:
     assert "sys.path.insert(0, str(_WORKTREE))" in body
     assert 'UMH_MODEL_EXECUTOR_PROVIDER"] = "codex"' in body
     assert 'UMH_CODEX_MODEL"] = model' in body
-    assert "gpt-5.3-codex-spark" in body
+    assert "gpt-5.6-sol" in body
     assert "build_model_executor()" in body
     assert "DeterministicConformanceExecutor" not in body
     assert "Claude" not in body
@@ -61,7 +61,7 @@ def test_probe_binds_identity_usage_and_proof_metadata() -> None:
 def _valid_probe_result() -> dict:
     identity = {
         "provider": "codex",
-        "model": "gpt-5.3-codex-spark",
+        "model": "gpt-5.6-sol",
         "version": "codex-cli 0.147.0",
         "adapter": "CodexModelExecutor",
     }
@@ -78,7 +78,7 @@ def _valid_probe_result() -> dict:
         "execution_identity": {
             "provider_requested": "codex",
             "provider_adapter": "CodexModelExecutor",
-            "model_requested": "gpt-5.3-codex-spark",
+            "model_requested": "gpt-5.6-sol",
             "model_selector_source": "explicit_argument",
             "executable_path": "C:\\Users\\antonys beast pc\\AppData\\Local\\npm\\codex.cmd",
             "executable_version": "codex-cli 0.147.0",
@@ -107,7 +107,7 @@ def test_probe_validation_accepts_request_bound_unobservable_model_identity() ->
     result = _valid_probe_result()
     assert module._validate_probe_result(
         result,
-        expected_model="gpt-5.3-codex-spark",
+        expected_model="gpt-5.6-sol",
         expected_version="codex-cli 0.147.0",
     ) == []
 
@@ -119,7 +119,7 @@ def test_probe_validation_rejects_wrong_requested_or_result_identity() -> None:
     result["result_identity"]["model"] = "gpt-5.5"
     failures = module._validate_probe_result(
         result,
-        expected_model="gpt-5.3-codex-spark",
+        expected_model="gpt-5.6-sol",
         expected_version="codex-cli 0.147.0",
     )
     assert any("execution_identity.model_requested" in item for item in failures)
@@ -132,7 +132,7 @@ def test_probe_validation_rejects_missing_explicit_model_argument() -> None:
     result["execution_identity"]["explicit_model_argument_present"] = False
     failures = module._validate_probe_result(
         result,
-        expected_model="gpt-5.3-codex-spark",
+        expected_model="gpt-5.6-sol",
         expected_version="codex-cli 0.147.0",
     )
     assert "execution_identity.explicit_model_argument_present is not true" in failures
@@ -146,7 +146,7 @@ def test_probe_validation_rejects_trusted_resolved_model_conflict() -> None:
     result["execution_identity"]["model_resolution_observable"] = True
     failures = module._validate_probe_result(
         result,
-        expected_model="gpt-5.3-codex-spark",
+        expected_model="gpt-5.6-sol",
         expected_version="codex-cli 0.147.0",
     )
     assert any("trusted resolved model" in item for item in failures)
@@ -155,12 +155,12 @@ def test_probe_validation_rejects_trusted_resolved_model_conflict() -> None:
 def test_probe_validation_allows_trusted_resolved_model_match() -> None:
     module = _probe_module()
     result = _valid_probe_result()
-    result["execution_identity"]["trusted_model_resolved"] = "gpt-5.3-codex-spark"
+    result["execution_identity"]["trusted_model_resolved"] = "gpt-5.6-sol"
     result["execution_identity"]["trusted_model_resolution_source"] = "turn.completed.model"
     result["execution_identity"]["model_resolution_observable"] = True
     assert module._validate_probe_result(
         result,
-        expected_model="gpt-5.3-codex-spark",
+        expected_model="gpt-5.6-sol",
         expected_version="codex-cli 0.147.0",
     ) == []
 
@@ -175,7 +175,7 @@ def test_probe_validation_ignores_model_generated_identity_claims() -> None:
     )
     assert module._validate_probe_result(
         result,
-        expected_model="gpt-5.3-codex-spark",
+        expected_model="gpt-5.6-sol",
         expected_version="codex-cli 0.147.0",
     ) == []
 
@@ -184,7 +184,7 @@ def test_probe_returns_structured_timeout_before_outer_transport(tmp_path, monke
     module = _probe_module()
     identity = ModelExecutorIdentity(
         provider="codex",
-        model="gpt-5.3-codex-spark",
+        model="gpt-5.6-sol",
         version="codex-cli 0.147.0",
         adapter="CodexModelExecutor",
     )
@@ -267,7 +267,7 @@ def test_probe_sanitizes_completed_raw_stderr(tmp_path, monkeypatch) -> None:
     module = _probe_module()
     identity = ModelExecutorIdentity(
         provider="codex",
-        model="gpt-5.3-codex-spark",
+        model="gpt-5.6-sol",
         version="codex-cli 0.147.0",
         adapter="CodexModelExecutor",
     )
@@ -287,7 +287,7 @@ def test_probe_sanitizes_completed_raw_stderr(tmp_path, monkeypatch) -> None:
             return ModelTerminalResult(
                 ok=True,
                 status="succeeded",
-                stdout='{"probe":"ok","content":"UMH Spark production path live."}',
+                stdout='{"probe":"ok","content":"UMH Sol production path live."}',
                 stderr=module._sanitize(completed.stderr or ""),
                 exit_code=0,
                 duration_seconds=duration_seconds,
@@ -358,7 +358,7 @@ def test_probe_returns_structured_readiness_timeout(tmp_path, monkeypatch) -> No
     module = _probe_module()
     identity = ModelExecutorIdentity(
         provider="codex",
-        model="gpt-5.3-codex-spark",
+        model="gpt-5.6-sol",
         version="codex-cli 0.147.0",
         adapter="CodexModelExecutor",
     )
@@ -445,7 +445,7 @@ def test_probe_main_emits_request_bound_phase_events_to_stderr(
             "--worktree",
             str(tmp_path),
             "--model",
-            "gpt-5.3-codex-spark",
+            "gpt-5.6-sol",
             "--expected-version",
             "codex-cli 0.147.0",
             "--timeout",
@@ -470,7 +470,7 @@ def test_probe_main_emits_request_bound_phase_events_to_stderr(
     assert "terminal_result_flushed" in names
     assert "probe_exit" in names
     for event in phases:
-        assert event["schema"] == "wave2_codex_spark_probe.phase.v1"
+        assert event["schema"] == "wave2_codex_sol_probe.phase.v1"
         assert event["request_id"] in {"", "probe-phase-test"}
         assert event["configured_inner_timeout"] in {None, 1.0}
         assert "timestamp_utc" in event
@@ -485,7 +485,7 @@ def test_probe_validation_fails_closed_on_readiness_or_cleanup_gap() -> None:
     result["run_root_exists_after_cleanup"] = True
     failures = module._validate_probe_result(
         result,
-        expected_model="gpt-5.3-codex-spark",
+        expected_model="gpt-5.6-sol",
         expected_version="codex-cli 0.147.0",
     )
     assert "readiness_authenticated is not true" in failures
@@ -498,7 +498,7 @@ def test_probe_main_exits_nonzero_when_exact_model_validation_fails(monkeypatch,
     result["execution_identity"]["trusted_model_resolved"] = "gpt-5.5"
     failures = module._validate_probe_result(
         result,
-        expected_model="gpt-5.3-codex-spark",
+        expected_model="gpt-5.6-sol",
         expected_version="codex-cli 0.147.0",
     )
     result["ok"] = not failures
@@ -511,8 +511,8 @@ def test_probe_main_exits_nonzero_when_exact_model_validation_fails(monkeypatch,
     assert "trusted resolved model" in printed
 
 
-def test_attempt_runner_pins_codex_spark_policy_before_worker_admission() -> None:
+def test_attempt_runner_pins_codex_sol_policy_before_worker_admission() -> None:
     body = (SCRIPT.parents[1] / "scripts" / "wave2_attempt_runner.py").read_text(encoding="utf-8")
 
     assert 'os.environ.setdefault("UMH_MODEL_EXECUTOR_PROVIDER", "codex")' in body
-    assert 'os.environ.setdefault("UMH_CODEX_MODEL", "gpt-5.3-codex-spark")' in body
+    assert 'os.environ.setdefault("UMH_CODEX_MODEL", "gpt-5.6-sol")' in body
