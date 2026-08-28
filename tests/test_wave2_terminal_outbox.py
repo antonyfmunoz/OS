@@ -418,15 +418,17 @@ def test_stubborn_generation_task_blocks_replacement_authority(
             label="stubborn-handler",
         )
         await asyncio.sleep(0)
-        with pytest.raises(
-            TransportGenerationTeardownFailed,
-            match="TRANSPORT_GENERATION_TEARDOWN_FAILED",
-        ):
-            await client._teardown_connection_generation(1, client._ws)
-        with pytest.raises(TransportGenerationTeardownFailed):
-            client._activate_connection_generation(SimpleNamespace())
-        release.set()
-        await task
+        try:
+            with pytest.raises(
+                TransportGenerationTeardownFailed,
+                match="TRANSPORT_GENERATION_TEARDOWN_FAILED",
+            ):
+                await client._teardown_connection_generation(1, client._ws)
+            with pytest.raises(TransportGenerationTeardownFailed):
+                client._activate_connection_generation(SimpleNamespace())
+        finally:
+            release.set()
+            await task
         return client._generation_teardown_failed, client._active_ws_generation is None
 
     assert asyncio.run(run()) == (True, True)
