@@ -779,6 +779,31 @@ def test_http_readback_exact_claim_binding_records_validation(tmp_path, monkeypa
     assert events[-1]["readback_id"] == "readback-exact"
 
 
+def test_http_readback_foreign_identity_fails_exact_canonical_binding(tmp_path) -> None:
+    client = _client(tmp_path)
+    req = client._durable_store.put_request(_request())
+    result = client._validate_durable_claim_authority(
+        {
+            "ok": True,
+            "accepted": True,
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "candidate_sha": req.candidate_sha,
+            "node_id": req.node_id,
+            "claim_id": "foreign-claim",
+            "lifecycle_state": "CLAIMED",
+            "authority_source": "vps_canonical_durable_store",
+        },
+        req,
+        claim_id="claim-exact",
+        expected_state="CLAIMED",
+        label="claim readback",
+    )
+    assert result["ok"] is False
+    assert result["accepted"] is False
+    assert "claim_id" in result["error"]
+
+
 def test_stale_rpc_response_cannot_satisfy_new_transport_generation(tmp_path) -> None:
     async def run() -> tuple[bool, bool]:
         client = _client(tmp_path)
