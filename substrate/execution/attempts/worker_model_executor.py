@@ -60,6 +60,7 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_TIMEOUT = 600.0
 _DEFAULT_MAX_TURNS = 30
+_GOVERNED_CODEX_MODEL = "gpt-5.6-sol"
 _SOURCE_MUTATION_DENIAL_TOOLS = frozenset({"Edit", "Write", "MultiEdit", "NotebookEdit", "Bash"})
 
 
@@ -129,6 +130,7 @@ class WorkerResult:
     retry_class: str = "unknown"
     proof_binding: dict[str, Any] = field(default_factory=dict)
     capability_policy: dict[str, Any] = field(default_factory=dict)
+    execution_identity: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         d = dict(self.__dict__)
@@ -146,6 +148,42 @@ def _proof_binding(package: Any, base_commit: str, provider: str) -> dict[str, A
         "authorized_base": base_commit,
         "executor_provider": provider,
     }
+
+
+def _governed_codex_attestation_error(
+    terminal: Any,
+    *,
+    packet: ModelWorkPacketInput,
+) -> str:
+    evidence = dict(getattr(terminal, "execution_identity", None) or {})
+    required = {
+        "provider_requested": "codex",
+        "model_requested": _GOVERNED_CODEX_MODEL,
+        "trusted_model_resolved": _GOVERNED_CODEX_MODEL,
+        "attempt_id": packet.attempt_id,
+        "package_hash": packet.package_hash,
+    }
+    mismatches = [
+        f"{key}={evidence.get(key)!r} expected {expected!r}"
+        for key, expected in required.items()
+        if evidence.get(key) != expected
+    ]
+    required_true = (
+        "explicit_model_argument_present",
+        "user_config_ignored",
+        "invocation_accepted",
+        "model_resolution_observable",
+        "output_content_present",
+        "usage_present",
+        "credential_isolation_verified",
+        "workspace_integrity_verified",
+    )
+    mismatches.extend(
+        f"{key} is not true" for key in required_true if evidence.get(key) is not True
+    )
+    if not str(evidence.get("trusted_model_resolution_source", "") or "").strip():
+        mismatches.append("trusted_model_resolution_source is missing")
+    return "; ".join(mismatches)
 
 
 def _credential_env_key(provider: str) -> str:
@@ -231,6 +269,16 @@ def run_worker_in_lease(
     except ValueError as exc:
         return WorkerResult(error=str(exc), retry_class="configuration")
     executor_identity = executor.identity
+    if executor_identity.provider == "codex" and executor_identity.model != _GOVERNED_CODEX_MODEL:
+        return WorkerResult(
+            error=(
+                "governed Codex attempts require exact model "
+                f"{_GOVERNED_CODEX_MODEL!r}; resolved configuration selected "
+                f"{executor_identity.model!r}"
+            ),
+            executor=executor_identity.proof_metadata(),
+            retry_class="configuration",
+        )
 
     try:
         make_lease_selfcontained(worktree_path)
@@ -328,7 +376,9 @@ def run_worker_in_lease(
 
     prompt = render_prompt(package)
     if _is_zero_write(package):
-        prompt += "\n\nVerifier mode: do not write files; return an independent verification report."
+        prompt += (
+            "\n\nVerifier mode: do not write files; return an independent verification report."
+        )
     profile = IsolationProfile(
         worktree_path=worktree_path,
         worker_home=attempt_home.home_path,
@@ -420,9 +470,29 @@ def run_worker_in_lease(
             terminal.retry_class = "external_transient"
         else:
             terminal = executor.collect_result(packet, completed, duration_seconds=duration)
+        terminal_execution_identity = dict(terminal.execution_identity or {})
+        terminal_execution_identity["credential_isolation_verified"] = bool(
+            attempt_home.env_overrides().get("CODEX_HOME")
+            and env.get("CODEX_HOME") == attempt_home.env_overrides().get("CODEX_HOME")
+        )
+        terminal_execution_identity["workspace_integrity_verified"] = bool(
+            profile.scope_enforced and profile.worktree_path == worktree_path
+        )
+        terminal.execution_identity = terminal_execution_identity
+        attestation_error = ""
+        if readiness.identity.provider == "codex":
+            attestation_error = _governed_codex_attestation_error(
+                terminal,
+                packet=packet,
+            )
         files, commits, diff = _capture_git(worktree_path, base_commit)
         produced = bool(commits) and bool(files)
-        ok = terminal.ok and terminal.has_real_content and (produced or _is_zero_write(package))
+        ok = (
+            terminal.ok
+            and not attestation_error
+            and terminal.has_real_content
+            and (produced or _is_zero_write(package))
+        )
         return WorkerResult(
             ok=ok,
             status="succeeded" if ok else "failed",
@@ -432,7 +502,7 @@ def run_worker_in_lease(
             commits=commits,
             diff=diff,
             exit_code=terminal.exit_code,
-            error=terminal.stderr[-500:] if not terminal.ok else "",
+            error=(attestation_error or terminal.stderr)[-500:] if not ok else "",
             duration_seconds=duration,
             isolated=isolated,
             cost_usd=terminal.cost.get("amount_usd"),
@@ -443,6 +513,7 @@ def run_worker_in_lease(
             retry_class=terminal.retry_class,
             proof_binding=dict(terminal.proof_binding or binding),
             capability_policy=policy,
+            execution_identity=terminal_execution_identity,
         )
     finally:
         close_attempt_credential_home(attempt_home)

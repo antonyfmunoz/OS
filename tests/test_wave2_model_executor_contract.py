@@ -70,7 +70,9 @@ def test_provider_selection_defaults_to_codex_and_can_select_deterministic(monke
     except ValueError as exc:
         assert "test-only" in str(exc)
     else:
-        raise AssertionError("deterministic executor must not be selectable without a test-only gate")
+        raise AssertionError(
+            "deterministic executor must not be selectable without a test-only gate"
+        )
     monkeypatch.setenv("UMH_ALLOW_TEST_MODEL_EXECUTOR", "1")
     assert isinstance(build_model_executor(), DeterministicConformanceExecutor)
     monkeypatch.setenv("UMH_CODEX_MODEL", "gpt-local-policy")
@@ -208,7 +210,7 @@ def test_codex_adapter_rejects_malformed_jsonl_even_with_content(tmp_path, monke
             returncode=0,
             stdout=(
                 '{"type":"item.completed","item":{"text":"real content"}}\n'
-                'not-json\n'
+                "not-json\n"
                 '{"type":"turn.completed","usage":{},"model":"gpt-test"}\n'
             ),
             stderr="",
@@ -325,7 +327,7 @@ def test_codex_adapter_rejects_missing_usage_metadata(tmp_path, monkeypatch):
     assert result.execution_identity["usage_present"] is False
 
 
-def test_codex_adapter_accepts_unobservable_terminal_model_when_exact_selector_passed(
+def test_codex_adapter_rejects_unobservable_terminal_model_even_with_exact_selector(
     tmp_path, monkeypatch
 ):
     monkeypatch.setattr(
@@ -344,7 +346,8 @@ def test_codex_adapter_accepts_unobservable_terminal_model_when_exact_selector_p
         ),
     )
     result = CodexModelExecutor(model="gpt-test").invoke(_packet(tmp_path), env={})
-    assert result.ok
+    assert not result.ok
+    assert "missing trusted terminal model identity" in result.stderr
     assert result.identity is not None
     assert result.identity.model == "gpt-test"
     assert result.execution_identity["model_requested"] == "gpt-test"
@@ -913,8 +916,10 @@ def test_codex_phase_sink_exception_cannot_defeat_timeout(monkeypatch):
     monkeypatch.setattr(
         codex_mod,
         "_taskkill_tree",
-        lambda pid, *, force: calls.append((pid, force))
-        or SimpleNamespace(returncode=0, stdout="terminated", stderr=""),
+        lambda pid, *, force: (
+            calls.append((pid, force))
+            or SimpleNamespace(returncode=0, stdout="terminated", stderr="")
+        ),
     )
 
     with pytest.raises(subprocess.TimeoutExpired) as exc:
@@ -925,7 +930,9 @@ def test_codex_phase_sink_exception_cannot_defeat_timeout(monkeypatch):
             input="prompt",
             capture_output=True,
             text=True,
-            phase_callback=lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("sink failed")),
+            phase_callback=lambda *_args, **_kwargs: (_ for _ in ()).throw(
+                RuntimeError("sink failed")
+            ),
         )
 
     assert exc.value.output == "partial"
@@ -1035,7 +1042,9 @@ def test_codex_forces_recorded_descendant_after_graceful_root_exit(monkeypatch):
         def communicate(self, *, input=None, timeout=None):
             self.communicate_calls += 1
             if self.communicate_calls == 1:
-                raise subprocess.TimeoutExpired(cmd=["codex"], timeout=timeout, output="", stderr="")
+                raise subprocess.TimeoutExpired(
+                    cmd=["codex"], timeout=timeout, output="", stderr=""
+                )
             self.returncode = -15
             return "", ""
 
@@ -1089,7 +1098,9 @@ def test_codex_timeout_sends_first_kill_before_tree_snapshot(monkeypatch):
         def communicate(self, *, input=None, timeout=None):
             self.communicate_calls += 1
             if self.communicate_calls == 1:
-                raise subprocess.TimeoutExpired(cmd=["codex"], timeout=timeout, output="", stderr="")
+                raise subprocess.TimeoutExpired(
+                    cmd=["codex"], timeout=timeout, output="", stderr=""
+                )
             self.returncode = -15
             return "", ""
 
@@ -1200,6 +1211,21 @@ def test_neutral_worker_wraps_actual_provider_invocation_in_isolation(tmp_path, 
                 exit_code=getattr(completed, "returncode", None),
                 duration_seconds=duration_seconds,
                 identity=self.identity,
+                usage={"input_tokens": 1, "output_tokens": 1},
+                execution_identity={
+                    "provider_requested": "codex",
+                    "model_requested": "gpt-5.6-sol",
+                    "trusted_model_resolved": "gpt-5.6-sol",
+                    "trusted_model_resolution_source": "turn.completed.model",
+                    "attempt_id": packet.attempt_id,
+                    "package_hash": packet.package_hash,
+                    "explicit_model_argument_present": True,
+                    "user_config_ignored": True,
+                    "invocation_accepted": True,
+                    "model_resolution_observable": True,
+                    "output_content_present": True,
+                    "usage_present": True,
+                },
                 proof_binding=packet.proof_binding,
             )
 
@@ -1224,11 +1250,21 @@ def test_neutral_worker_wraps_actual_provider_invocation_in_isolation(tmp_path, 
     )
     monkeypatch.setattr(worker, "close_attempt_credential_home", lambda home: None)
     monkeypatch.setattr(worker, "_close_home_or_fail", lambda home: None)
-    monkeypatch.setattr(worker, "project_task_local_objective", lambda package, path: {"ok": True, "projected": True})
+    monkeypatch.setattr(
+        worker,
+        "project_task_local_objective",
+        lambda package, path: {"ok": True, "projected": True},
+    )
     monkeypatch.setattr(worker, "_mark_projection_execution_context", lambda path, projection: None)
-    monkeypatch.setattr(worker, "prepare_attempt_git_capability", lambda path, attempt_id: str(tmp_path / "refs"))
-    monkeypatch.setattr(worker, "readonly_binds_for_scope", lambda scope, lease_root: ["secret.txt"])
-    monkeypatch.setattr(worker, "_capture_git", lambda path, base: (["app/main.py"], ["abc commit"], "diff"))
+    monkeypatch.setattr(
+        worker, "prepare_attempt_git_capability", lambda path, attempt_id: str(tmp_path / "refs")
+    )
+    monkeypatch.setattr(
+        worker, "readonly_binds_for_scope", lambda scope, lease_root: ["secret.txt"]
+    )
+    monkeypatch.setattr(
+        worker, "_capture_git", lambda path, base: (["app/main.py"], ["abc commit"], "diff")
+    )
 
     def fake_wrap(inner, profile):
         seen["inner"] = list(inner)
@@ -1313,8 +1349,14 @@ def test_codex_tools_revoked_a_becomes_enforced_readonly_policy(tmp_path, monkey
     monkeypatch.setattr(worker, "_close_home_or_fail", lambda home: None)
     monkeypatch.setattr(worker, "project_task_local_objective", lambda package, path: {"ok": True})
     monkeypatch.setattr(worker, "_mark_projection_execution_context", lambda path, projection: None)
-    monkeypatch.setattr(worker, "prepare_attempt_git_capability", lambda path, attempt_id: str(tmp_path / "refs"))
-    monkeypatch.setattr(worker, "readonly_binds_for_scope", lambda scope, lease_root: [str(tmp_path / "wt" / "secret.txt")])
+    monkeypatch.setattr(
+        worker, "prepare_attempt_git_capability", lambda path, attempt_id: str(tmp_path / "refs")
+    )
+    monkeypatch.setattr(
+        worker,
+        "readonly_binds_for_scope",
+        lambda scope, lease_root: [str(tmp_path / "wt" / "secret.txt")],
+    )
     monkeypatch.setattr(worker, "_capture_git", lambda path, base: ([], [], ""))
 
     def fake_wrap(inner, profile):
@@ -1387,7 +1429,7 @@ def test_codex_rejects_unsupported_capability_restrictions_before_invocation(tmp
             self.tmp_path = str(tmp_path / "tmp")
 
         def env_overrides(self):
-            return {"HOME": self.home_path}
+            return {"HOME": self.home_path, "CODEX_HOME": self.home_path}
 
     monkeypatch.setattr(worker, "build_model_executor", lambda provider=None: FakeExecutor())
     monkeypatch.setattr(worker, "make_lease_selfcontained", lambda path: None)
@@ -1396,7 +1438,9 @@ def test_codex_rejects_unsupported_capability_restrictions_before_invocation(tmp
     monkeypatch.setattr(worker, "_close_home_or_fail", lambda home: None)
     monkeypatch.setattr(worker, "project_task_local_objective", lambda package, path: {"ok": True})
     monkeypatch.setattr(worker, "_mark_projection_execution_context", lambda path, projection: None)
-    monkeypatch.setattr(worker, "prepare_attempt_git_capability", lambda path, attempt_id: str(tmp_path / "refs"))
+    monkeypatch.setattr(
+        worker, "prepare_attempt_git_capability", lambda path, attempt_id: str(tmp_path / "refs")
+    )
     monkeypatch.setattr(worker, "readonly_binds_for_scope", lambda scope, lease_root: [])
 
     wt = tmp_path / "wt"
@@ -1444,6 +1488,21 @@ def test_codex_retry_without_denial_uses_normal_writable_policy(tmp_path, monkey
                 exit_code=0,
                 duration_seconds=duration_seconds,
                 identity=self.identity,
+                usage={"input_tokens": 1, "output_tokens": 1},
+                execution_identity={
+                    "provider_requested": "codex",
+                    "model_requested": "gpt-5.6-sol",
+                    "trusted_model_resolved": "gpt-5.6-sol",
+                    "trusted_model_resolution_source": "turn.completed.model",
+                    "attempt_id": packet.attempt_id,
+                    "package_hash": packet.package_hash,
+                    "explicit_model_argument_present": True,
+                    "user_config_ignored": True,
+                    "invocation_accepted": True,
+                    "model_resolution_observable": True,
+                    "output_content_present": True,
+                    "usage_present": True,
+                },
                 proof_binding=packet.proof_binding,
             )
 
@@ -1453,7 +1512,7 @@ def test_codex_retry_without_denial_uses_normal_writable_policy(tmp_path, monkey
             self.tmp_path = str(tmp_path / "tmp")
 
         def env_overrides(self):
-            return {"HOME": self.home_path}
+            return {"HOME": self.home_path, "CODEX_HOME": self.home_path}
 
     monkeypatch.setattr(worker, "build_model_executor", lambda provider=None: FakeExecutor())
     monkeypatch.setattr(worker, "make_lease_selfcontained", lambda path: None)
@@ -1462,10 +1521,22 @@ def test_codex_retry_without_denial_uses_normal_writable_policy(tmp_path, monkey
     monkeypatch.setattr(worker, "_close_home_or_fail", lambda home: None)
     monkeypatch.setattr(worker, "project_task_local_objective", lambda package, path: {"ok": True})
     monkeypatch.setattr(worker, "_mark_projection_execution_context", lambda path, projection: None)
-    monkeypatch.setattr(worker, "prepare_attempt_git_capability", lambda path, attempt_id: str(tmp_path / "refs"))
-    monkeypatch.setattr(worker, "readonly_binds_for_scope", lambda scope, lease_root: [str(tmp_path / "wt" / "secret.txt")])
-    monkeypatch.setattr(worker, "_capture_git", lambda path, base: (["app/main.py"], ["abc commit"], "diff"))
-    monkeypatch.setattr(worker, "_run_isolated_with_tree_timeout", lambda cmd, **kwargs: SimpleNamespace(returncode=0, stdout="", stderr=""))
+    monkeypatch.setattr(
+        worker, "prepare_attempt_git_capability", lambda path, attempt_id: str(tmp_path / "refs")
+    )
+    monkeypatch.setattr(
+        worker,
+        "readonly_binds_for_scope",
+        lambda scope, lease_root: [str(tmp_path / "wt" / "secret.txt")],
+    )
+    monkeypatch.setattr(
+        worker, "_capture_git", lambda path, base: (["app/main.py"], ["abc commit"], "diff")
+    )
+    monkeypatch.setattr(
+        worker,
+        "_run_isolated_with_tree_timeout",
+        lambda cmd, **kwargs: SimpleNamespace(returncode=0, stdout="", stderr=""),
+    )
 
     def fake_wrap(inner, profile):
         seen["worktree_readonly"] = profile.worktree_readonly

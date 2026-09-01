@@ -687,6 +687,10 @@ def _run_one_claim(
             "task_id": envelope.task_id,
             "package_hash": envelope.package_hash,
             "worker_result": result.to_dict(),
+            "required_model_attestation": {
+                "provider": "codex",
+                "model": "gpt-5.6-sol",
+            },
             # The worker reports its authorized diff base (finding F-3, corrected
             # by invocation 41: the projection is execution context, never a
             # commit, so this is the CANONICAL un-moved base). The poller
@@ -763,11 +767,7 @@ def main() -> int:
     if not secret:
         _log(f"FATAL: {args.secret_env} not set — the runner needs the per-run dispatch secret")
         return 2
-    oauth = (
-        os.environ.get("MODEL_EXECUTOR_TOKEN")
-        or os.environ.get("CODEX_ACCESS_TOKEN")
-        or None
-    )
+    oauth = os.environ.get("MODEL_EXECUTOR_TOKEN") or os.environ.get("CODEX_ACCESS_TOKEN") or None
     # Wave 2's active production policy is Codex/Sol. The provider-neutral
     # executor contract still owns invocation and proof binding; this only pins
     # runtime selection before any worker subprocess is admitted.

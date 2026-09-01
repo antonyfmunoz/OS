@@ -44,6 +44,25 @@ _RESIDUE_RECONCILIATION_MAX_REMINDER_S = 300.0
 _RESULT_DELIVERY_INITIAL_RETRY_S = 1.0
 _RESULT_DELIVERY_MAX_RETRY_S = 300.0
 
+SHELL_LAUNCH_INTENT_PERSISTED = "LAUNCH_INTENT_PERSISTED"
+SHELL_LAUNCH_IN_PROGRESS = "LAUNCH_IN_PROGRESS"
+SHELL_PROCESS_IDENTITY_PERSISTED = "PROCESS_IDENTITY_PERSISTED"
+SHELL_LAUNCH_RUNNING = "RUNNING"
+SHELL_LAUNCH_STATES = frozenset(
+    {
+        SHELL_LAUNCH_INTENT_PERSISTED,
+        SHELL_LAUNCH_IN_PROGRESS,
+        SHELL_PROCESS_IDENTITY_PERSISTED,
+        SHELL_LAUNCH_RUNNING,
+    }
+)
+_SHELL_LAUNCH_STATE_ORDER = {
+    SHELL_LAUNCH_INTENT_PERSISTED: 0,
+    SHELL_LAUNCH_IN_PROGRESS: 1,
+    SHELL_PROCESS_IDENTITY_PERSISTED: 2,
+    SHELL_LAUNCH_RUNNING: 3,
+}
+
 
 def _request_budget(
     req: "DurableRemoteRequest",
@@ -294,9 +313,15 @@ def _load_json_record(
 
 
 def _corruption_fence_path(path: Path, *, identity: str) -> Path:
-    root = path.parent.parent if path.parent.name in {"requests", "idempotency", "results"} else path.parent
+    root = (
+        path.parent.parent
+        if path.parent.name in {"requests", "idempotency", "results"}
+        else path.parent
+    )
     fence_identity = f"{path.parent.name}:{identity}"
-    return root / "corrupt" / f"fence-{hashlib.sha256(fence_identity.encode()).hexdigest()[:32]}.json"
+    return (
+        root / "corrupt" / f"fence-{hashlib.sha256(fence_identity.encode()).hexdigest()[:32]}.json"
+    )
 
 
 def _corruption_fence_exists(path: Path, *, identity: str) -> bool:
@@ -316,7 +341,11 @@ def _record_persistence_issue(
     except OSError:
         raw = b""
     kind = record_kind or path.parent.name
-    root = path.parent.parent if path.parent.name in {"requests", "idempotency", "results"} else path.parent
+    root = (
+        path.parent.parent
+        if path.parent.name in {"requests", "idempotency", "results"}
+        else path.parent
+    )
     evidence = {
         "record_path": str(path),
         "record_kind": kind,
@@ -329,9 +358,7 @@ def _record_persistence_issue(
         "disposition": "corrupt_record_isolated_fail_closed",
     }
     evidence_path = (
-        root
-        / "corrupt"
-        / f"{kind}-{hashlib.sha256(str(path).encode()).hexdigest()[:16]}.json"
+        root / "corrupt" / f"{kind}-{hashlib.sha256(str(path).encode()).hexdigest()[:16]}.json"
     )
     try:
         _atomic_write_json(evidence_path, evidence)
@@ -461,7 +488,9 @@ class DurableRemoteRequest:
             result_digest=str(data.get("result_digest", "")),
             cancellation_requested_at=float(data.get("cancellation_requested_at", 0.0) or 0.0),
             cancellation_deadline_at=float(data.get("cancellation_deadline_at", 0.0) or 0.0),
-            cancellation_acknowledged_at=float(data.get("cancellation_acknowledged_at", 0.0) or 0.0),
+            cancellation_acknowledged_at=float(
+                data.get("cancellation_acknowledged_at", 0.0) or 0.0
+            ),
             reconciliation_requested_at=float(data.get("reconciliation_requested_at", 0.0) or 0.0),
             reconciliation_deadline_at=float(data.get("reconciliation_deadline_at", 0.0) or 0.0),
             terminalized_at=float(data.get("terminalized_at", 0.0) or 0.0),
@@ -469,6 +498,71 @@ class DurableRemoteRequest:
             cleanup=dict(data.get("cleanup") or {}),
             diagnostics=dict(data.get("diagnostics") or {}),
         )
+
+
+def durable_execution_identity(
+    request: DurableRemoteRequest,
+    *,
+    claim_id: str,
+) -> dict[str, Any]:
+    """Return the immutable logical execution identity shared by node and VPS."""
+
+    policy = canonical_sync_effect_policy(
+        request.capability,
+        declared_effect_class=CONSEQUENTIAL_WRITE_EFFECT,
+    )
+    identity: dict[str, Any] = {
+        "request_id": request.request_id,
+        "correlation_id": request.correlation_id,
+        "node_id": request.node_id,
+        "candidate_sha": request.candidate_sha,
+        "idempotency_key": request.idempotency_key,
+        "payload_digest": request.payload_digest,
+        "claim_id": str(claim_id or ""),
+        "capability": request.capability,
+        "operation_type": request.operation_type,
+        "risk_class": request.risk_class,
+        "authority_id": request.authority_id,
+        "authoritative_effect_class": policy.authoritative_effect_class,
+        "effect_policy_id": policy.policy_id,
+        "attempt": request.attempt,
+    }
+    identity["logical_execution_id"] = sha256_json(identity)
+    identity["execution_id"] = identity["logical_execution_id"]
+    return identity
+
+
+def shell_running_identity_error(
+    request: DurableRemoteRequest,
+    *,
+    claim_id: str,
+    process_tree: dict[str, Any],
+) -> str:
+    """Reject partial or foreign process material before canonical shell RUNNING."""
+
+    adapter_key = str(request.capability or "").split(".", 1)[0]
+    if adapter_key != "shell":
+        return ""
+    launch_state = str(process_tree.get("launch_state", "") or "")
+    if launch_state not in {SHELL_PROCESS_IDENTITY_PERSISTED, SHELL_LAUNCH_RUNNING}:
+        return "shell RUNNING requires persisted process identity state"
+    root_pid = process_tree.get("root_pid")
+    process_identity = dict(process_tree.get("process_identity") or {})
+    if not isinstance(root_pid, int) or root_pid <= 0:
+        return "shell RUNNING requires positive root_pid"
+    if process_identity.get("pid") != root_pid:
+        return "shell RUNNING process identity PID mismatch"
+    for key in ("start_token", "executable", "command_digest", "identity_source"):
+        if not str(process_identity.get(key, "") or "").strip():
+            return f"shell RUNNING process identity missing {key}"
+    if process_identity.get("command_digest") != request.payload_digest:
+        return "shell RUNNING process command digest mismatch"
+    expected = durable_execution_identity(request, claim_id=claim_id)
+    if dict(process_tree.get("execution_identity") or {}) != expected:
+        return "shell RUNNING immutable execution identity mismatch"
+    if not str(process_tree.get("launch_intent_id", "") or "").strip():
+        return "shell RUNNING requires launch_intent_id"
+    return ""
 
 
 class DurableRemoteStore:
@@ -772,9 +866,7 @@ class DurableRemoteStore:
             yield
 
     @contextmanager
-    def _idempotency_lock(
-        self, idempotency_key: str, *, timeout_s: float = 10.0
-    ) -> Iterator[None]:
+    def _idempotency_lock(self, idempotency_key: str, *, timeout_s: float = 10.0) -> Iterator[None]:
         with self._file_lock(
             self._idempotency_lock_path(idempotency_key),
             label=f"idempotency:{hashlib.sha256(idempotency_key.encode()).hexdigest()}",
@@ -909,7 +1001,9 @@ class DurableRemoteStore:
         if effect_policy.declared_effect_class != CONSEQUENTIAL_WRITE_EFFECT:
             raise ValueError("durable request declared effect conflicts with canonical policy")
         if not is_write_class(request.risk_class):
-            raise ValueError("durable request risk_class conflicts with canonical consequential policy")
+            raise ValueError(
+                "durable request risk_class conflicts with canonical consequential policy"
+            )
 
     def _mark_invalid_canonical_material_locked(
         self,
@@ -997,8 +1091,7 @@ class DurableRemoteStore:
         for field_name in _IDEMPOTENCY_IDENTITY_FIELDS:
             if getattr(existing, field_name) != getattr(incoming, field_name):
                 raise ValueError(
-                    f"idempotency conflict: {field_name} differs for key "
-                    f"{incoming.idempotency_key}"
+                    f"idempotency conflict: {field_name} differs for key {incoming.idempotency_key}"
                 )
 
     @staticmethod
@@ -1143,7 +1236,13 @@ class DurableRemoteStore:
                 },
             )
             self._strip_noncanonical_authority_fields(current)
-            if current.lifecycle_state in {"QUEUED", "DELIVERED", "CLAIMED", "RUNNING", "CANCEL_REQUESTED"}:
+            if current.lifecycle_state in {
+                "QUEUED",
+                "DELIVERED",
+                "CLAIMED",
+                "RUNNING",
+                "CANCEL_REQUESTED",
+            }:
                 current.lifecycle_state = "RECONCILIATION_REQUIRED"
                 current.diagnostics.setdefault("reconciliation_reasons", []).append(
                     "duplicate_idempotency_noncanonical"
@@ -1234,9 +1333,7 @@ class DurableRemoteStore:
             return self._mark_missing_idempotency_key_locked(req, event=event)
         index_load = self._load_idempotency_index_record(req.idempotency_key)
         canonical_request_id = (
-            str((index_load.data or {}).get("canonical_request_id", ""))
-            if index_load.valid
-            else ""
+            str((index_load.data or {}).get("canonical_request_id", "")) if index_load.valid else ""
         )
         if index_load.status == LOAD_READ_ERROR:
             return self._mark_noncanonical_request_locked(
@@ -1367,17 +1464,21 @@ class DurableRemoteStore:
         *,
         matches: list[DurableRemoteRequest] | None = None,
     ) -> DurableRemoteRequest | None:
-        matches = matches if matches is not None else self._requests_by_idempotency_key_locked(idempotency_key)
-        by_id = {req.request_id: req for req in matches}
-        admission_evidence = self._admission_bindings_for_idempotency_key_locked(
-            idempotency_key
+        matches = (
+            matches
+            if matches is not None
+            else self._requests_by_idempotency_key_locked(idempotency_key)
         )
+        by_id = {req.request_id: req for req in matches}
+        admission_evidence = self._admission_bindings_for_idempotency_key_locked(idempotency_key)
         if admission_evidence.incomplete:
             self._fail_ambiguous_idempotency_recovery_locked(
                 matches,
                 event="IDEMPOTENCY_ADMISSION_EVIDENCE_INCOMPLETE",
             )
-            raise ValueError(f"idempotency admission evidence incomplete: {admission_evidence.reason}")
+            raise ValueError(
+                f"idempotency admission evidence incomplete: {admission_evidence.reason}"
+            )
         admission_bindings = admission_evidence.bindings
         admitted = [
             str(binding.get("canonical_request_id", ""))
@@ -1454,17 +1555,21 @@ class DurableRemoteStore:
         canonical_request_id: str,
         matches: list[DurableRemoteRequest] | None = None,
     ) -> DurableRemoteRequest:
-        matches = matches if matches is not None else self._requests_by_idempotency_key_locked(idempotency_key)
-        by_id = {req.request_id: req for req in matches}
-        admission_evidence = self._admission_bindings_for_idempotency_key_locked(
-            idempotency_key
+        matches = (
+            matches
+            if matches is not None
+            else self._requests_by_idempotency_key_locked(idempotency_key)
         )
+        by_id = {req.request_id: req for req in matches}
+        admission_evidence = self._admission_bindings_for_idempotency_key_locked(idempotency_key)
         if admission_evidence.incomplete:
             self._fail_ambiguous_idempotency_recovery_locked(
                 matches,
                 event="IDEMPOTENCY_ADMISSION_EVIDENCE_INCOMPLETE",
             )
-            raise ValueError(f"idempotency admission evidence incomplete: {admission_evidence.reason}")
+            raise ValueError(
+                f"idempotency admission evidence incomplete: {admission_evidence.reason}"
+            )
         admission_bindings = admission_evidence.bindings
         admitted = [
             str(binding.get("canonical_request_id", ""))
@@ -1744,7 +1849,10 @@ class DurableRemoteStore:
         req = self._get_request_raw(request_id)
         if req is None:
             return None
-        if req.lifecycle_state not in TERMINAL_STATES and req.lifecycle_state not in RECOVERY_STATES:
+        if (
+            req.lifecycle_state not in TERMINAL_STATES
+            and req.lifecycle_state not in RECOVERY_STATES
+        ):
             with self._request_lock(request_id):
                 current = self._get_request_raw(request_id)
                 if current is None:
@@ -1756,7 +1864,10 @@ class DurableRemoteStore:
                 if invalid is not None:
                     return invalid
                 req = current
-        if req.lifecycle_state not in TERMINAL_STATES and req.lifecycle_state not in RECOVERY_STATES:
+        if (
+            req.lifecycle_state not in TERMINAL_STATES
+            and req.lifecycle_state not in RECOVERY_STATES
+        ):
             if not self._request_is_canonical_for_idempotency(req):
                 return self._get_request_raw(request_id)
         if (
@@ -1959,9 +2070,7 @@ class DurableRemoteStore:
                 return f"cancel_ack_identity_mismatch:{key}"
         return ""
 
-    def _converge_existing_result_locked(
-        self, req: DurableRemoteRequest
-    ) -> DurableRemoteRequest:
+    def _converge_existing_result_locked(self, req: DurableRemoteRequest) -> DurableRemoteRequest:
         invalid = self._reject_invalid_canonical_material_locked(
             req,
             event="TERMINAL_RESULT_RECOVERY_REJECTED",
@@ -1999,9 +2108,10 @@ class DurableRemoteStore:
             {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup}
         )
         cleanup_digest = sha256_json(cleanup)
-        if existing.get("result_digest") != result_digest or existing.get(
-            "cleanup_digest"
-        ) != cleanup_digest:
+        if (
+            existing.get("result_digest") != result_digest
+            or existing.get("cleanup_digest") != cleanup_digest
+        ):
             req.diagnostics.setdefault("terminal_result_digest_mismatch", []).append(
                 {
                     "stored_result_digest": existing.get("result_digest", ""),
@@ -2187,7 +2297,10 @@ class DurableRemoteStore:
                     locked = self._get_request_raw(req.request_id)
                     if locked is None:
                         continue
-                    if locked.lifecycle_state in TERMINAL_STATES or locked.lifecycle_state in RECOVERY_STATES:
+                    if (
+                        locked.lifecycle_state in TERMINAL_STATES
+                        or locked.lifecycle_state in RECOVERY_STATES
+                    ):
                         req = self._maybe_converge_recovery_locked(locked)
                     elif locked.lifecycle_state == "QUEUED":
                         locked.lifecycle_state = "EXPIRED"
@@ -2290,6 +2403,73 @@ class DurableRemoteStore:
             self._update_request_locked(req, "CLAIMED")
             return req
 
+    def mark_shell_launch_state(
+        self,
+        request_id: str,
+        *,
+        claim_id: str,
+        launch_state: str,
+        launch_material: dict[str, Any],
+    ) -> DurableRemoteRequest:
+        """Persist one monotonic shell-launch transition while still CLAIMED."""
+
+        if launch_state not in SHELL_LAUNCH_STATES - {SHELL_LAUNCH_RUNNING}:
+            raise ValueError(f"invalid pre-running shell launch state: {launch_state}")
+        with self._request_lock(request_id):
+            req = self._get_request_raw(request_id)
+            if req is None:
+                raise KeyError(request_id)
+            if req.lifecycle_state in TERMINAL_STATES or req.lifecycle_state in RECOVERY_STATES:
+                return req
+            if req.lifecycle_state != "CLAIMED" or req.claim_id != claim_id:
+                return self._enter_reconciliation(
+                    req,
+                    reason=(
+                        "shell launch state requires exact claimed authority: "
+                        f"state={req.lifecycle_state} claim={req.claim_id} incoming={claim_id}"
+                    ),
+                )
+            incoming_identity = dict(launch_material.get("execution_identity") or {})
+            existing_identity = dict(req.process_tree.get("execution_identity") or {})
+            if not incoming_identity or (
+                existing_identity and existing_identity != incoming_identity
+            ):
+                return self._enter_reconciliation(
+                    req,
+                    reason="shell launch execution identity mismatch",
+                )
+            prior_state = str(req.process_tree.get("launch_state", "") or "")
+            if prior_state:
+                prior_order = _SHELL_LAUNCH_STATE_ORDER.get(prior_state, -1)
+                next_order = _SHELL_LAUNCH_STATE_ORDER[launch_state]
+                if next_order < prior_order or next_order > prior_order + 1:
+                    return self._enter_reconciliation(
+                        req,
+                        reason=f"non-monotonic shell launch transition {prior_state}->{launch_state}",
+                    )
+                if next_order == prior_order:
+                    if any(
+                        req.process_tree.get(key) != value for key, value in launch_material.items()
+                    ):
+                        return self._enter_reconciliation(
+                            req,
+                            reason=f"conflicting repeated shell launch state {launch_state}",
+                        )
+                    return req
+            elif launch_state != SHELL_LAUNCH_INTENT_PERSISTED:
+                return self._enter_reconciliation(
+                    req,
+                    reason=f"shell launch began without durable intent: {launch_state}",
+                )
+            req.process_tree = {
+                **req.process_tree,
+                **launch_material,
+                "launch_state": launch_state,
+                "launch_state_updated_at": now_s(),
+            }
+            self._update_request_locked(req, launch_state)
+            return req
+
     def mark_running(
         self, request_id: str, *, claim_id: str, process_tree: dict[str, Any] | None = None
     ) -> DurableRemoteRequest:
@@ -2339,7 +2519,10 @@ class DurableRemoteStore:
                     "incoming": claim_id,
                 }
                 return self._enter_reconciliation(req, reason="running_without_claimed_state")
-            if req.lifecycle_state not in TERMINAL_STATES and req.lifecycle_state not in RECOVERY_STATES:
+            if (
+                req.lifecycle_state not in TERMINAL_STATES
+                and req.lifecycle_state not in RECOVERY_STATES
+            ):
                 req.claim_id = claim_id
                 req.lifecycle_state = "RUNNING"
                 if process_tree is not None:
@@ -2417,7 +2600,9 @@ class DurableRemoteStore:
     ) -> str:
         existing_result = self._load_result_record(request.request_id)
         if existing_result.unavailable:
-            raise ValueError(f"refusing to overwrite corrupt result record: {existing_result.reason}")
+            raise ValueError(
+                f"refusing to overwrite corrupt result record: {existing_result.reason}"
+            )
         digest = sha256_json(
             {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup or {}}
         )
@@ -2634,7 +2819,10 @@ class DurableRemoteStore:
                 cleanup=cleanup,
                 reason="result_claim_conflict",
             )
-            req.diagnostics["result_claim_conflict"] = {"existing": req.claim_id, "incoming": claim_id}
+            req.diagnostics["result_claim_conflict"] = {
+                "existing": req.claim_id,
+                "incoming": claim_id,
+            }
             return self._enter_reconciliation(req, reason="result_claim_conflict")
         if req.lifecycle_state in RECOVERY_STATES:
             reconciliation_reasons = req.diagnostics.get("reconciliation_reasons")
@@ -2685,9 +2873,7 @@ class DurableRemoteStore:
             )
             self._update_request_locked(req, "LATE_RESULT_REJECTED")
             return req
-        if state in TERMINAL_STATES and (
-            cleanup is None or cleanup.get("process_residue") != []
-        ):
+        if state in TERMINAL_STATES and (cleanup is None or cleanup.get("process_residue") != []):
             reason_by_state = {
                 "CANCELLED": "cancel_without_cleanup",
                 "FAILED": "failed_without_cleanup",
@@ -2776,7 +2962,9 @@ class DurableRemoteStore:
             cleanup=cleanup,
         )
 
-    def reconcile_request(self, request_id: str, *, reason: str = "bounded_reconciliation") -> DurableRemoteRequest:
+    def reconcile_request(
+        self, request_id: str, *, reason: str = "bounded_reconciliation"
+    ) -> DurableRemoteRequest:
         with self._request_lock(request_id):
             req = self._get_request_raw(request_id)
             if req is None:

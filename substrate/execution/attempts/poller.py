@@ -262,6 +262,23 @@ class ControlPlanePoller:
         raw: dict[str, Any],
         report: PollerPassReport,
     ) -> None:
+        attestation_error = self._worker_result_gate_error(
+            attempt,
+            worker_result,
+            raw,
+        )
+        if attestation_error:
+            updated = self._transition(
+                attempt,
+                _S.FAILED.value,
+                (_S.VERIFYING.value,),
+                actor="poller",
+                reason=f"worker execution evidence rejected: {attestation_error}",
+                updates={"blocked_reason": attestation_error[:200]},
+            )
+            report.failed.append(attempt.attempt_id)
+            self._terminalize(updated or attempt, "verification_rejected", report)
+            return
         assignment = self._assignment_lookup(getattr(attempt, "assignment_id", "") or "")
         lease = self._lease_lookup(getattr(attempt, "lease_id", "") or "")
         # TRUSTED BASE RE-ANCHOR (finding F-3; invocation-41 correction). The
@@ -515,6 +532,51 @@ class ControlPlanePoller:
             # retry is admissible, and destroy the credential home.
             self._terminalize(updated or attempt, "verification_rejected", report)
 
+    @staticmethod
+    def _worker_result_gate_error(
+        attempt: Any,
+        worker_result: Any,
+        raw: dict[str, Any],
+    ) -> str:
+        executor = worker_result.executor
+        required = raw.get("required_model_attestation") or {}
+        if not required and executor.get("provider") != "codex":
+            return ""
+        if not worker_result.ok or worker_result.status != "succeeded":
+            return f"worker reported ok={worker_result.ok} status={worker_result.status}"
+        expected_provider = str(required.get("provider", "codex") or "codex")
+        expected_model = str(required.get("model", "gpt-5.6-sol") or "gpt-5.6-sol")
+        if executor.get("provider") != expected_provider:
+            return f"governed Wave 2 worker provider is {executor.get('provider')!r}"
+        if executor.get("model") != expected_model:
+            return f"governed Wave 2 worker model is {executor.get('model')!r}"
+        evidence = worker_result.execution_identity
+        exact = {
+            "provider_requested": expected_provider,
+            "model_requested": expected_model,
+            "trusted_model_resolved": expected_model,
+            "attempt_id": attempt.attempt_id,
+            "package_hash": str(raw.get("package_hash", "") or ""),
+        }
+        for key, expected in exact.items():
+            if evidence.get(key) != expected:
+                return f"execution_identity.{key}={evidence.get(key)!r} expected {expected!r}"
+        for key in (
+            "explicit_model_argument_present",
+            "user_config_ignored",
+            "invocation_accepted",
+            "model_resolution_observable",
+            "output_content_present",
+            "usage_present",
+            "credential_isolation_verified",
+            "workspace_integrity_verified",
+        ):
+            if evidence.get(key) is not True:
+                return f"execution_identity.{key} is not true"
+        if not str(evidence.get("trusted_model_resolution_source", "") or "").strip():
+            return "execution_identity.trusted_model_resolution_source is missing"
+        return ""
+
     def _build_independent_checks(self, attempt: Any, lease: Any) -> Any:
         """Build the independent-checks callable for THIS attempt's effective base.
 
@@ -693,6 +755,11 @@ class _WorkerResultView:
     @property
     def capability_policy(self) -> dict[str, Any]:
         raw = self._d.get("capability_policy", {}) or {}
+        return dict(raw) if isinstance(raw, dict) else {}
+
+    @property
+    def execution_identity(self) -> dict[str, Any]:
+        raw = self._d.get("execution_identity", {}) or {}
         return dict(raw) if isinstance(raw, dict) else {}
 
     def to_dict(self) -> dict[str, Any]:

@@ -3,12 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TLA = (
-    ROOT
-    / "models"
-    / "wave2_authority_plane_liveness"
-    / "Wave2AuthorityPlaneLiveness.tla"
-)
+TLA = ROOT / "models" / "wave2_authority_plane_liveness" / "Wave2AuthorityPlaneLiveness.tla"
 CFG = TLA.with_suffix(".cfg")
 
 
@@ -145,3 +140,90 @@ def test_model_requires_exact_cancel_identity_and_monotonic_outcome() -> None:
     assert "~cancelled" in foreign_cancel
     assert "ExecutionOutcomeIsMonotonic ==" in source
     assert "KnownSuccessCannotBecomeFailure ==" in source
+
+
+def test_model_initial_state_is_type_correct_not_the_boolean_set() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    init = _action(source, "Init", "ClaimOutstanding")
+    assert "|-> BOOLEAN" not in init
+    assert "cancelIdentityValid |-> FALSE" in init
+    assert "identityValid |-> FALSE" in init
+    assert "TypeOK ==" in source
+    assert "INVARIANT TypeOK" in CFG.read_text(encoding="utf-8")
+
+
+def test_model_outcome_branches_are_explicit_and_reachable_from_running() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    for action_name, outcome in (
+        ("ProduceSucceededTerminalResult", "SucceededOutcome"),
+        ("ProduceFailedTerminalResult", "FailedOutcome"),
+        ("ProduceCancelledTerminalResult", "CancelledOutcome"),
+    ):
+        action = _action(
+            source,
+            action_name,
+            {
+                "ProduceSucceededTerminalResult": "ProduceFailedTerminalResult",
+                "ProduceFailedTerminalResult": "ProduceCancelledTerminalResult",
+                "ProduceCancelledTerminalResult": "LoseExecutionObserver",
+            }[action_name],
+        )
+        assert "result.executionRunning" in action
+        assert f"!.outcome = {outcome}" in action
+    observer_loss = _action(source, "LoseExecutionObserver", "ProduceTerminalResult")
+    assert "!.observerPresent = FALSE" in observer_loss
+    assert "!.outcome = ReconciliationOutcome" in observer_loss
+
+
+def test_model_has_non_vacuous_foreign_claim_and_singleton_overlap_attempts() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    foreign = _action(source, "PresentForeignControl", "RejectForeignCancel")
+    reject = _action(source, "RejectForeignCancel", "ProduceBulk")
+    connection = _action(
+        source,
+        "AttemptConnectionGenerationOverlap",
+        "AttemptPumpGenerationOverlap",
+    )
+    pump = _action(source, "AttemptPumpGenerationOverlap", "WriterStart")
+    assert "incomingLogicalAuthorityId" in foreign
+    assert "incomingLogicalAuthorityId # claim.logicalAuthorityId" in reject
+    assert "connectionOverlapAttempted = TRUE" in connection
+    assert "pumpOverlapAttempted = TRUE" in pump
+    assert "activeGenerationCount <= 1" in source
+    assert "pumpActiveCount <= 1" in source
+
+
+def test_model_shell_launch_uncertainty_is_reachable_and_fences_execution() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    required_actions = (
+        "PersistShellLaunchIntent",
+        "AttemptShellLaunch",
+        "CreateShellProcess",
+        "PersistShellProcessIdentity",
+        "AdmitShellRunning",
+        "CrashDuringUncertainShellLaunch",
+        "RejectDuplicateShellLaunch",
+    )
+    for action in required_actions:
+        assert f"{action} ==" in source
+    crash = _action(
+        source,
+        "CrashDuringUncertainShellLaunch",
+        "RejectDuplicateShellLaunch",
+    )
+    assert "result.launchAttempted" in crash
+    assert "~result.processIdentityPersisted" in crash
+    assert "!.outcome = ReconciliationOutcome" in crash
+    assert "UncertainShellLaunchCannotExecuteOrRelaunch" in source
+
+
+def test_model_claim_ack_and_result_acceptance_have_separate_observation_stages() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    send_ack = _action(source, "SendClaimAck", "SendDeadline")
+    observe_ack = _action(source, "ObserveClaimAck", "HttpReadback")
+    validate_result = _action(source, "ValidateResultIdentity", "AcceptCanonicalResult")
+    assert "claim.persisted" in send_ack
+    assert "!.ackSent = TRUE" in send_ack
+    assert "claim.ackSent" in observe_ack
+    assert "result.retained" in validate_result
+    assert "!.identityValid = TRUE" in validate_result

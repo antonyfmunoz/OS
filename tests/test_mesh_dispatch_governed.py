@@ -53,6 +53,29 @@ from transports.node_mesh import server as mesh_server_mod  # noqa: E402
 _SECRET = "unit-test-verdict-secret"
 
 
+@pytest.fixture(autouse=True)
+def _synthetic_process_identity_for_fake_popen(monkeypatch):
+    """Give legacy fake-Popen tests an OS identity without weakening production code."""
+
+    from nodes.windows.umh_node import client as client_mod
+
+    real_capture = client_mod._durable_process_identity
+
+    def _capture(pid: int, *, command_digest: str):
+        try:
+            return real_capture(pid, command_digest=command_digest)
+        except FileNotFoundError:
+            return {
+                "pid": pid,
+                "start_token": f"synthetic-{pid}",
+                "executable": "synthetic-test-process",
+                "command_digest": command_digest,
+                "identity_source": "test_fake_popen",
+            }
+
+    monkeypatch.setattr(client_mod, "_durable_process_identity", _capture)
+
+
 def _bound_terminal_result(req, params: dict) -> dict:
     state = str(params["state"]).upper()
     claim_id = str(params["claim_id"])
@@ -725,7 +748,10 @@ def test_legacy_mesh_dispatch_refuses_write_before_post(monkeypatch):
 
     assert posts["count"] == 0
     assert result["failed"] == 1
-    assert result["results"][0]["error"] == "consequential writes must use DurableRemote, not sync mesh"
+    assert (
+        result["results"][0]["error"]
+        == "consequential writes must use DurableRemote, not sync mesh"
+    )
 
 
 def test_default_dispatch_fail_closed_no_verdict_secret(monkeypatch):
@@ -1098,12 +1124,8 @@ def test_vps_durable_result_replay_is_idempotent_and_conflict_fails_closed(tmp_p
     )
 
     async def run() -> None:
-        await server._handle_durable_result(
-            "windows-desktop", canonical, "msg-1", ws, "conn-1"
-        )
-        await server._handle_durable_result(
-            "windows-desktop", canonical, "msg-2", ws, "conn-1"
-        )
+        await server._handle_durable_result("windows-desktop", canonical, "msg-1", ws, "conn-1")
+        await server._handle_durable_result("windows-desktop", canonical, "msg-2", ws, "conn-1")
         await server._handle_durable_result(
             "windows-desktop",
             {
@@ -1185,14 +1207,10 @@ def test_vps_durable_pump_is_cancelled_awaited_before_replacement(tmp_path):
 
         server._pump_durable_requests = pump
         ws = _MeshHandlerWs()
-        await server._schedule_durable_pump(
-            "windows-desktop", ws, "conn-1", reason="first"
-        )
+        await server._schedule_durable_pump("windows-desktop", ws, "conn-1", reason="first")
         await first_started.wait()
         first_task = server._durable_pump_tasks["windows-desktop"]
-        await server._schedule_durable_pump(
-            "windows-desktop", ws, "conn-2", reason="replacement"
-        )
+        await server._schedule_durable_pump("windows-desktop", ws, "conn-2", reason="replacement")
         await replacement_started.wait()
         await asyncio.sleep(0)
         return first_task.done(), first_quiesced.is_set(), max_active
@@ -1224,9 +1242,7 @@ def test_vps_stubborn_durable_pump_blocks_replacement_and_remains_owned(
 
         server._pump_durable_requests = pump
         ws = _MeshHandlerWs()
-        await server._schedule_durable_pump(
-            "windows-desktop", ws, "conn-1", reason="first"
-        )
+        await server._schedule_durable_pump("windows-desktop", ws, "conn-1", reason="first")
         await first_started.wait()
         first_task = server._durable_pump_tasks["windows-desktop"]
         with pytest.raises(RuntimeError, match="teardown exceeded"):
@@ -1234,9 +1250,7 @@ def test_vps_stubborn_durable_pump_blocks_replacement_and_remains_owned(
                 "windows-desktop", ws, "conn-2", reason="replacement"
             )
         still_owned = server._durable_pump_tasks.get("windows-desktop") is first_task
-        still_first_generation = (
-            server._durable_pump_connections.get("windows-desktop") == "conn-1"
-        )
+        still_first_generation = server._durable_pump_connections.get("windows-desktop") == "conn-1"
         release.set()
         await first_task
         await asyncio.sleep(0)
@@ -1318,9 +1332,7 @@ def test_consequential_executor_completion_survives_transport_disconnect(tmp_pat
         client._connected = True
         client._ws = replacement_ws
         assert await client._replay_due_terminal_results(generation) == 1
-        acknowledged = client._durable_store.terminal_result_delivery_for(
-            request.request_id
-        )
+        acknowledged = client._durable_store.terminal_result_delivery_for(request.request_id)
         assert acknowledged is not None
         await client._teardown_connection_generation(generation, replacement_ws)
         return (
@@ -1366,9 +1378,7 @@ def test_cancel_during_non_cancellable_executor_does_not_publish_false_cancelled
         )
         client._ws = _DurableAckWs(client)
         await client._handle_message(
-            json.dumps(
-                {"method": "durable_command.request", "params": request.to_dict()}
-            ),
+            json.dumps({"method": "durable_command.request", "params": request.to_dict()}),
             generation=1,
         )
         assert await asyncio.to_thread(adapter.started.wait, 2)
@@ -2249,9 +2259,7 @@ def test_durable_node_running_ack_timeout_reads_back_running_before_execution(
     assert result["state"] == "SUCCEEDED"
 
 
-def test_durable_same_request_redeliveries_coalesce_before_claim_settles(
-    tmp_path, monkeypatch
-):
+def test_durable_same_request_redeliveries_coalesce_before_claim_settles(tmp_path, monkeypatch):
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     req = _durable_request()
@@ -2368,7 +2376,9 @@ def test_durable_same_request_queued_redeliveries_do_not_reacquire_after_fail_cl
     assert acquire_calls == [req.request_id]
     assert len(set(claim_ids)) == 1
     assert result_events
-    assert all(event.get("idempotent_replay") or event["state"] == "FAILED" for event in result_events)
+    assert all(
+        event.get("idempotent_replay") or event["state"] == "FAILED" for event in result_events
+    )
     trajectory = client._durable_request_trajectories[req.request_id]
     assert trajectory["status"] in {"FAIL_CLOSED", "TERMINAL_OBSERVED"}
     assert trajectory["claim_id"] == claim_ids[0]
@@ -2414,9 +2424,7 @@ def test_durable_fail_closed_trajectory_never_authorizes_same_claim_execution(
     assert client._durable_request_trajectories[req.request_id]["status"] == "FAIL_CLOSED"
 
 
-def test_durable_interrupted_acquisition_fail_closes_before_late_duplicate(
-    tmp_path, monkeypatch
-):
+def test_durable_interrupted_acquisition_fail_closes_before_late_duplicate(tmp_path, monkeypatch):
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     req = _durable_request()
@@ -2458,9 +2466,7 @@ def test_durable_interrupted_acquisition_fail_closes_before_late_duplicate(
     assert client._durable_request_gates == {}
 
 
-def test_durable_cancelled_acquisition_fail_closes_before_late_duplicate(
-    tmp_path, monkeypatch
-):
+def test_durable_cancelled_acquisition_fail_closes_before_late_duplicate(tmp_path, monkeypatch):
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     req = _durable_request()
@@ -2516,9 +2522,7 @@ def test_durable_cancelled_acquisition_fail_closes_before_late_duplicate(
     assert client._durable_request_trajectories[req.request_id]["status"] == "TERMINAL_OBSERVED"
 
 
-def test_durable_cancelled_running_trajectory_terminates_owned_process(
-    tmp_path, monkeypatch
-):
+def test_durable_cancelled_running_trajectory_terminates_owned_process(tmp_path, monkeypatch):
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     req = client._durable_store.put_request(_durable_request())
@@ -2576,9 +2580,7 @@ def test_durable_cancelled_running_trajectory_terminates_owned_process(
             proc.wait(timeout=5)
 
 
-def test_durable_handle_cancellation_after_shell_start_terminalizes_and_cleans_process(
-    tmp_path
-):
+def test_durable_handle_cancellation_after_shell_start_terminalizes_and_cleans_process(tmp_path):
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     client._adapters = {"shell": object()}
@@ -2650,9 +2652,7 @@ def test_durable_terminal_canonical_truth_overrides_local_fail_closed_tombstone(
     assert client._durable_request_trajectories[req.request_id]["status"] == "TERMINAL_OBSERVED"
 
 
-def test_durable_trajectory_identity_mismatch_fails_closed_with_evidence(
-    tmp_path, monkeypatch
-):
+def test_durable_trajectory_identity_mismatch_fails_closed_with_evidence(tmp_path, monkeypatch):
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     req = _durable_request()
@@ -2681,9 +2681,7 @@ def test_durable_trajectory_identity_mismatch_fails_closed_with_evidence(
     assert result_events
 
 
-def test_durable_distinct_requests_keep_concurrent_claim_acquisition(
-    tmp_path, monkeypatch
-):
+def test_durable_distinct_requests_keep_concurrent_claim_acquisition(tmp_path, monkeypatch):
     client = _durable_node_client(tmp_path / "store")
     client._ws = _DurableAckWs(client)
     req_a = _durable_request()
@@ -2836,9 +2834,7 @@ def test_durable_node_missing_running_ack_reads_back_running_before_execution(
     assert result["state"] == "SUCCEEDED"
 
 
-def test_durable_node_running_ack_timeout_rejected_readback_does_not_execute(
-    tmp_path, monkeypatch
-):
+def test_durable_node_running_ack_timeout_rejected_readback_does_not_execute(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -2890,9 +2886,7 @@ def test_durable_node_running_ack_timeout_rejected_readback_does_not_execute(
     assert "running acknowledgement rejected" in result["result"]["error"]
 
 
-def test_durable_bare_running_ack_with_retryable_readback_does_not_execute(
-    tmp_path, monkeypatch
-):
+def test_durable_bare_running_ack_with_retryable_readback_does_not_execute(tmp_path, monkeypatch):
     from nodes.windows.umh_node.config import CapabilityConfig
 
     executed = False
@@ -3019,12 +3013,15 @@ def test_durable_ack_delayed_inside_timeout_succeeds(tmp_path):
 
     async def _run() -> dict[str, object]:
         client._ws = _Ws()
-        return await client._send_durable_event(
-            "durable_command.claimed",
-            {"request_id": "req-1", "claim_id": "claim-1", "state": "CLAIMED"},
-            expect_ack=True,
-            timeout_s=0.2,
-        ) or {}
+        return (
+            await client._send_durable_event(
+                "durable_command.claimed",
+                {"request_id": "req-1", "claim_id": "claim-1", "state": "CLAIMED"},
+                expect_ack=True,
+                timeout_s=0.2,
+            )
+            or {}
+        )
 
     assert asyncio.run(_run())["ok"] is True
 
@@ -3336,9 +3333,7 @@ def test_terminal_result_uses_authority_queue_ahead_of_bulk_media(tmp_path):
                 },
             }
             await client._handle_message(
-                json.dumps(
-                    {"jsonrpc": "2.0", "result": receipt, "id": message.get("id")}
-                )
+                json.dumps({"jsonrpc": "2.0", "result": receipt, "id": message.get("id")})
             )
 
     async def _run() -> list[str]:
@@ -3494,7 +3489,7 @@ def test_duplicate_and_late_ack_do_not_mutate_completed_future(tmp_path):
     assert pending == {}
 
 
-def test_durable_shell_does_not_start_when_running_ack_is_rejected(tmp_path):
+def test_durable_shell_running_ack_rejection_after_launch_preserves_actual_outcome(tmp_path):
     from nodes.windows.umh_node.config import CapabilityConfig
 
     marker = tmp_path / "marker.txt"
@@ -3529,10 +3524,10 @@ def test_durable_shell_does_not_start_when_running_ack_is_rejected(tmp_path):
         )
     )
 
-    assert marker.exists() is False
+    assert marker.read_text(encoding="utf-8") == "ran"
     result = client._durable_store.result_for(req.request_id)
     assert result is not None
-    assert result["state"] == "FAILED"
+    assert result["state"] == "SUCCEEDED"
     assert result["cleanup"]["process_residue"] == []
     methods = [msg.get("method") for msg in ws.sent]
     assert methods == [
@@ -3540,14 +3535,9 @@ def test_durable_shell_does_not_start_when_running_ack_is_rejected(tmp_path):
         "durable_command.claimed",
         "durable_command.result",
     ]
-    result = client._durable_store.result_for(req.request_id)
-    assert result is not None
-    assert "running acknowledgement rejected" in result["result"]["error"]
 
 
-def test_durable_claim_ack_timeout_reconciles_same_claim_before_execution(
-    tmp_path, monkeypatch
-):
+def test_durable_claim_ack_timeout_reconciles_same_claim_before_execution(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -3605,9 +3595,7 @@ def test_durable_claim_ack_timeout_reconciles_same_claim_before_execution(
     assert readbacks == [req.request_id]
 
 
-def test_durable_lost_claim_ack_reads_back_canonical_claim_before_execution(
-    tmp_path, monkeypatch
-):
+def test_durable_lost_claim_ack_reads_back_canonical_claim_before_execution(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -3622,7 +3610,9 @@ def test_durable_lost_claim_ack_reads_back_canonical_claim_before_execution(
     events: list[tuple[str, str, str]] = []
 
     async def _send_event(method, payload, **_kwargs):
-        events.append((method, str(payload.get("request_id", "")), str(payload.get("claim_id", ""))))
+        events.append(
+            (method, str(payload.get("request_id", "")), str(payload.get("claim_id", "")))
+        )
         if method == "durable_command.claimed" and payload.get("state") == "CLAIMED":
             _canonical_claim_ack(client, payload)
             return {"ok": False, "error": "durable_command.claimed acknowledgement timed out"}
@@ -3712,9 +3702,7 @@ def test_durable_missing_claim_ack_reads_back_canonical_claim_before_execution(
     assert marker.read_text(encoding="utf-8") == "ran"
 
 
-def test_durable_claim_ack_timeout_fails_closed_and_replay_does_not_execute(
-    tmp_path, monkeypatch
-):
+def test_durable_claim_ack_timeout_fails_closed_and_replay_does_not_execute(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -3785,9 +3773,7 @@ def test_durable_claim_ack_timeout_fails_closed_and_replay_does_not_execute(
     assert claim_events >= 1
 
 
-def test_durable_claimed_redelivery_after_fail_closed_does_not_execute(
-    tmp_path, monkeypatch
-):
+def test_durable_claimed_redelivery_after_fail_closed_does_not_execute(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -3894,9 +3880,7 @@ def test_durable_claim_ack_uncertain_fails_closed_without_execution(tmp_path, mo
     assert current.lifecycle_state == "FAILED"
 
 
-def test_durable_bare_claim_ack_cannot_authorize_without_canonical_readback(
-    tmp_path, monkeypatch
-):
+def test_durable_bare_claim_ack_cannot_authorize_without_canonical_readback(tmp_path, monkeypatch):
     from nodes.windows.umh_node.config import CapabilityConfig
 
     marker = tmp_path / "marker.txt"
@@ -3948,9 +3932,7 @@ def test_durable_bare_claim_ack_cannot_authorize_without_canonical_readback(
     assert result["cleanup"]["process_residue"] == []
 
 
-def test_durable_canonical_claim_read_unavailable_remains_bounded_retryable(
-    tmp_path, monkeypatch
-):
+def test_durable_canonical_claim_read_unavailable_remains_bounded_retryable(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -4006,9 +3988,7 @@ def test_durable_canonical_claim_read_unavailable_remains_bounded_retryable(
     assert current.lifecycle_state == "FAILED"
 
 
-def test_durable_canonical_claim_read_rejection_fails_closed(
-    tmp_path, monkeypatch
-):
+def test_durable_canonical_claim_read_rejection_fails_closed(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -4098,9 +4078,7 @@ def test_durable_claim_foreign_rejection_fails_closed_without_execution(tmp_path
     assert marker.exists() is False
 
 
-def test_durable_claim_readback_foreign_claim_fails_closed_without_execution(
-    tmp_path, monkeypatch
-):
+def test_durable_claim_readback_foreign_claim_fails_closed_without_execution(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -4154,9 +4132,7 @@ def test_durable_claim_readback_foreign_claim_fails_closed_without_execution(
     assert result["cleanup"]["process_residue"] == []
 
 
-def test_durable_claim_readback_accepted_wrong_identity_fails_closed(
-    tmp_path, monkeypatch
-):
+def test_durable_claim_readback_accepted_wrong_identity_fails_closed(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -4454,8 +4430,7 @@ def test_durable_claim_readback_same_claim_running_with_root_does_not_relaunch(
     running_replays = [
         msg
         for msg in sent
-        if msg["method"] == "durable_command.claimed"
-        and msg["payload"].get("state") == "RUNNING"
+        if msg["method"] == "durable_command.claimed" and msg["payload"].get("state") == "RUNNING"
     ]
     assert len(running_replays) == 1
 
@@ -4518,16 +4493,12 @@ def test_durable_claim_ack_same_claim_running_does_not_use_stale_local_claim_to_
     assert marker.exists() is False
     assert client._durable_store.result_for(req.request_id) is None
     states = [
-        msg["payload"].get("state")
-        for msg in sent
-        if msg["method"] == "durable_command.claimed"
+        msg["payload"].get("state") for msg in sent if msg["method"] == "durable_command.claimed"
     ]
     assert states == ["CLAIMED", "RUNNING"]
 
 
-def test_durable_claim_readback_same_claim_terminal_does_not_relaunch(
-    tmp_path, monkeypatch
-):
+def test_durable_claim_readback_same_claim_terminal_does_not_relaunch(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -4630,9 +4601,7 @@ def test_durable_claim_send_exception_fails_closed_without_execution(tmp_path, m
     assert result["cleanup"]["process_residue"] == []
 
 
-def test_durable_claim_cancel_during_acquisition_publishes_bound_cancel_ack(
-    tmp_path, monkeypatch
-):
+def test_durable_claim_cancel_during_acquisition_publishes_bound_cancel_ack(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
     from nodes.windows.umh_node.config import CapabilityConfig
 
@@ -4905,7 +4874,9 @@ def test_durable_non_shell_cancel_after_running_ack_before_adapter_execute_does_
     }
     client._adapters = {"terminal": adapter}
     req = client._durable_store.put_request(
-        _durable_request(capability="terminal.execute", params={"timeout": 5}, risk_class="reversible_write")
+        _durable_request(
+            capability="terminal.execute", params={"timeout": 5}, risk_class="reversible_write"
+        )
     )
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
 
@@ -4945,7 +4916,9 @@ def test_durable_non_shell_running_replay_without_root_pid_is_not_failed_as_shel
         "terminal": CapabilityConfig(enabled=True, max_risk_class="reversible_write")
     }
     req = client._durable_store.put_request(
-        _durable_request(capability="terminal.execute", params={"timeout": 5}, risk_class="reversible_write")
+        _durable_request(
+            capability="terminal.execute", params={"timeout": 5}, risk_class="reversible_write"
+        )
     )
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
     client._durable_store.mark_running(
@@ -4983,7 +4956,7 @@ def test_durable_non_shell_running_replay_without_root_pid_is_not_failed_as_shel
     ]
 
 
-def test_durable_shell_expired_after_running_ack_before_popen_does_not_spawn(
+def test_durable_shell_expired_after_launch_intent_before_popen_does_not_spawn(
     tmp_path, monkeypatch
 ):
     from nodes.windows.umh_node import client as client_mod
@@ -4993,24 +4966,21 @@ def test_durable_shell_expired_after_running_ack_before_popen_does_not_spawn(
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
     spawned = False
 
-    async def _send_event(method, payload, **_kwargs):
-        if method == "durable_command.claimed" and payload.get("state") == "RUNNING":
-            current = client._durable_store.get_request(str(payload["request_id"]))
-            assert current is not None
-            ack = _canonical_claim_ack(client, payload)
+    original_mark_launch = client._durable_store.mark_shell_launch_state
+
+    def _mark_launch(*args, **kwargs):
+        current = original_mark_launch(*args, **kwargs)
+        if kwargs.get("launch_state") == "LAUNCH_INTENT_PERSISTED":
             current.expires_at = time.time() - 1.0
             client._durable_store.update_request(current, "EXPIRED_FOR_TEST")
-            return ack
-        if method == "durable_command.claimed":
-            return _canonical_claim_ack(client, payload)
-        return {"ok": True, "error": ""}
+        return current
 
     def _popen(*_args, **_kwargs):
         nonlocal spawned
         spawned = True
         raise AssertionError("Popen must not be reached after expiry")
 
-    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    monkeypatch.setattr(client._durable_store, "mark_shell_launch_state", _mark_launch)
     monkeypatch.setattr(client_mod.subprocess, "Popen", _popen)
 
     result = asyncio.run(
@@ -5030,7 +5000,7 @@ def test_durable_shell_expired_after_running_ack_before_popen_does_not_spawn(
     assert result["cleanup"]["process_residue"] == []
 
 
-def test_durable_shell_missing_local_state_after_running_ack_does_not_spawn(
+def test_durable_shell_missing_local_state_after_launch_intent_does_not_spawn(
     tmp_path, monkeypatch
 ):
     from nodes.windows.umh_node import client as client_mod
@@ -5040,21 +5010,20 @@ def test_durable_shell_missing_local_state_after_running_ack_does_not_spawn(
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
     spawned = False
 
-    async def _send_event(method, payload, **_kwargs):
-        if method == "durable_command.claimed" and payload.get("state") == "RUNNING":
-            ack = _canonical_claim_ack(client, payload)
-            client._durable_store.remove_request(str(payload["request_id"]))
-            return ack
-        if method == "durable_command.claimed":
-            return _canonical_claim_ack(client, payload)
-        return {"ok": True, "error": ""}
+    original_mark_launch = client._durable_store.mark_shell_launch_state
+
+    def _mark_launch(*args, **kwargs):
+        current = original_mark_launch(*args, **kwargs)
+        if kwargs.get("launch_state") == "LAUNCH_INTENT_PERSISTED":
+            client._durable_store.remove_request(req.request_id)
+        return current
 
     def _popen(*_args, **_kwargs):
         nonlocal spawned
         spawned = True
         raise AssertionError("Popen must not be reached without local durable state")
 
-    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    monkeypatch.setattr(client._durable_store, "mark_shell_launch_state", _mark_launch)
     monkeypatch.setattr(client_mod.subprocess, "Popen", _popen)
 
     result = asyncio.run(
@@ -5094,7 +5063,9 @@ def test_durable_non_shell_missing_local_state_after_running_ack_does_not_execut
     }
     client._adapters = {"terminal": adapter}
     req = client._durable_store.put_request(
-        _durable_request(capability="terminal.execute", params={"timeout": 5}, risk_class="reversible_write")
+        _durable_request(
+            capability="terminal.execute", params={"timeout": 5}, risk_class="reversible_write"
+        )
     )
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
 
@@ -5123,7 +5094,7 @@ def test_durable_non_shell_missing_local_state_after_running_ack_does_not_execut
     assert result["cleanup"]["process_residue"] == []
 
 
-def test_durable_handler_missing_local_state_after_running_ack_emits_failed_result(
+def test_durable_handler_missing_local_state_after_launch_intent_emits_failed_result(
     tmp_path, monkeypatch
 ):
     from nodes.windows.umh_node import client as client_mod
@@ -5139,13 +5110,17 @@ def test_durable_handler_missing_local_state_after_running_ack_emits_failed_resu
 
     async def _send_event(method, payload, **_kwargs):
         sent.append({"method": method, "payload": payload})
-        if method == "durable_command.claimed" and payload.get("state") == "RUNNING":
-            ack = _canonical_claim_ack(client, payload)
-            client._durable_store.remove_request(str(payload["request_id"]))
-            return ack
         if method == "durable_command.claimed":
             return _canonical_claim_ack(client, payload)
         return {"ok": True, "error": ""}
+
+    original_mark_launch = client._durable_store.mark_shell_launch_state
+
+    def _mark_launch(*args, **kwargs):
+        current = original_mark_launch(*args, **kwargs)
+        if kwargs.get("launch_state") == "LAUNCH_INTENT_PERSISTED":
+            client._durable_store.remove_request(req.request_id)
+        return current
 
     def _popen(*_args, **_kwargs):
         nonlocal spawned
@@ -5153,6 +5128,7 @@ def test_durable_handler_missing_local_state_after_running_ack_emits_failed_resu
         raise AssertionError("Popen must not be reached without local durable state")
 
     monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    monkeypatch.setattr(client._durable_store, "mark_shell_launch_state", _mark_launch)
     monkeypatch.setattr(client_mod.subprocess, "Popen", _popen)
     req = _durable_request(
         params={
@@ -5221,7 +5197,7 @@ def test_durable_running_redelivery_ack_failure_with_root_enters_reconciliation(
     ]
 
 
-def test_durable_shell_cancel_after_running_ack_before_popen_does_not_spawn(
+def test_durable_shell_cancel_after_launch_intent_before_popen_does_not_spawn(
     tmp_path, monkeypatch
 ):
     from nodes.windows.umh_node import client as client_mod
@@ -5231,21 +5207,20 @@ def test_durable_shell_cancel_after_running_ack_before_popen_does_not_spawn(
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
     spawned = False
 
-    async def _send_event(method, payload, **_kwargs):
-        if method == "durable_command.claimed" and payload.get("state") == "RUNNING":
-            ack = _canonical_claim_ack(client, payload)
-            client._durable_store.request_cancel(str(payload["request_id"]))
-            return ack
-        if method == "durable_command.claimed":
-            return _canonical_claim_ack(client, payload)
-        return {"ok": True, "error": ""}
+    original_mark_launch = client._durable_store.mark_shell_launch_state
+
+    def _mark_launch(*args, **kwargs):
+        current = original_mark_launch(*args, **kwargs)
+        if kwargs.get("launch_state") == "LAUNCH_INTENT_PERSISTED":
+            client._durable_store.request_cancel(req.request_id)
+        return current
 
     def _popen(*_args, **_kwargs):
         nonlocal spawned
         spawned = True
         raise AssertionError("Popen must not be reached after cancellation")
 
-    monkeypatch.setattr(client, "_send_durable_event", _send_event)
+    monkeypatch.setattr(client._durable_store, "mark_shell_launch_state", _mark_launch)
     monkeypatch.setattr(client_mod.subprocess, "Popen", _popen)
 
     result = asyncio.run(
@@ -5304,7 +5279,6 @@ def test_durable_shell_post_start_running_update_is_not_an_execution_gate(tmp_pa
     assert marker.read_text(encoding="utf-8") == "ran"
     methods = [msg.get("method") for msg in ws.sent]
     assert methods == [
-        "durable_command.claimed",
         "durable_command.claimed",
         "durable_command.claimed",
         "durable_command.result",
@@ -5402,9 +5376,10 @@ def test_durable_cancel_ack_includes_request_bound_generation(tmp_path):
     assert terminal.cleanup["cancellation_requested_at"] == req.cancellation_requested_at
     assert terminal.cleanup["cancellation_deadline_at"] == req.cancellation_deadline_at
     assert terminal.cleanup["claim_id"] == "claim-1"
-    assert terminal.cleanup["cancellation_envelope_digest"] == req.cancellation_identity(
-        claim_id="claim-1"
-    )["cancellation_envelope_digest"]
+    assert (
+        terminal.cleanup["cancellation_envelope_digest"]
+        == req.cancellation_identity(claim_id="claim-1")["cancellation_envelope_digest"]
+    )
 
 
 def test_durable_cancel_after_restart_with_root_pid_fails_closed(tmp_path):
@@ -5463,9 +5438,10 @@ def test_durable_cancel_delivery_after_claim_uses_delivered_cancellation_identit
     assert cleanup["cancellation_requested_at"] == 1234.5
     assert cleanup["cancellation_deadline_at"] == 1300.5
     assert cleanup["claim_id"] == "claim-1"
-    assert cleanup["cancellation_envelope_digest"] == delivered.cancellation_identity(
-        claim_id="claim-1"
-    )["cancellation_envelope_digest"]
+    assert (
+        cleanup["cancellation_envelope_digest"]
+        == delivered.cancellation_identity(claim_id="claim-1")["cancellation_envelope_digest"]
+    )
 
 
 def test_durable_cancel_delivery_missing_identity_does_not_terminalize(tmp_path):
@@ -5614,9 +5590,7 @@ def test_durable_shell_cancel_reader_timeout_fails_closed_without_known_descenda
     ]
 
 
-def test_durable_shell_timeout_preserves_bounded_redacted_partial_output(
-    tmp_path, monkeypatch
-):
+def test_durable_shell_timeout_preserves_bounded_redacted_partial_output(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
 
     client = _durable_node_client(tmp_path)
@@ -5633,9 +5607,7 @@ def test_durable_shell_timeout_preserves_bounded_redacted_partial_output(
         def communicate(self, *, timeout=None):
             return (
                 "phase-line\n" + ("x" * 25000),
-                "Authorization: Bearer secret-token\n"
-                + "stderr phase\n"
-                + ("y" * 25000),
+                "Authorization: Bearer secret-token\n" + "stderr phase\n" + ("y" * 25000),
             )
 
     async def _terminate(_proc, *, graceful_timeout):
@@ -5804,9 +5776,7 @@ def test_durable_shell_drains_large_stdout_and_stderr_while_running(tmp_path):
     assert capture["redacted"] is True
 
 
-def test_durable_shell_normal_exit_fails_closed_with_lingering_descendant(
-    tmp_path, monkeypatch
-):
+def test_durable_shell_normal_exit_fails_closed_with_lingering_descendant(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
 
     client = _durable_node_client(tmp_path / "store")
@@ -5870,9 +5840,7 @@ def test_durable_shell_normal_exit_fails_closed_with_lingering_descendant(
     assert result["cleanup"]["process_residue"] == [{"pid": 6161, "state": "still_alive"}]
 
 
-def test_durable_shell_normal_exit_publishes_positive_zero_residue(
-    tmp_path, monkeypatch
-):
+def test_durable_shell_normal_exit_publishes_positive_zero_residue(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
 
     client = _durable_node_client(tmp_path / "store")
@@ -5937,9 +5905,7 @@ def test_durable_shell_normal_exit_publishes_positive_zero_residue(
     }
 
 
-def test_durable_shell_normal_exit_fails_closed_when_residue_check_errors(
-    tmp_path, monkeypatch
-):
+def test_durable_shell_normal_exit_fails_closed_when_residue_check_errors(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
 
     client = _durable_node_client(tmp_path / "store")
@@ -5999,14 +5965,10 @@ def test_durable_shell_normal_exit_fails_closed_when_residue_check_errors(
     assert result["success"] is False
     assert result["error"] == "durable success process residue unproven"
     assert result["cleanup"]["post_exit_process_check_ok"] is False
-    assert result["cleanup"]["process_residue"] == [
-        {"state": "post_exit_process_tree_unverified"}
-    ]
+    assert result["cleanup"]["process_residue"] == [{"state": "post_exit_process_tree_unverified"}]
 
 
-def test_durable_shell_normal_exit_fails_closed_when_alive_scan_errors(
-    tmp_path, monkeypatch
-):
+def test_durable_shell_normal_exit_fails_closed_when_alive_scan_errors(tmp_path, monkeypatch):
     from nodes.windows.umh_node import client as client_mod
 
     client = _durable_node_client(tmp_path / "store")
@@ -6067,9 +6029,7 @@ def test_durable_shell_normal_exit_fails_closed_when_alive_scan_errors(
     assert result["success"] is False
     assert result["error"] == "durable success process residue unproven"
     assert result["cleanup"]["post_exit_process_check_ok"] is False
-    assert result["cleanup"]["process_residue"] == [
-        {"state": "post_exit_alive_scan_unverified"}
-    ]
+    assert result["cleanup"]["process_residue"] == [{"state": "post_exit_alive_scan_unverified"}]
 
 
 def test_durable_process_tree_enumeration_nonzero_is_not_clean(monkeypatch):

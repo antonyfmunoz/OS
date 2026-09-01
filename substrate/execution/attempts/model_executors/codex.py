@@ -82,7 +82,9 @@ def _sanitize(text: str) -> str:
         else:
             clean = line
             for pattern in _SECRET_PATTERNS:
-                clean = pattern.sub(lambda m: (m.group(1) if m.groups() else "") + "[redacted]", clean)
+                clean = pattern.sub(
+                    lambda m: (m.group(1) if m.groups() else "") + "[redacted]", clean
+                )
             redacted.append(clean)
     return "\n".join(redacted)
 
@@ -112,6 +114,11 @@ def _classify_failure(*, timed_out: bool, returncode: int | None, stderr: str, s
 
 def _argv_digest(argv: list[str]) -> str:
     payload = json.dumps(argv, ensure_ascii=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _json_digest(value: object) -> str:
+    payload = json.dumps(value, sort_keys=True, ensure_ascii=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -745,7 +752,9 @@ class CodexModelExecutor:
                 False,
             )
         except Exception as exc:  # noqa: BLE001
-            return ModelExecutorReadiness(False, self.identity, f"codex status failed: {exc}", False)
+            return ModelExecutorReadiness(
+                False, self.identity, f"codex status failed: {exc}", False
+            )
         if status is None:
             return ModelExecutorReadiness(False, self.identity, "blocked by CPU gate", False)
         out = f"{status.stdout or ''}\n{status.stderr or ''}".lower()
@@ -764,19 +773,19 @@ class CodexModelExecutor:
 
         return ModelInvocation(
             argv=[
-            cli,
-            "exec",
-            "--json",
-            "--ephemeral",
-            "--ignore-user-config",
-            "--skip-git-repo-check",
-            "--sandbox",
-            self.sandbox,
-            "--cd",
-            packet.worktree_path,
-            "-m",
-            self.model,
-            "-",
+                cli,
+                "exec",
+                "--json",
+                "--ephemeral",
+                "--ignore-user-config",
+                "--skip-git-repo-check",
+                "--sandbox",
+                self.sandbox,
+                "--cd",
+                packet.worktree_path,
+                "-m",
+                self.model,
+                "-",
             ],
             stdin=packet.prompt,
             cwd=packet.worktree_path,
@@ -803,7 +812,9 @@ class CodexModelExecutor:
         explicit_model_argument_present = _explicit_model_argument(argv, self.model)
         if not explicit_model_argument_present:
             parse_errors.append("missing exact explicit Codex model argument")
-        if model_seen and model_seen != self.model:
+        if not model_seen:
+            parse_errors.append("missing trusted terminal model identity")
+        elif model_seen != self.model:
             parse_errors.append(
                 f"trusted terminal model identity mismatch: expected {self.model!r}, got {model_seen!r}"
             )
@@ -844,6 +855,10 @@ class CodexModelExecutor:
             "credential_isolation_verified": False,
             "workspace_integrity_verified": False,
             "event_types": list(parse_meta.get("event_types") or []),
+            "attempt_id": packet.attempt_id,
+            "package_hash": packet.package_hash,
+            "operation_identity_digest": _json_digest(packet.operation_identity),
+            "proof_binding_digest": _json_digest(packet.proof_binding),
         }
         terminal = ModelTerminalResult(
             ok=returncode == 0 and bool(parsed.strip()) and not parse_errors,

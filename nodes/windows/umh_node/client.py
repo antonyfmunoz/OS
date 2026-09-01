@@ -16,6 +16,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import contextvars
+import hashlib
 import json
 import logging
 import os
@@ -31,6 +32,7 @@ import time
 from collections import deque
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Callable
 from uuid import uuid4
 
@@ -53,9 +55,14 @@ from nodes.windows.umh_node.workspace import collect_workstation_state, _state_h
 from substrate.execution.durable_remote_transport import (
     DurableRemoteRequest,
     DurableRemoteStore,
+    SHELL_LAUNCH_IN_PROGRESS,
+    SHELL_LAUNCH_INTENT_PERSISTED,
+    SHELL_LAUNCH_RUNNING,
+    SHELL_PROCESS_IDENTITY_PERSISTED,
     STATE_ORDER,
     TERMINAL_STATES,
     default_node_root,
+    durable_execution_identity,
     sha256_json,
 )
 
@@ -95,24 +102,15 @@ _WS_SEND_QUEUE_MAX_BYTES = {
     for traffic_class in _TRAFFIC_CLASSES
 }
 _AUTHORITY_LOWER_CLASS_INTERLEAVES_MAX = (
-    _WS_SEND_QUEUE_CAPACITY[_TRAFFIC_AUTHORITY_CONTROL]
-    + _AUTHORITY_SEND_BURST_LIMIT
-    - 1
+    _WS_SEND_QUEUE_CAPACITY[_TRAFFIC_AUTHORITY_CONTROL] + _AUTHORITY_SEND_BURST_LIMIT - 1
 ) // _AUTHORITY_SEND_BURST_LIMIT
 # Last accepted authority work may wait for one in-flight frame, seven earlier
 # authority frames, and at most one lower-class fairness interleave. Each send
 # either completes or invalidates the transport within _WS_SEND_DEADLINE_S.
 _AUTHORITY_SERVICE_START_BOUND_S = (
-    (
-        _WS_SEND_QUEUE_CAPACITY[_TRAFFIC_AUTHORITY_CONTROL]
-        + _AUTHORITY_LOWER_CLASS_INTERLEAVES_MAX
-    )
-    * _WS_SEND_DEADLINE_S
-    + _AUTHORITY_SCHEDULER_OVERHEAD_BOUND_S
-)
-_AUTHORITY_SERVICE_COMPLETE_BOUND_S = (
-    _AUTHORITY_SERVICE_START_BOUND_S + _WS_SEND_DEADLINE_S
-)
+    _WS_SEND_QUEUE_CAPACITY[_TRAFFIC_AUTHORITY_CONTROL] + _AUTHORITY_LOWER_CLASS_INTERLEAVES_MAX
+) * _WS_SEND_DEADLINE_S + _AUTHORITY_SCHEDULER_OVERHEAD_BOUND_S
+_AUTHORITY_SERVICE_COMPLETE_BOUND_S = _AUTHORITY_SERVICE_START_BOUND_S + _WS_SEND_DEADLINE_S
 _AUTHORITY_QUEUE_MAX_WAIT_S = _AUTHORITY_SERVICE_START_BOUND_S
 _CONTROL_TIMEOUT_S = 8.0
 _DURABLE_CLAIM_ACQUIRE_TIMEOUT_S = 30.0
@@ -139,9 +137,7 @@ _DURABLE_CLAIM_PROOF_STATES = frozenset(
 )
 _DURABLE_TIMEOUT_STDOUT_LIMIT = 20000
 _DURABLE_TIMEOUT_STDERR_LIMIT = 20000
-_DURABLE_TIMEOUT_TOTAL_LIMIT = (
-    _DURABLE_TIMEOUT_STDOUT_LIMIT + _DURABLE_TIMEOUT_STDERR_LIMIT
-)
+_DURABLE_TIMEOUT_TOTAL_LIMIT = _DURABLE_TIMEOUT_STDOUT_LIMIT + _DURABLE_TIMEOUT_STDERR_LIMIT
 _DURABLE_TIMEOUT_DRAIN_SECONDS = 1.0
 _DURABLE_SECRET_SCAN_TAIL_CHARS = 64
 _SECRET_PATTERNS = (
@@ -379,6 +375,103 @@ def _durable_owned_process_tree_pids(root_pid: int) -> list[int]:
     )
 
 
+def _durable_process_identity(
+    root_pid: int,
+    *,
+    command_digest: str,
+) -> dict[str, Any]:
+    """Capture an OS-backed process identity suitable for PID-reuse fencing."""
+
+    if root_pid <= 0:
+        raise ValueError("root_pid must be positive")
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+
+        process_query_limited_information = 0x1000
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        handle = kernel32.OpenProcess(process_query_limited_information, False, root_pid)
+        if not handle:
+            raise OSError(ctypes.get_last_error(), "OpenProcess failed")
+        try:
+            creation = wintypes.FILETIME()
+            exit_time = wintypes.FILETIME()
+            kernel = wintypes.FILETIME()
+            user = wintypes.FILETIME()
+            if not kernel32.GetProcessTimes(
+                handle,
+                ctypes.byref(creation),
+                ctypes.byref(exit_time),
+                ctypes.byref(kernel),
+                ctypes.byref(user),
+            ):
+                raise OSError(ctypes.get_last_error(), "GetProcessTimes failed")
+            start_token = (int(creation.dwHighDateTime) << 32) | int(creation.dwLowDateTime)
+            size = wintypes.DWORD(32768)
+            image = ctypes.create_unicode_buffer(size.value)
+            executable = ""
+            if kernel32.QueryFullProcessImageNameW(handle, 0, image, ctypes.byref(size)):
+                executable = image.value
+        finally:
+            kernel32.CloseHandle(handle)
+        return {
+            "pid": root_pid,
+            "start_token": str(start_token),
+            "executable": executable,
+            "command_digest": command_digest,
+            "identity_source": "windows_process_times",
+        }
+
+    stat_text = (Path(f"/proc/{root_pid}/stat")).read_text(encoding="utf-8")
+    close_paren = stat_text.rfind(")")
+    if close_paren < 0:
+        raise ValueError("malformed /proc stat")
+    fields = stat_text[close_paren + 2 :].split()
+    if len(fields) <= 19:
+        raise ValueError("incomplete /proc stat")
+    try:
+        executable = os.readlink(f"/proc/{root_pid}/exe")
+    except OSError:
+        executable = ""
+    try:
+        command_line = Path(f"/proc/{root_pid}/cmdline").read_bytes()
+    except OSError:
+        command_line = b""
+    return {
+        "pid": root_pid,
+        "start_token": fields[19],
+        "parent_pid": int(fields[1]),
+        "executable": executable,
+        "observed_command_digest": hashlib.sha256(command_line).hexdigest(),
+        "command_digest": command_digest,
+        "identity_source": "procfs_starttime",
+    }
+
+
+def _durable_process_identity_matches(
+    stored: dict[str, Any],
+    *,
+    command_digest: str,
+) -> tuple[bool, str, dict[str, Any] | None]:
+    """Prove that a live PID is still the exact persisted process."""
+
+    try:
+        pid = int(stored.get("pid", 0) or 0)
+        observed = _durable_process_identity(pid, command_digest=command_digest)
+    except (OSError, ValueError) as exc:
+        return False, f"process identity unavailable: {type(exc).__name__}: {exc}", None
+    if str(stored.get("command_digest", "")) != command_digest:
+        return False, "persisted command digest mismatch", observed
+    for key in ("pid", "start_token", "executable"):
+        expected = str(stored.get(key, "") or "")
+        actual = str(observed.get(key, "") or "")
+        if expected and expected != actual:
+            return False, f"process identity mismatch for {key}", observed
+    if not str(stored.get("start_token", "") or ""):
+        return False, "persisted process start token missing", observed
+    return True, "exact process identity matched", observed
+
+
 def _durable_alive_pids(pids: list[int]) -> list[int]:
     alive: list[int] = []
     for pid in sorted(set(pids)):
@@ -422,7 +515,9 @@ def _durable_force_exact_pids(pids: list[int]) -> list[str]:
                     f"{(result.stdout or result.stderr or '').strip()}"
                 )
             except Exception as exc:  # noqa: BLE001
-                lines.append(f"exact pid force cleanup failed pid={pid}: {type(exc).__name__}: {exc}")
+                lines.append(
+                    f"exact pid force cleanup failed pid={pid}: {type(exc).__name__}: {exc}"
+                )
         else:
             try:
                 os.kill(pid, signal.SIGKILL)
@@ -430,7 +525,9 @@ def _durable_force_exact_pids(pids: list[int]) -> list[str]:
             except ProcessLookupError:
                 lines.append(f"exact pid already absent {pid}")
             except Exception as exc:  # noqa: BLE001
-                lines.append(f"exact pid force cleanup failed pid={pid}: {type(exc).__name__}: {exc}")
+                lines.append(
+                    f"exact pid force cleanup failed pid={pid}: {type(exc).__name__}: {exc}"
+                )
     return lines
 
 
@@ -455,13 +552,9 @@ def _durable_fail_closed_reader_timeout_cleanup(
             if x
         )
         remaining = _durable_alive_pids(alive)
-        cleanup["process_residue"] = [
-            {"pid": pid, "state": "still_alive"} for pid in remaining
-        ]
+        cleanup["process_residue"] = [{"pid": pid, "state": "still_alive"} for pid in remaining]
     elif not any(pid != proc.pid for pid in last_tree_pids):
-        cleanup["process_residue"] = [
-            {"state": "reader_timeout_descendant_identity_unknown"}
-        ]
+        cleanup["process_residue"] = [{"state": "reader_timeout_descendant_identity_unknown"}]
     else:
         cleanup["process_residue"] = []
     return cleanup
@@ -509,7 +602,9 @@ def _durable_post_exit_process_cleanup(
     except Exception as exc:  # noqa: BLE001
         cleanup["post_exit_process_check_ok"] = False
         cleanup["post_exit_remaining_scan_error"] = f"{type(exc).__name__}: {exc}"
-        cleanup["process_residue"] = [{"pid": pid, "state": "remaining_scan_unverified"} for pid in alive]
+        cleanup["process_residue"] = [
+            {"pid": pid, "state": "remaining_scan_unverified"} for pid in alive
+        ]
         return cleanup
     cleanup["process_residue"] = [{"pid": pid, "state": "still_alive"} for pid in remaining]
     return cleanup
@@ -820,9 +915,7 @@ class NodeClient:
     def _activate_connection_generation(self, ws: Any) -> int:
         self._ensure_ws_writer_state()
         if self._generation_teardown_failed:
-            raise TransportGenerationTeardownFailed(
-                "prior websocket generation did not quiesce"
-            )
+            raise TransportGenerationTeardownFailed("prior websocket generation did not quiesce")
         if self._active_ws_generation is not None:
             raise TransportGenerationTeardownFailed(
                 "refusing overlapping websocket connection generations"
@@ -833,12 +926,8 @@ class NodeClient:
         self._ws_queue_generation = generation
         self._ws = ws
         self._ws_transport_healthy = True
-        self._ws_send_queues = {
-            traffic_class: deque() for traffic_class in _TRAFFIC_CLASSES
-        }
-        self._ws_send_queue_bytes = {
-            traffic_class: 0 for traffic_class in _TRAFFIC_CLASSES
-        }
+        self._ws_send_queues = {traffic_class: deque() for traffic_class in _TRAFFIC_CLASSES}
+        self._ws_send_queue_bytes = {traffic_class: 0 for traffic_class in _TRAFFIC_CLASSES}
         self._authority_send_burst = 0
         self._ws_writer_task = None
         self._generation_tasks[generation] = set()
@@ -928,9 +1017,7 @@ class NodeClient:
             abort = getattr(transport, "abort", None)
             if callable(abort):
                 abort()
-            labels = sorted(
-                self._generation_task_labels.get(task, "unknown") for task in pending
-            )
+            labels = sorted(self._generation_task_labels.get(task, "unknown") for task in pending)
             raise TransportGenerationTeardownFailed(
                 "TRANSPORT_GENERATION_TEARDOWN_FAILED: " + ",".join(labels)
             )
@@ -939,12 +1026,8 @@ class NodeClient:
         self._ws_writer_task = None
         self._media_drain_task = None
         if self._ws_queue_generation == generation:
-            self._ws_send_queues = {
-                traffic_class: deque() for traffic_class in _TRAFFIC_CLASSES
-            }
-            self._ws_send_queue_bytes = {
-                traffic_class: 0 for traffic_class in _TRAFFIC_CLASSES
-            }
+            self._ws_send_queues = {traffic_class: deque() for traffic_class in _TRAFFIC_CLASSES}
+            self._ws_send_queue_bytes = {traffic_class: 0 for traffic_class in _TRAFFIC_CLASSES}
             self._ws_queue_generation = 0
 
     def _normalize_traffic_class(self, traffic_class: str) -> str:
@@ -1104,11 +1187,7 @@ class NodeClient:
         generation: int,
     ) -> float:
         ws = self._ws
-        if (
-            ws is None
-            or generation != self._active_generation()
-            or not self._ws_transport_healthy
-        ):
+        if ws is None or generation != self._active_generation() or not self._ws_transport_healthy:
             raise ConnectionError("node websocket transport generation unavailable")
         started = time.monotonic()
         send_task = self._create_generation_task(
@@ -1440,7 +1519,9 @@ class NodeClient:
                     },
                 )
             except (KeyError, ValueError):
-                logger.exception("failed to persist logical execution shutdown state: %s", request_id)
+                logger.exception(
+                    "failed to persist logical execution shutdown state: %s", request_id
+                )
             task.cancel()
         if pending:
             await asyncio.gather(*pending, return_exceptions=True)
@@ -1741,11 +1822,17 @@ class NodeClient:
         if not authoritative_effect:
             return False, "capability has no canonical effect policy"
         if authoritative_effect == READ_ONLY_EFFECT:
-            return False, "DurableRemote consequential execution requires canonical consequential policy"
+            return (
+                False,
+                "DurableRemote consequential execution requires canonical consequential policy",
+            )
         if normalized_effect != CONSEQUENTIAL_WRITE_EFFECT:
             return False, "write-class capability requires CONSEQUENTIAL_WRITE effect binding"
         if not is_write_class(risk_class):
-            return False, "write-class capability risk_class conflicts with canonical consequential policy"
+            return (
+                False,
+                "write-class capability risk_class conflicts with canonical consequential policy",
+            )
 
         if not get_verdict_secret():
             return False, "no mesh verdict secret configured on node (fail-closed)"
@@ -1925,11 +2012,8 @@ class NodeClient:
         req: DurableRemoteRequest,
         *,
         claim_id: str,
-    ) -> dict[str, str]:
-        identity = self._durable_request_identity(req)
-        identity["claim_id"] = str(claim_id or "")
-        identity["execution_id"] = sha256_json(identity)
-        return identity
+    ) -> dict[str, Any]:
+        return durable_execution_identity(req, claim_id=claim_id)
 
     def _durable_cancel_matches_active_execution(
         self,
@@ -1942,7 +2026,11 @@ class NodeClient:
             return True
         if self._durable_request_identity(current) != self._durable_request_identity(delivered_req):
             return False
-        execution_identity = dict((logical or {}).get("execution_identity") or {})
+        execution_identity = dict(
+            (logical or {}).get("execution_identity")
+            or current.process_tree.get("execution_identity")
+            or {}
+        )
         active_claim_id = str(
             execution_identity.get("claim_id")
             or (logical or {}).get("claim_id")
@@ -1951,7 +2039,18 @@ class NodeClient:
         )
         if not active_claim_id:
             return not delivered_req.claim_id
-        return str(delivered_req.claim_id or "") == active_claim_id
+        if str(delivered_req.claim_id or "") != active_claim_id:
+            return False
+        if not execution_identity:
+            execution_identity = self._durable_execution_identity(
+                current,
+                claim_id=active_claim_id,
+            )
+        incoming_identity = self._durable_execution_identity(
+            delivered_req,
+            claim_id=active_claim_id,
+        )
+        return incoming_identity == execution_identity
 
     def _record_rejected_durable_control(
         self,
@@ -1962,9 +2061,7 @@ class NodeClient:
         current = self._durable_store.get_request(delivered_req.request_id)
         if current is None:
             return
-        logical = getattr(self, "_durable_logical_executions", {}).get(
-            delivered_req.request_id
-        )
+        logical = getattr(self, "_durable_logical_executions", {}).get(delivered_req.request_id)
         active_identity = dict((logical or {}).get("execution_identity") or {})
         self._durable_store.record_transport_diagnostic(
             delivered_req.request_id,
@@ -2014,7 +2111,9 @@ class NodeClient:
             and trajectory.get("status")
             in {"FAIL_CLOSED", "TERMINAL_OBSERVED", "RECONCILIATION_PENDING"}
         ]
-        for _, request_id in sorted(terminal)[: max(0, len(trajectories) - _DURABLE_TRAJECTORY_MAX)]:
+        for _, request_id in sorted(terminal)[
+            : max(0, len(trajectories) - _DURABLE_TRAJECTORY_MAX)
+        ]:
             trajectories.pop(request_id, None)
 
     def _durable_request_trajectory(self, req: DurableRemoteRequest) -> dict[str, Any]:
@@ -2066,24 +2165,20 @@ class NodeClient:
         if req.claim_id and not trajectory.get("claim_id"):
             trajectory["claim_id"] = req.claim_id
         existing_status = str(trajectory.get("status", "") or "")
-        if (
-            existing_status in {"FAIL_CLOSED", "RECONCILIATION_PENDING"}
-            and req.lifecycle_state not in {"RUNNING", *TERMINAL_STATES}
-        ):
+        if existing_status in {
+            "FAIL_CLOSED",
+            "RECONCILIATION_PENDING",
+        } and req.lifecycle_state not in {"RUNNING", *TERMINAL_STATES}:
             trajectory["updated_at"] = time.monotonic()
             return
         if req.lifecycle_state == "RUNNING":
             trajectory["status"] = "RUNNING_OR_RECONCILING"
         elif req.lifecycle_state in TERMINAL_STATES:
             trajectory["status"] = "TERMINAL_OBSERVED"
-            trajectory["retain_until"] = (
-                time.monotonic() + _DURABLE_TRAJECTORY_TOMBSTONE_TTL_S
-            )
+            trajectory["retain_until"] = time.monotonic() + _DURABLE_TRAJECTORY_TOMBSTONE_TTL_S
         elif req.lifecycle_state == "RECONCILIATION_REQUIRED":
             trajectory["status"] = "RECONCILIATION_PENDING"
-            trajectory["retain_until"] = (
-                time.monotonic() + _DURABLE_TRAJECTORY_TOMBSTONE_TTL_S
-            )
+            trajectory["retain_until"] = time.monotonic() + _DURABLE_TRAJECTORY_TOMBSTONE_TTL_S
         elif req.lifecycle_state == "CLAIMED":
             trajectory["status"] = "ACQUIRING"
         trajectory["updated_at"] = time.monotonic()
@@ -2155,9 +2250,7 @@ class NodeClient:
         root_pid = current.process_tree.get("root_pid")
         proc = self._durable_processes.get(delivered_req.request_id)
         if current.lifecycle_state == "RUNNING" or root_pid or proc is not None:
-            logical = getattr(self, "_durable_logical_executions", {}).get(
-                delivered_req.request_id
-            )
+            logical = getattr(self, "_durable_logical_executions", {}).get(delivered_req.request_id)
             operation_future = (logical or {}).get("operation_future")
             if (
                 (logical or {}).get("state") == "STARTED"
@@ -2438,18 +2531,14 @@ class NodeClient:
             return {"ok": False, "error": "node websocket not connected"} if expect_ack else None
         self._ensure_ws_writer_state()
         expected_generation = (
-            generation
-            or _connection_generation_context.get()
-            or self._active_generation()
+            generation or _connection_generation_context.get() or self._active_generation()
         )
         terminal_request_id = ""
         if method == "durable_command.result":
             terminal_request_id = str(payload.get("request_id", "") or "")
             try:
                 payload = self._canonical_terminal_result_payload(terminal_request_id)
-                self._durable_store.record_terminal_result_delivery_attempt(
-                    terminal_request_id
-                )
+                self._durable_store.record_terminal_result_delivery_attempt(terminal_request_id)
             except (KeyError, ValueError) as exc:
                 persisted_reconciliation_evidence = (
                     terminal_request_id
@@ -2497,7 +2586,11 @@ class NodeClient:
                 self._durable_store.record_transport_diagnostic(
                     request_id,
                     "NODE_AUTHORITY_SEND_QUEUED",
-                    {"method": method, "message_id": msg_id, "traffic_class": _TRAFFIC_AUTHORITY_CONTROL},
+                    {
+                        "method": method,
+                        "message_id": msg_id,
+                        "traffic_class": _TRAFFIC_AUTHORITY_CONTROL,
+                    },
                 )
             send_evidence = await self._send_ws(
                 message,
@@ -2615,9 +2708,7 @@ class NodeClient:
                     delivered_req.request_id,
                 )
                 return
-            logical = getattr(self, "_durable_logical_executions", {}).get(
-                delivered_req.request_id
-            )
+            logical = getattr(self, "_durable_logical_executions", {}).get(delivered_req.request_id)
             if not self._durable_cancel_matches_active_execution(
                 delivered_req,
                 logical=logical,
@@ -2683,6 +2774,22 @@ class NodeClient:
                 },
             )
             return
+
+        launch_state = str(req.process_tree.get("launch_state", "") or "")
+        local_process = self._durable_processes.get(req.request_id)
+        logical = getattr(self, "_durable_logical_executions", {}).get(req.request_id)
+        local_execution_active = bool(
+            local_process is not None
+            or (
+                logical is not None
+                and logical.get("state") in {"AUTHORIZED", "STARTED"}
+                and isinstance(logical.get("task"), asyncio.Task)
+                and not logical["task"].done()
+            )
+        )
+        if launch_state and not local_execution_active:
+            if await self._recover_interrupted_shell_launch(req):
+                return
 
         if delivered_req.lifecycle_state == "CANCEL_REQUESTED":
             terminal = await self._cancel_durable_request(
@@ -2895,7 +3002,9 @@ class NodeClient:
             claim_id=claim_id,
         )
         process_tree = {"node_pid": os.getpid(), "claimed_at": time.time()}
-        self._durable_store.mark_claimed(req.request_id, claim_id=claim_id, process_tree=process_tree)
+        self._durable_store.mark_claimed(
+            req.request_id, claim_id=claim_id, process_tree=process_tree
+        )
         ack = await self._acquire_durable_claim(
             req,
             claim_id=claim_id,
@@ -3027,9 +3136,8 @@ class NodeClient:
             )
             return
         if effective_state == "RUNNING":
-            if (
-                self._durable_request_is_shell_backed(current)
-                and not effective_process_tree.get("root_pid")
+            if self._durable_request_is_shell_backed(current) and not effective_process_tree.get(
+                "root_pid"
             ):
                 execution_lock = self._durable_execution_locks.get(current.request_id)
                 if execution_lock is not None and execution_lock.locked():
@@ -3079,8 +3187,7 @@ class NodeClient:
             current,
             claim_id=claim_id,
             reason=(
-                "claim no longer executable: "
-                f"state={effective_state} claim={current.claim_id}"
+                f"claim no longer executable: state={effective_state} claim={current.claim_id}"
             ),
         )
 
@@ -3089,6 +3196,112 @@ class NodeClient:
         cap_name = str(req.capability or "")
         adapter_key = cap_name.split(".")[0] if "." in cap_name else cap_name
         return adapter_key == "shell"
+
+    async def _recover_interrupted_shell_launch(
+        self,
+        req: DurableRemoteRequest,
+    ) -> bool:
+        """Resolve durable shell launch state without ever relaunching uncertain work."""
+
+        if not self._durable_request_is_shell_backed(req):
+            return False
+        launch_state = str(req.process_tree.get("launch_state", "") or "")
+        if not launch_state:
+            return False
+        claim_id = str(req.claim_id or "")
+        execution_identity = dict(req.process_tree.get("execution_identity") or {})
+        expected_identity = self._durable_execution_identity(req, claim_id=claim_id)
+        if not claim_id or execution_identity != expected_identity:
+            self._durable_store.mark_reconciliation_required(
+                req.request_id,
+                reason="persisted shell launch identity does not match canonical execution",
+                cleanup={
+                    "process_residue": [{"state": "shell_execution_identity_mismatch"}],
+                    "execution_outcome_unknown": True,
+                },
+            )
+            return True
+        if launch_state == SHELL_LAUNCH_INTENT_PERSISTED:
+            cleanup = {
+                "process_residue": [],
+                "launch_not_attempted": True,
+                "launch_intent_id": req.process_tree.get("launch_intent_id", ""),
+                "execution_identity": execution_identity,
+            }
+            terminal = self._durable_store.publish_result(
+                req.request_id,
+                claim_id=claim_id,
+                state="FAILED",
+                result={
+                    "success": False,
+                    "error": "node stopped after durable launch intent but before launch attempt",
+                    "launch_not_attempted": True,
+                },
+                cleanup=cleanup,
+            )
+            persisted = self._durable_store.result_for(req.request_id) or {}
+            await self._send_durable_event(
+                "durable_command.result",
+                {
+                    "request_id": req.request_id,
+                    "claim_id": claim_id,
+                    "state": terminal.lifecycle_state,
+                    "result": persisted.get("result", {}),
+                    "cleanup": cleanup,
+                },
+            )
+            return True
+        if launch_state == SHELL_LAUNCH_IN_PROGRESS and not req.process_tree.get("root_pid"):
+            self._durable_store.mark_reconciliation_required(
+                req.request_id,
+                reason="shell launch may have completed before process identity persistence",
+                cleanup={
+                    "process_residue": [{"state": "shell_launch_outcome_uncertain"}],
+                    "execution_outcome_unknown": True,
+                    "duplicate_launch_fenced": True,
+                    "launch_intent_id": req.process_tree.get("launch_intent_id", ""),
+                    "execution_identity": execution_identity,
+                },
+            )
+            return True
+        stored_process = dict(req.process_tree.get("process_identity") or {})
+        matched, reason, observed = _durable_process_identity_matches(
+            stored_process,
+            command_digest=req.payload_digest,
+        )
+        cleanup = {
+            "process_residue": [
+                {
+                    "pid": req.process_tree.get("root_pid"),
+                    "state": "observerless_exact_shell_process"
+                    if matched
+                    else "shell_process_ownership_unverified",
+                }
+            ],
+            "execution_outcome_unknown": True,
+            "duplicate_launch_fenced": True,
+            "process_identity_match": matched,
+            "process_identity_reason": reason,
+            "persisted_process_identity": stored_process,
+            "observed_process_identity": observed or {},
+            "execution_identity": execution_identity,
+        }
+        if matched and req.lifecycle_state == "CLAIMED":
+            self._durable_store.mark_running(
+                req.request_id,
+                claim_id=claim_id,
+                process_tree=req.process_tree,
+            )
+        self._durable_store.mark_reconciliation_required(
+            req.request_id,
+            reason=(
+                "exact shell process recovered without durable outcome observer"
+                if matched
+                else reason
+            ),
+            cleanup=cleanup,
+        )
+        return True
 
     async def _execute_accepted_durable_claim(
         self,
@@ -3153,11 +3366,29 @@ class NodeClient:
                 claim_id=claim_id,
                 process_tree=current.process_tree or process_tree,
             )
+            if result.get("execution_outcome_unresolved"):
+                cleanup = dict(
+                    result.get("cleanup")
+                    or {
+                        "process_residue": [{"state": "shell_launch_outcome_uncertain"}],
+                        "execution_outcome_unknown": True,
+                    }
+                )
+                self._durable_store.mark_reconciliation_required(
+                    current.request_id,
+                    reason=str(result.get("error", "shell execution outcome unresolved")),
+                    cleanup=cleanup,
+                )
+                self._record_durable_request_trajectory(
+                    current.request_id,
+                    status="RECONCILIATION_PENDING",
+                    claim_id=claim_id,
+                    terminal=True,
+                )
+                return
             state = "SUCCEEDED" if result.get("success") else "FAILED"
             cleanup = dict(result.get("cleanup") or {"process_residue": []})
-            logical = getattr(self, "_durable_logical_executions", {}).get(
-                current.request_id
-            )
+            logical = getattr(self, "_durable_logical_executions", {}).get(current.request_id)
             if logical is not None:
                 logical["outcome_state"] = state
             if result.get("durable_request_missing_after_running"):
@@ -3278,6 +3509,36 @@ class NodeClient:
     ) -> DurableRemoteRequest:
         """Fail closed when a claimed request cannot prove execution authority."""
         current = self._durable_store.get_request(req.request_id) or req
+        launch_state = str(current.process_tree.get("launch_state", "") or "")
+        if launch_state in {
+            SHELL_LAUNCH_IN_PROGRESS,
+            SHELL_PROCESS_IDENTITY_PERSISTED,
+            SHELL_LAUNCH_RUNNING,
+        }:
+            cleanup = {
+                "process_residue": [
+                    {
+                        "pid": current.process_tree.get("root_pid"),
+                        "state": "shell_launch_or_execution_outcome_uncertain",
+                    }
+                ],
+                "execution_outcome_unknown": True,
+                "duplicate_launch_fenced": True,
+                "launch_state": launch_state,
+                "execution_identity": current.process_tree.get("execution_identity", {}),
+            }
+            terminal = self._durable_store.mark_reconciliation_required(
+                current.request_id,
+                reason=f"{reason}; shell launch cannot be terminalized definitively",
+                cleanup=cleanup,
+            )
+            self._record_durable_request_trajectory(
+                current.request_id,
+                status="RECONCILIATION_PENDING",
+                claim_id=claim_id,
+                terminal=True,
+            )
+            return terminal
         if current.lifecycle_state == "CANCEL_REQUESTED":
             terminal = await self._cancel_durable_request(
                 current,
@@ -3417,9 +3678,7 @@ class NodeClient:
                     {
                         "method": "canonical_durable_claim_state",
                         "ok": bool(readback.get("ok")),
-                        "error": str(
-                            readback.get("error", validated_ack.get("error", ""))
-                        ),
+                        "error": str(readback.get("error", validated_ack.get("error", ""))),
                     }
                 )
                 if readback.get("ok"):
@@ -3780,6 +4039,32 @@ class NodeClient:
         claim_id: str,
         process_tree: dict[str, Any],
     ) -> dict[str, Any]:
+        if self._durable_request_is_shell_backed(req):
+            current = self._durable_store.get_request(req.request_id) or req
+            effective_tree = {**current.process_tree, **process_tree}
+            if (
+                effective_tree.get("launch_state") != SHELL_PROCESS_IDENTITY_PERSISTED
+                or not effective_tree.get("root_pid")
+                or not effective_tree.get("process_identity")
+                or not effective_tree.get("execution_identity")
+                or not effective_tree.get("launch_intent_id")
+            ):
+                self._durable_store.mark_reconciliation_required(
+                    req.request_id,
+                    reason="shell RUNNING requires durable exact process identity",
+                    cleanup={
+                        "process_residue": [{"state": "shell_process_identity_not_persisted"}],
+                        "execution_outcome_unknown": True,
+                    },
+                )
+                return {
+                    "ok": False,
+                    "error": "shell RUNNING requires durable exact process identity",
+                }
+            process_tree = {
+                **effective_tree,
+                "launch_state": SHELL_LAUNCH_RUNNING,
+            }
         updated = self._durable_store.mark_running(
             req.request_id,
             claim_id=claim_id,
@@ -3892,9 +4177,8 @@ class NodeClient:
                 },
             )
             return self._durable_store.get_request(req.request_id) or req
-        if (
-            req.lifecycle_state == "RECONCILIATION_REQUIRED"
-            and bool((req.cleanup or {}).get("execution_outcome_unknown"))
+        if req.lifecycle_state == "RECONCILIATION_REQUIRED" and bool(
+            (req.cleanup or {}).get("execution_outcome_unknown")
         ):
             self._durable_store.record_transport_diagnostic(
                 req.request_id,
@@ -3902,6 +4186,35 @@ class NodeClient:
                 {"claim_id": claim_id},
             )
             return self._durable_store.get_request(req.request_id) or req
+        launch_state = str(req.process_tree.get("launch_state", "") or "")
+        if launch_state in {
+            SHELL_LAUNCH_IN_PROGRESS,
+            SHELL_PROCESS_IDENTITY_PERSISTED,
+            SHELL_LAUNCH_RUNNING,
+        }:
+            current = self._durable_store.mark_reconciliation_required(
+                req.request_id,
+                reason="cancel requested while shell launch/execution outcome is uncertain",
+                cleanup={
+                    "process_residue": [
+                        {
+                            "pid": req.process_tree.get("root_pid"),
+                            "state": "shell_launch_or_execution_outcome_uncertain",
+                        }
+                    ],
+                    "execution_outcome_unknown": True,
+                    "duplicate_launch_fenced": True,
+                    "launch_state": launch_state,
+                    "execution_identity": req.process_tree.get("execution_identity", {}),
+                },
+            )
+            self._record_durable_request_trajectory(
+                req.request_id,
+                status="RECONCILIATION_PENDING",
+                claim_id=claim_id,
+                terminal=True,
+            )
+            return current
         proc = self._durable_processes.get(req.request_id)
         cleanup = {
             "process_residue": [],
@@ -3913,10 +4226,12 @@ class NodeClient:
             cleanup["cancel_reason"] = reason
             cleanup.update(req.cancellation_identity(claim_id=claim_id))
         elif req.process_tree.get("root_pid") or req.lifecycle_state == "RUNNING":
-            cleanup["process_residue"] = [{
-                "pid": req.process_tree.get("root_pid"),
-                "state": "running_process_owner_lost_after_restart",
-            }]
+            cleanup["process_residue"] = [
+                {
+                    "pid": req.process_tree.get("root_pid"),
+                    "state": "running_process_owner_lost_after_restart",
+                }
+            ]
             cleanup["process_owner_lost_after_restart"] = True
             cleanup["execution_outcome_unknown"] = True
             current = self._durable_store.mark_reconciliation_required(
@@ -4070,10 +4385,9 @@ class NodeClient:
                 captured["output_capture"]["stdout_bytes_seen"]
                 + captured["output_capture"]["stderr_bytes_seen"]
             )
-            captured["output_capture"]["redacted"] = (
-                str(stdout or "") != _redact_durable_output(str(stdout or ""))
-                or str(stderr or "") != _redact_durable_output(str(stderr or ""))
-            )
+            captured["output_capture"]["redacted"] = str(stdout or "") != _redact_durable_output(
+                str(stdout or "")
+            ) or str(stderr or "") != _redact_durable_output(str(stderr or ""))
             return captured
         return collector.snapshot(join_timeout=_DURABLE_TIMEOUT_DRAIN_SECONDS)
 
@@ -4116,7 +4430,15 @@ class NodeClient:
         if adapter is None:
             return {"success": False, "error": f"adapter not available: {adapter_key}"}
         timeout = max(1.0, min(float(cap_params.get("timeout", 30)), 300.0))
+        logical = getattr(self, "_durable_logical_executions", {}).get(req.request_id)
         if adapter_key == "shell":
+            if logical is not None:
+                logical["claim_id"] = claim_id
+                logical["execution_identity"] = self._durable_execution_identity(
+                    req,
+                    claim_id=claim_id,
+                )
+                logical["state"] = "AUTHORIZED"
             return await self._execute_shell_for_durable(
                 req,
                 cap_name=cap_name,
@@ -4165,7 +4487,6 @@ class NodeClient:
                 "error": "request expired before adapter start",
                 "cleanup": {"process_residue": []},
             }
-        logical = getattr(self, "_durable_logical_executions", {}).get(req.request_id)
         if logical is not None:
             logical["state"] = "STARTED"
             logical["claim_id"] = claim_id
@@ -4232,23 +4553,38 @@ class NodeClient:
         output_collector: _DurablePipeCollector | None = None
         last_tree_pids: list[int] = []
         try:
-            pre_start_tree = dict(process_tree)
-            pre_start_tree.update(
+            logical = getattr(self, "_durable_logical_executions", {}).get(req.request_id)
+            execution_identity = dict(
+                (logical or {}).get("execution_identity")
+                or self._durable_execution_identity(req, claim_id=claim_id)
+            )
+            launch_intent_id = sha256_json(
                 {
+                    "execution_identity": execution_identity,
                     "command_digest": req.payload_digest,
-                    "root_pid": None,
-                    "pre_start_containment": True,
+                    "capability": cap_name,
                 }
             )
-            running_ack = await self._announce_durable_running(
-                req,
+            launch_material = {
+                "command_digest": req.payload_digest,
+                "root_pid": None,
+                "pre_start_containment": True,
+                "execution_identity": execution_identity,
+                "launch_intent_id": launch_intent_id,
+                "launch_not_attempted": True,
+            }
+            current = self._durable_store.mark_shell_launch_state(
+                req.request_id,
                 claim_id=claim_id,
-                process_tree=pre_start_tree,
+                launch_state=SHELL_LAUNCH_INTENT_PERSISTED,
+                launch_material=launch_material,
             )
-            if not running_ack.get("ok"):
+            if current.lifecycle_state != "CLAIMED":
                 return {
                     "success": False,
-                    "error": f"running acknowledgement rejected: {running_ack.get('error', '')}",
+                    "error": f"launch intent rejected into {current.lifecycle_state}",
+                    "execution_outcome_unresolved": current.lifecycle_state
+                    == "RECONCILIATION_REQUIRED",
                 }
             current = self._durable_store.get_request(req.request_id)
             if current and current.lifecycle_state == "CANCEL_REQUESTED":
@@ -4269,10 +4605,10 @@ class NodeClient:
                     "durable_request_missing_after_running": True,
                     "cleanup": {"process_residue": []},
                 }
-            if current and (current.lifecycle_state != "RUNNING" or current.claim_id != claim_id):
+            if current and (current.lifecycle_state != "CLAIMED" or current.claim_id != claim_id):
                 return {
                     "success": False,
-                    "error": f"running state changed before process start: {current.lifecycle_state}",
+                    "error": f"claimed state changed before process start: {current.lifecycle_state}",
                 }
             if current and self._durable_request_expired(current):
                 return {
@@ -4286,6 +4622,24 @@ class NodeClient:
                 extra["creationflags"] = subprocess.CREATE_NO_WINDOW
             else:
                 extra["start_new_session"] = True
+            launch_material["launch_not_attempted"] = False
+            launch_material["launch_attempted_at"] = time.time()
+            current = self._durable_store.mark_shell_launch_state(
+                req.request_id,
+                claim_id=claim_id,
+                launch_state=SHELL_LAUNCH_IN_PROGRESS,
+                launch_material=launch_material,
+            )
+            if current.lifecycle_state != "CLAIMED":
+                return {
+                    "success": False,
+                    "error": f"launch attempt rejected into {current.lifecycle_state}",
+                    "execution_outcome_unresolved": True,
+                }
+            if logical is not None:
+                logical["state"] = "STARTED"
+                logical["execution_identity"] = execution_identity
+                logical["started_at"] = time.monotonic()
             proc = subprocess.Popen(
                 args,
                 cwd=cwd,
@@ -4301,22 +4655,45 @@ class NodeClient:
                 last_tree_pids = _durable_owned_process_tree_pids(proc.pid)
             except Exception:
                 last_tree_pids = [proc.pid]
-            process_tree = dict(process_tree)
-            process_tree.update({"root_pid": proc.pid, "command_digest": req.payload_digest})
-            self._durable_store.mark_running(
+            process_identity = _durable_process_identity(
+                proc.pid,
+                command_digest=req.payload_digest,
+            )
+            process_tree = {
+                **process_tree,
+                **launch_material,
+                "root_pid": proc.pid,
+                "process_identity": process_identity,
+            }
+            current = self._durable_store.mark_shell_launch_state(
                 req.request_id,
+                claim_id=claim_id,
+                launch_state=SHELL_PROCESS_IDENTITY_PERSISTED,
+                launch_material=process_tree,
+            )
+            if current.lifecycle_state != "CLAIMED":
+                cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
+                return {
+                    "success": False,
+                    "error": f"process identity persistence rejected into {current.lifecycle_state}",
+                    "cleanup": cleanup,
+                    "execution_outcome_unresolved": bool(cleanup.get("process_residue")),
+                }
+            running_ack = await self._announce_durable_running(
+                req,
                 claim_id=claim_id,
                 process_tree=process_tree,
             )
-            await self._send_durable_event(
-                "durable_command.claimed",
-                {
-                    "request_id": req.request_id,
-                    "claim_id": claim_id,
-                    "state": "RUNNING",
-                    "process_tree": process_tree,
-                },
-            )
+            if not running_ack.get("ok"):
+                self._durable_store.record_transport_diagnostic(
+                    req.request_id,
+                    "RUNNING_ACK_UNRESOLVED_AFTER_PROCESS_IDENTITY",
+                    {
+                        "claim_id": claim_id,
+                        "execution_id": execution_identity["execution_id"],
+                        "error": str(running_ack.get("error", "")),
+                    },
+                )
 
             deadline = time.time() + timeout
             while proc.poll() is None:
@@ -4377,9 +4754,8 @@ class NodeClient:
                     **captured,
                 }
             cleanup = _durable_post_exit_process_cleanup(proc, last_tree_pids)
-            if (
-                cleanup.get("post_exit_process_check_ok") is not True
-                or cleanup.get("process_residue")
+            if cleanup.get("post_exit_process_check_ok") is not True or cleanup.get(
+                "process_residue"
             ):
                 return {
                     "success": False,
@@ -4444,7 +4820,9 @@ class NodeClient:
                         last_tree_pids or [proc.pid],
                     )
                 if cleanup.get("post_exit_process_check_ok") is not True:
-                    cleanup.setdefault("process_residue", [{"state": "durable_shell_cleanup_unverified"}])
+                    cleanup.setdefault(
+                        "process_residue", [{"state": "durable_shell_cleanup_unverified"}]
+                    )
             return {
                 "success": False,
                 "error": f"{type(exc).__name__}: {exc}",

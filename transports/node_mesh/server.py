@@ -22,6 +22,7 @@ from websockets.asyncio.server import ServerConnection
 from substrate.execution.durable_remote_transport import (
     DurableRemoteStore,
     sha256_json,
+    shell_running_identity_error,
     terminal_result_identity,
 )
 from substrate.execution.executor import WorkPacketExecutor
@@ -1165,9 +1166,30 @@ class NodeMeshServer:
                     "canonical_write_started",
                     {"method": "durable_command.claimed", "state": "RUNNING"},
                 )
-                updated = self._durable_store.mark_running(
-                    request_id, claim_id=claim_id, process_tree=process_tree
+                identity_error = shell_running_identity_error(
+                    req,
+                    claim_id=claim_id,
+                    process_tree=process_tree,
                 )
+                if identity_error:
+                    updated = self._durable_store.mark_reconciliation_required(
+                        request_id,
+                        reason=identity_error,
+                        cleanup={
+                            "process_residue": [
+                                {
+                                    "pid": process_tree.get("root_pid"),
+                                    "state": "shell_running_identity_rejected",
+                                }
+                            ],
+                            "execution_outcome_unknown": True,
+                            "duplicate_launch_fenced": True,
+                        },
+                    )
+                else:
+                    updated = self._durable_store.mark_running(
+                        request_id, claim_id=claim_id, process_tree=process_tree
+                    )
                 self._record_durable_delivery_progress(
                     request_id,
                     "canonical_write_completed",

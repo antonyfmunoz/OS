@@ -13,7 +13,9 @@ from typing import Callable
 TERMINAL = {"SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}
 
 
-def canonical_identity_from_serialized_token(token: str, *, syntactically_valid: bool = True) -> str:
+def canonical_identity_from_serialized_token(
+    token: str, *, syntactically_valid: bool = True
+) -> str:
     if not syntactically_valid:
         return ""
     return {
@@ -112,6 +114,14 @@ class SimState:
     generation_teardown_failed: bool = False
     durable_pump_active: bool = True
     durable_pump_generation: int = 1
+    shell_launch_state: str = "AUTHORIZED"
+    shell_launch_intent_id: str = ""
+    shell_process_identity: dict[str, str] = field(default_factory=dict)
+    shell_duplicate_launch_fenced: bool = False
+    governed_model_requested: str = "gpt-5.6-sol"
+    governed_model_resolved: str = ""
+    governed_model_attempt_id: str = ""
+    governed_model_attested: bool = False
     next_request_order: int = 0
     log: list[str] = field(default_factory=list)
 
@@ -125,6 +135,9 @@ class SimState:
             assert self.claim_id, self.log
             assert self.lifecycle in {"RUNNING", "SUCCEEDED", "RECONCILIATION_REQUIRED"}, self.log
         assert self.executed <= 1, self.log
+        if self.shell_launch_state == "LAUNCH_OUTCOME_UNCERTAIN":
+            assert self.shell_duplicate_launch_fenced, self.log
+            assert self.executed == 0, self.log
         if self.cancelled and not self.running_announced:
             assert self.executed == 0, self.log
         if self.lifecycle in TERMINAL:
@@ -142,7 +155,10 @@ class SimState:
             assert self.canonical_risk != "read_only", self.log
             if self.declared_risk == "read_only":
                 assert self.executed == 0, self.log
-        if self.declared_sync_effect == "READ_ONLY" and self.canonical_sync_effect == "CONSEQUENTIAL_WRITE":
+        if (
+            self.declared_sync_effect == "READ_ONLY"
+            and self.canonical_sync_effect == "CONSEQUENTIAL_WRITE"
+        ):
             assert self.sync_side_effects == 0, self.log
         for key, execution_count in self.execution_for_key.items():
             assert self.canonical_request_for_key.get(key), self.log
@@ -336,9 +352,7 @@ def validate_idempotency_index(state: SimState, idempotency_key: str) -> bool:
         state.record(f"corrupt_index_isolated:key={idempotency_key}")
         matches = requests_for_key_in_admission_order(state, idempotency_key)
         valid_matches = [
-            request_id
-            for request_id in matches
-            if request_material_is_canonical(state, request_id)
+            request_id for request_id in matches if request_material_is_canonical(state, request_id)
         ]
         if len(valid_matches) == 1:
             state.canonical_request_for_key[idempotency_key] = valid_matches[0]
@@ -402,15 +416,16 @@ def admit_durable_request(
     idempotency_key: str,
     payload_identity: str,
 ) -> str | None:
-    state.record(
-        f"admit:request={request_id}:key={idempotency_key}:payload={payload_identity}"
-    )
+    state.record(f"admit:request={request_id}:key={idempotency_key}:payload={payload_identity}")
     if not idempotency_key.strip():
         state.idempotency_conflict = True
         state.fail_closed = True
         state.assert_invariants()
         return None
-    if idempotency_key in state.corrupt_index_keys or idempotency_key in state.fenced_idempotency_keys:
+    if (
+        idempotency_key in state.corrupt_index_keys
+        or idempotency_key in state.fenced_idempotency_keys
+    ):
         if not validate_idempotency_index(state, idempotency_key):
             return None
     canonical = state.canonical_request_for_key.get(idempotency_key)
@@ -541,7 +556,9 @@ def sync_mesh_receive(
     retry: bool = False,
 ) -> None:
     resolved = canonical_effect if canonical_effect is not None else declared_effect
-    resolved_risk = canonical_risk or ("read_only" if resolved == "READ_ONLY" else "reversible_write")
+    resolved_risk = canonical_risk or (
+        "read_only" if resolved == "READ_ONLY" else "reversible_write"
+    )
     state.declared_sync_effect = declared_effect
     state.canonical_sync_effect = resolved
     state.declared_risk = declared_risk
@@ -552,7 +569,11 @@ def sync_mesh_receive(
     )
     if declared_effect == resolved == "READ_ONLY" and declared_risk == resolved_risk == "read_only":
         state.sync_observations += 1
-    elif resolved in {"CONSEQUENTIAL_WRITE", "UNKNOWN"} or declared_effect != resolved or declared_risk != resolved_risk:
+    elif (
+        resolved in {"CONSEQUENTIAL_WRITE", "UNKNOWN"}
+        or declared_effect != resolved
+        or declared_risk != resolved_risk
+    ):
         state.fail_closed = True
     else:
         state.canonical_sync_effect = "UNKNOWN"
@@ -1021,7 +1042,10 @@ def _same_key_two_request_ids_sequential_converge(state: SimState) -> None:
 
 
 def _missing_idempotency_key_fails_closed(state: SimState) -> None:
-    assert admit_durable_request(state, request_id="A", idempotency_key="", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="A", idempotency_key="", payload_identity="P")
+        is None
+    )
     assert not state.canonical_request_for_key
     assert state.idempotency_conflict, state.log
 
@@ -1034,7 +1058,10 @@ def _same_key_two_request_ids_concurrent_converge(state: SimState) -> None:
 
 def _same_key_different_payload_conflicts(state: SimState) -> None:
     assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P1")
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P2") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P2")
+        is None
+    )
     assert state.idempotency_conflict, state.log
 
 
@@ -1044,40 +1071,58 @@ def _duplicate_after_running_same_trajectory(state: SimState) -> None:
     claim_write(state)
     canonical_read(state)
     announce_running_and_execute(state)
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") == "A"
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        == "A"
+    )
     assert state.execution_for_key["K"] == 1
 
 
 def _duplicate_after_succeeded_no_second_execution(state: SimState) -> None:
     _normal_success(state)
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") == "A"
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        == "A"
+    )
     assert state.execution_for_key["K"] == 1
 
 
 def _restart_after_admission_duplicate_recovers(state: SimState) -> None:
     admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     restart_mesh(state)
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") == "A"
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        == "A"
+    )
 
 
 def _lost_admission_response_retry_new_request_id_recovers(state: SimState) -> None:
     admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     state.record("admission_response_lost")
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") == "A"
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        == "A"
+    )
 
 
 def _index_present_duplicate_file_is_quarantined(state: SimState) -> None:
     admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     inject_duplicate_request_file(state, request_id="B", idempotency_key="K")
     assert "B" in state.deliverable_requests, state.log
-    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") == "A"
+    assert (
+        admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P")
+        == "A"
+    )
     assert "B" not in state.deliverable_requests, state.log
 
 
 def _partial_persistence_reconciliation_prevents_fork(state: SimState) -> None:
     state.canonical_request_for_key["K"] = "A"
     state.record("partial_index_without_request")
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert state.fail_closed
 
 
@@ -1104,7 +1149,10 @@ def _wrong_index_existing_duplicate_fails_closed(state: SimState) -> None:
     admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     inject_duplicate_request_file(state, request_id="B", idempotency_key="K")
     state.canonical_request_for_key["K"] = "B"
-    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert state.fail_closed, state.log
     assert state.idempotency_conflict, state.log
     assert "A" not in state.deliverable_requests, state.log
@@ -1116,7 +1164,10 @@ def _missing_admission_evidence_wrong_index_fails_closed(state: SimState) -> Non
     inject_duplicate_request_file(state, request_id="B", idempotency_key="K")
     state.admitted_request_for_key.pop("K")
     state.canonical_request_for_key["K"] = "B"
-    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert state.fail_closed, state.log
     assert state.idempotency_conflict, state.log
     assert "A" not in state.deliverable_requests, state.log
@@ -1127,7 +1178,10 @@ def _missing_admission_evidence_multiple_records_fails_closed(state: SimState) -
     admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     inject_duplicate_request_file(state, request_id="B", idempotency_key="K")
     state.admitted_request_for_key.pop("K")
-    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert state.fail_closed, state.log
     assert state.idempotency_conflict, state.log
     assert "A" not in state.deliverable_requests, state.log
@@ -1309,7 +1363,10 @@ def _corrupt_result_does_not_terminalize(state: SimState) -> None:
 
 def _corrupt_index_no_valid_request_fences_key(state: SimState) -> None:
     state.corrupt_index_keys.add("K")
-    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert "K" in state.fenced_idempotency_keys, state.log
     assert "K" not in state.canonical_request_for_key, state.log
 
@@ -1333,7 +1390,10 @@ def _corrupt_same_key_request_blocks_fresh_admission(state: SimState) -> None:
         material_valid=False,
         corrupt=True,
     )
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert "K" in state.fenced_idempotency_keys, state.log
     assert "K" not in state.canonical_request_for_key, state.log
     assert "B" not in state.persisted_request_key, state.log
@@ -1345,7 +1405,10 @@ def _escaped_json_key_value_bypass_reproduction(state: SimState) -> None:
         request_id="A",
         serialized_identity="K_ESCAPED_VALUE",
     )
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert "K" in state.fenced_idempotency_keys, state.log
     assert "B" not in state.persisted_request_key, state.log
 
@@ -1356,7 +1419,10 @@ def _escaped_field_name_bypass_reproduction(state: SimState) -> None:
         request_id="A",
         serialized_identity="K_ESCAPED_FIELD",
     )
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert "K" in state.fenced_idempotency_keys, state.log
 
 
@@ -1380,7 +1446,10 @@ def _duplicate_authority_field_fails_ambiguous(state: SimState) -> None:
         request_id="A",
         serialized_identity="UNKNOWN_DUPLICATE_FIELD",
     )
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert state.unknown_scope_request_corruption, state.log
     assert "B" not in state.persisted_request_key, state.log
 
@@ -1392,7 +1461,10 @@ def _nested_decoy_identity_does_not_scope_corruption(state: SimState) -> None:
         serialized_identity="K",
         structural_field=False,
     )
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert state.unknown_scope_request_corruption, state.log
     assert "B" not in state.persisted_request_key, state.log
 
@@ -1404,12 +1476,18 @@ def _malformed_raw_token_is_unknown_scope(state: SimState) -> None:
         serialized_identity="K",
         syntactically_valid=False,
     )
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert state.unknown_scope_request_corruption, state.log
 
 
 def _bound_and_corrupt_fenced_represented(state: SimState) -> None:
-    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") == "A"
+    assert (
+        admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+        == "A"
+    )
     persist_corrupt_authority_record(
         state,
         request_id="B",
@@ -1421,7 +1499,10 @@ def _bound_and_corrupt_fenced_represented(state: SimState) -> None:
 
 def _bound_and_corrupt_fenced_blocks_fresh_request(state: SimState) -> None:
     _bound_and_corrupt_fenced_represented(state)
-    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") == "A"
+    assert (
+        admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P")
+        == "A"
+    )
     assert "C" not in state.persisted_request_key, state.log
     assert state.canonical_request_for_key["K"] == "A", state.log
 
@@ -1433,7 +1514,10 @@ def _terminal_bound_plus_corruption_preserves_terminal(state: SimState) -> None:
         request_id="B",
         serialized_identity="K_ESCAPED_FIELD",
     )
-    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") == "A"
+    assert (
+        admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P")
+        == "A"
+    )
     assert state.lifecycle == "SUCCEEDED", state.log
     assert state.execution_for_key["K"] == 1, state.log
 
@@ -1445,7 +1529,10 @@ def _restart_preserves_canonical_corruption_fence(state: SimState) -> None:
         serialized_identity="K_ESCAPED_VALUE",
     )
     restart_mesh(state)
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert "K" in state.fenced_idempotency_keys, state.log
 
 
@@ -1455,7 +1542,10 @@ def _unrelated_clean_key_progresses_with_canonical_key_scope(state: SimState) ->
         request_id="A",
         serialized_identity="K_ESCAPED_VALUE",
     )
-    assert admit_durable_request(state, request_id="B", idempotency_key="J", payload_identity="P2") == "B"
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="J", payload_identity="P2")
+        == "B"
+    )
     assert state.canonical_request_for_key["J"] == "B", state.log
 
 
@@ -1473,7 +1563,10 @@ def _corrupt_same_key_survives_restart(state: SimState) -> None:
         corrupt=True,
     )
     restart_mesh(state)
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert "K" in state.fenced_idempotency_keys, state.log
 
 
@@ -1486,19 +1579,28 @@ def _quarantined_corrupt_request_preserves_key_fence(state: SimState) -> None:
         material_valid=False,
         corrupt=True,
     )
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     state.persisted_request_key.pop("A")
     state.persisted_request_payload.pop("A", None)
     state.persisted_request_material_valid.pop("A", None)
     state.persisted_request_material_complete.pop("A", None)
     state.corrupt_request_records.discard("A")
     state.record("corrupt_request_quarantined:A")
-    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert "K" in state.fenced_idempotency_keys, state.log
 
 
 def _valid_binding_plus_corrupt_duplicate_preserves_canonical(state: SimState) -> None:
-    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") == "A"
+    assert (
+        admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+        == "A"
+    )
     persist_request_file(
         state,
         request_id="B",
@@ -1507,7 +1609,10 @@ def _valid_binding_plus_corrupt_duplicate_preserves_canonical(state: SimState) -
         material_valid=False,
         corrupt=True,
     )
-    assert admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P") == "A"
+    assert (
+        admit_durable_request(state, request_id="C", idempotency_key="K", payload_identity="P")
+        == "A"
+    )
     assert state.canonical_request_for_key["K"] == "A", state.log
     assert "B" not in state.deliverable_requests, state.log
 
@@ -1522,7 +1627,10 @@ def _corrupt_index_plus_corrupt_request_fences_key(state: SimState) -> None:
         corrupt=True,
     )
     state.corrupt_index_keys.add("K")
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert "K" in state.fenced_idempotency_keys, state.log
     assert "K" not in state.canonical_request_for_key, state.log
 
@@ -1536,7 +1644,10 @@ def _unknown_scope_corrupt_request_blocks_unproven_admission(state: SimState) ->
         material_valid=False,
         corrupt=True,
     )
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert "K" in state.fenced_idempotency_keys, state.log
     assert "K" not in state.canonical_request_for_key, state.log
 
@@ -1550,14 +1661,20 @@ def _unrelated_key_progresses_beside_key_scoped_corruption(state: SimState) -> N
         material_valid=False,
         corrupt=True,
     )
-    assert admit_durable_request(state, request_id="B", idempotency_key="J", payload_identity="P2") == "B"
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="J", payload_identity="P2")
+        == "B"
+    )
     assert state.canonical_request_for_key["J"] == "B", state.log
     assert "K" not in state.canonical_request_for_key, state.log
 
 
 def _incomplete_event_history_cannot_prove_absence(state: SimState) -> None:
     state.event_journal_corrupt = True
-    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert "K" in state.fenced_idempotency_keys, state.log
     assert "K" not in state.canonical_request_for_key, state.log
 
@@ -1577,7 +1694,13 @@ def _corrupt_result_later_publication_rejected(state: SimState) -> None:
 
 def _path_content_identity_mismatch_is_corrupt(state: SimState) -> None:
     persist_request_file(state, request_id="A", idempotency_key="K", payload_identity="P")
-    persist_request_file(state, request_id="path-B-content-A", idempotency_key="K2", payload_identity="P2", corrupt=True)
+    persist_request_file(
+        state,
+        request_id="path-B-content-A",
+        idempotency_key="K2",
+        payload_identity="P2",
+        corrupt=True,
+    )
     state.deliverable_requests.update({"A", "path-B-content-A"})
     scan_deliverable_requests(state)
     assert "A" in state.deliverable_requests, state.log
@@ -1587,13 +1710,19 @@ def _path_content_identity_mismatch_is_corrupt(state: SimState) -> None:
 def _quarantine_then_duplicate_request_remains_fenced(state: SimState) -> None:
     state.corrupt_index_keys.add("K")
     assert validate_idempotency_index(state, "K") is False
-    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert "K" in state.fenced_idempotency_keys, state.log
 
 
 def _read_error_treated_unavailable_not_absent(state: SimState) -> None:
     state.corrupt_index_keys.add("K")
-    assert admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P") is None
+    assert (
+        admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+        is None
+    )
     assert state.fail_closed, state.log
 
 
@@ -1666,7 +1795,10 @@ def _valid_duplicate_after_index_loss_converges(state: SimState) -> None:
     admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
     state.canonical_request_for_key.pop("K")
     assert recover_missing_idempotency_index(state, "K") == "A"
-    assert admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P") == "A"
+    assert (
+        admit_durable_request(state, request_id="B", idempotency_key="K", payload_identity="P")
+        == "A"
+    )
 
 
 def _keyless_persisted_request_file_not_deliverable(state: SimState) -> None:
@@ -1678,8 +1810,12 @@ def _keyless_persisted_request_file_not_deliverable(state: SimState) -> None:
 
 
 def _adapter_retry_preserves_stable_key(state: SimState) -> None:
-    first = admit_durable_request(state, request_id="A", idempotency_key="adapter:stable", payload_identity="P")
-    retry = admit_durable_request(state, request_id="B", idempotency_key="adapter:stable", payload_identity="P")
+    first = admit_durable_request(
+        state, request_id="A", idempotency_key="adapter:stable", payload_identity="P"
+    )
+    retry = admit_durable_request(
+        state, request_id="B", idempotency_key="adapter:stable", payload_identity="P"
+    )
     assert first == retry == "A", state.log
 
 
@@ -2047,6 +2183,57 @@ def _ambient_model_substitution_is_rejected(state: SimState) -> None:
     state.lifecycle = "SUCCEEDED"
 
 
+def _shell_crash_before_launch_is_definite_no_launch(state: SimState) -> None:
+    state.shell_launch_intent_id = "launch-1"
+    state.shell_launch_state = "LAUNCH_INTENT_PERSISTED"
+    state.lifecycle = "FAILED"
+    state.fail_closed = True
+    state.record("launch_not_attempted_proven")
+
+
+def _shell_crash_after_creation_before_pid_reconciles(state: SimState) -> None:
+    state.shell_launch_intent_id = "launch-2"
+    state.shell_launch_state = "LAUNCH_OUTCOME_UNCERTAIN"
+    state.shell_duplicate_launch_fenced = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.fail_closed = True
+    state.record("process_may_exist_no_pid_identity")
+
+
+def _shell_pid_reuse_rejected(state: SimState) -> None:
+    state.shell_launch_intent_id = "launch-3"
+    state.shell_process_identity = {
+        "pid": "4242",
+        "start_token": "old-start",
+        "command_digest": "payload-A",
+    }
+    observed = {"pid": "4242", "start_token": "new-start"}
+    assert observed["start_token"] != state.shell_process_identity["start_token"]
+    state.shell_launch_state = "LAUNCH_OUTCOME_UNCERTAIN"
+    state.shell_duplicate_launch_fenced = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.fail_closed = True
+    state.record("pid_reuse_attachment_rejected")
+
+
+def _shell_cancel_or_redelivery_during_uncertainty_cannot_relaunch(state: SimState) -> None:
+    state.shell_launch_state = "LAUNCH_OUTCOME_UNCERTAIN"
+    state.shell_duplicate_launch_fenced = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.cancelled = False
+    state.record("cancel_and_redelivery_preserve_uncertainty")
+
+
+def _governed_sol_missing_or_mismatched_attestation_fails_closed(state: SimState) -> None:
+    state.governed_model_attempt_id = "ea-sol"
+    state.governed_model_resolved = "gpt-5.5"
+    state.governed_model_attested = state.governed_model_resolved == state.governed_model_requested
+    assert not state.governed_model_attested
+    state.lifecycle = "FAILED"
+    state.fail_closed = True
+    state.record("governed_model_attestation_rejected")
+
+
 SCENARIOS: dict[str, Scenario] = {
     "normal_success": _normal_success,
     "ambiguous_claimed_success": _ambiguous_claimed_success,
@@ -2111,9 +2298,7 @@ SCENARIOS: dict[str, Scenario] = {
     "recovery_invalid_existing_success_cannot_legitimize": (
         _invalid_recovered_request_existing_success_cannot_legitimize
     ),
-    "recovery_late_success_after_invalid_rejected": (
-        _late_success_after_invalid_recovery_rejected
-    ),
+    "recovery_late_success_after_invalid_rejected": (_late_success_after_invalid_recovery_rejected),
     "recovery_restart_after_invalid_still_blocked": _restart_after_invalid_recovery_still_blocked,
     "recovery_valid_duplicate_after_index_loss_converges": (
         _valid_duplicate_after_index_loss_converges
@@ -2133,25 +2318,17 @@ SCENARIOS: dict[str, Scenario] = {
     "corrupt_same_key_request_blocks_fresh_admission": (
         _corrupt_same_key_request_blocks_fresh_admission
     ),
-    "canonicalization_escaped_json_key_value_bypass": (
-        _escaped_json_key_value_bypass_reproduction
-    ),
+    "canonicalization_escaped_json_key_value_bypass": (_escaped_json_key_value_bypass_reproduction),
     "canonicalization_escaped_field_name_bypass": _escaped_field_name_bypass_reproduction,
-    "canonicalization_attempt_store_escaped_scope": (
-        _attempt_store_escaped_scope_blocks_authority
-    ),
-    "canonicalization_lease_store_escaped_scope": (
-        _lease_store_escaped_scope_blocks_authority
-    ),
+    "canonicalization_attempt_store_escaped_scope": (_attempt_store_escaped_scope_blocks_authority),
+    "canonicalization_lease_store_escaped_scope": (_lease_store_escaped_scope_blocks_authority),
     "canonicalization_duplicate_authority_field_ambiguous": (
         _duplicate_authority_field_fails_ambiguous
     ),
     "canonicalization_nested_decoy_identity_unknown_scope": (
         _nested_decoy_identity_does_not_scope_corruption
     ),
-    "canonicalization_malformed_raw_token_unknown_scope": (
-        _malformed_raw_token_is_unknown_scope
-    ),
+    "canonicalization_malformed_raw_token_unknown_scope": (_malformed_raw_token_is_unknown_scope),
     "canonicalization_bound_and_corrupt_fenced_represented": (
         _bound_and_corrupt_fenced_represented
     ),
@@ -2161,15 +2338,11 @@ SCENARIOS: dict[str, Scenario] = {
     "canonicalization_terminal_bound_plus_corruption": (
         _terminal_bound_plus_corruption_preserves_terminal
     ),
-    "canonicalization_restart_preserves_fence": (
-        _restart_preserves_canonical_corruption_fence
-    ),
+    "canonicalization_restart_preserves_fence": (_restart_preserves_canonical_corruption_fence),
     "canonicalization_unrelated_clean_key_progresses": (
         _unrelated_clean_key_progresses_with_canonical_key_scope
     ),
-    "corrupt_same_key_retry_new_request_id_denied": (
-        _corrupt_same_key_retry_new_request_id_denied
-    ),
+    "corrupt_same_key_retry_new_request_id_denied": (_corrupt_same_key_retry_new_request_id_denied),
     "corrupt_same_key_survives_restart": _corrupt_same_key_survives_restart,
     "corrupt_quarantined_request_preserves_key_fence": (
         _quarantined_corrupt_request_preserves_key_fence
@@ -2297,6 +2470,19 @@ SCENARIOS: dict[str, Scenario] = {
         _reconnect_preserves_proven_logical_authority
     ),
     "model_ambient_substitution_rejected": _ambient_model_substitution_is_rejected,
+    "shell_crash_before_launch_definite_no_launch": (
+        _shell_crash_before_launch_is_definite_no_launch
+    ),
+    "shell_crash_after_creation_before_pid_reconciles": (
+        _shell_crash_after_creation_before_pid_reconciles
+    ),
+    "shell_pid_reuse_rejected": _shell_pid_reuse_rejected,
+    "shell_cancel_redelivery_uncertainty_fenced": (
+        _shell_cancel_or_redelivery_during_uncertainty_cannot_relaunch
+    ),
+    "model_governed_sol_attestation_mismatch_rejected": (
+        _governed_sol_missing_or_mismatched_attestation_fails_closed
+    ),
 }
 
 
@@ -2318,7 +2504,13 @@ def run_scenario(name: str) -> SimState:
             "transport_",
         )
     ):
-        assert state.lifecycle in {"RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"}, state.log
+        assert state.lifecycle in {
+            "RUNNING",
+            "SUCCEEDED",
+            "FAILED",
+            "CANCELLED",
+            "RECONCILIATION_REQUIRED",
+        }, state.log
     return state
 
 
