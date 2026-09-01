@@ -169,6 +169,7 @@ def test_model_outcome_branches_are_explicit_and_reachable_from_running() -> Non
             }[action_name],
         )
         assert "result.executionRunning" in action
+        assert "/\\ FALSE" not in action
         assert f"!.outcome = {outcome}" in action
     observer_loss = _action(source, "LoseExecutionObserver", "ProduceTerminalResult")
     assert "!.observerPresent = FALSE" in observer_loss
@@ -211,6 +212,10 @@ def test_model_shell_launch_uncertainty_is_reachable_and_fences_execution() -> N
         "CrashDuringUncertainShellLaunch",
         "RejectDuplicateShellLaunch",
     )
+    admit = _action(source, "AdmitShellRunning", "CrashDuringUncertainShellLaunch")
+    execute = _action(source, "Execute", "ProduceSucceededTerminalResult")
+    assert "result.processIdentityPersisted" in admit
+    assert "(~result.launchIntentPersisted \\/ result.shellRunning)" in execute
     assert "result.launchAttempted" in crash
     assert "~result.processIdentityPersisted" in crash
     assert "!.outcome = ReconciliationOutcome" in crash
