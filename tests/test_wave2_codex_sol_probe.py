@@ -88,9 +88,9 @@ def _valid_probe_result() -> dict:
             "user_config_ignored": True,
             "invocation_accepted": True,
             "terminal_status": "completed",
-            "trusted_model_resolved": "",
-            "trusted_model_resolution_source": "",
-            "model_resolution_observable": False,
+            "trusted_model_resolved": "gpt-5.6-sol",
+            "trusted_model_resolution_source": "turn.completed.model",
+            "model_resolution_observable": True,
             "output_content_present": True,
             "usage_present": True,
             "credential_isolation_verified": True,
@@ -103,14 +103,18 @@ def _valid_probe_result() -> dict:
     }
 
 
-def test_probe_validation_accepts_request_bound_unobservable_model_identity() -> None:
+def test_probe_validation_rejects_unobservable_resolved_model_identity() -> None:
     module = _probe_module()
     result = _valid_probe_result()
-    assert module._validate_probe_result(
+    result["execution_identity"]["trusted_model_resolved"] = ""
+    result["execution_identity"]["trusted_model_resolution_source"] = ""
+    result["execution_identity"]["model_resolution_observable"] = False
+    failures = module._validate_probe_result(
         result,
         expected_model="gpt-5.6-sol",
         expected_version="codex-cli 0.147.0",
-    ) == []
+    )
+    assert "trusted resolved model identity is unavailable" in failures
 
 
 def test_probe_validation_rejects_wrong_requested_or_result_identity() -> None:

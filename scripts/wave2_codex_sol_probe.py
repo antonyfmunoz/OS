@@ -201,7 +201,10 @@ def _validate_probe_result(result: dict, *, expected_model: str, expected_versio
         if contract.get(key) != value:
             failures.append(f"execution_identity.{key}={contract.get(key)!r} expected {value!r}")
     trusted_model = str(contract.get("trusted_model_resolved") or "")
-    if trusted_model and trusted_model != expected_model:
+    trusted_model_source = str(contract.get("trusted_model_resolution_source") or "")
+    if not trusted_model or not trusted_model_source:
+        failures.append("trusted resolved model identity is unavailable")
+    elif trusted_model != expected_model:
         failures.append(
             f"trusted resolved model {trusted_model!r} conflicts with requested {expected_model!r}"
         )

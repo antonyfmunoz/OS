@@ -1594,6 +1594,36 @@ def test_observerless_running_redelivery_enters_reconciliation_without_false_fai
     assert asyncio.run(run()) == ("RECONCILIATION_REQUIRED", True)
 
 
+def test_interrupted_observerless_running_execution_never_fabricates_failure(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    async def run() -> tuple[str, bool]:
+        client = _durable_node_client(tmp_path / "observerless-interruption")
+        request = client._durable_store.put_request(_durable_request())
+        claim_id = "claim-observerless-interruption"
+        client._durable_store.mark_claimed(request.request_id, claim_id=claim_id)
+        running = client._durable_store.mark_running(request.request_id, claim_id=claim_id)
+        trajectory = client._durable_request_trajectory(running)
+        trajectory["claim_id"] = claim_id
+        trajectory["status"] = "RUNNING_OR_RECONCILING"
+
+        async def _send_event(_method, _payload, **_kwargs):
+            raise AssertionError("observerless uncertainty must not publish a result")
+
+        monkeypatch.setattr(client, "_send_durable_event", _send_event)
+        await client._fail_interrupted_durable_request_trajectory(
+            running,
+            trajectory=trajectory,
+            exc=ConnectionError("observer unavailable"),
+        )
+        current = client._durable_store.get_request(request.request_id)
+        assert current is not None
+        return current.lifecycle_state, client._durable_store.result_for(request.request_id) is None
+
+    assert asyncio.run(run()) == ("RECONCILIATION_REQUIRED", True)
+
+
 def test_node_durable_delivery_rejects_malformed_request_material(tmp_path):
     client = _durable_node_client(tmp_path)
 
