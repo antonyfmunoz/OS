@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
+import pytest
+
 from nodes.windows.umh_node import client as client_mod
 from substrate.execution.attempts.poller import ControlPlanePoller, _WorkerResultView
 from substrate.execution.attempts.worker_model_executor import run_worker_in_lease
@@ -19,6 +21,11 @@ from tests.test_mesh_dispatch_governed import (
     _durable_request,
     _MeshHandlerWs,
 )
+
+
+@pytest.fixture(autouse=True)
+def _isolate_controller_store(tmp_path, monkeypatch):
+    monkeypatch.setenv("UMH_DURABLE_REMOTE_ROOT", str(tmp_path / "controller"))
 
 
 def _launch_material(client, req, claim_id: str) -> dict:
