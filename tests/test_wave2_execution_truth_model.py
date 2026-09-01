@@ -22,7 +22,7 @@ def test_transport_send_and_canonical_result_acceptance_are_distinct_model_actio
 
     assert "!.sent = TRUE" in complete_send
     assert "!.accepted =" not in complete_send
-    assert "result.sent" in canonical_acceptance
+    assert "/\\ result.sent\n" in canonical_acceptance
     assert "result.identityValid" in canonical_acceptance
     assert "result.sentGeneration = transport.generation" in canonical_acceptance
     assert "!.accepted = TRUE" in canonical_acceptance
