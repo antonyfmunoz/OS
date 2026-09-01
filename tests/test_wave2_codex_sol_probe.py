@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -511,8 +512,35 @@ def test_probe_main_exits_nonzero_when_exact_model_validation_fails(monkeypatch,
     assert "trusted resolved model" in printed
 
 
-def test_attempt_runner_pins_codex_sol_policy_before_worker_admission() -> None:
+def test_attempt_runner_pins_codex_sol_policy_before_worker_admission(
+    monkeypatch,
+) -> None:
     body = (SCRIPT.parents[1] / "scripts" / "wave2_attempt_runner.py").read_text(encoding="utf-8")
 
-    assert 'os.environ.setdefault("UMH_MODEL_EXECUTOR_PROVIDER", "codex")' in body
-    assert 'os.environ.setdefault("UMH_CODEX_MODEL", "gpt-5.6-sol")' in body
+    assert 'os.environ["UMH_MODEL_EXECUTOR_PROVIDER"] = "codex"' in body
+    assert 'os.environ["UMH_CODEX_MODEL"] = "gpt-5.6-sol"' in body
+    assert 'setdefault("UMH_CODEX_MODEL"' not in body
+
+    runner_path = SCRIPT.parents[1] / "scripts" / "wave2_attempt_runner.py"
+    spec = importlib.util.spec_from_file_location("wave2_attempt_runner_under_test", runner_path)
+    assert spec is not None and spec.loader is not None
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    observed: dict[str, str] = {}
+
+    def _run_loop(**_kwargs) -> int:
+        observed["provider"] = os.environ["UMH_MODEL_EXECUTOR_PROVIDER"]
+        observed["model"] = os.environ["UMH_CODEX_MODEL"]
+        return 0
+
+    monkeypatch.setattr(runner, "run_loop", _run_loop)
+    monkeypatch.setenv("UMH_MODEL_EXECUTOR_PROVIDER", "deterministic")
+    monkeypatch.setenv("UMH_CODEX_MODEL", "ambient-alternate-model")
+    monkeypatch.setenv("UMH_W2_DISPATCH_SECRET", "test-secret")
+    monkeypatch.setattr(
+        "sys.argv",
+        ["wave2_attempt_runner.py", "--spool-root", "/tmp/test-wave2-spool"],
+    )
+
+    assert runner.main() == 0
+    assert observed == {"provider": "codex", "model": "gpt-5.6-sol"}

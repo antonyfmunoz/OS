@@ -34,6 +34,7 @@ import pytest  # noqa: E402
 from fastapi import HTTPException  # noqa: E402
 
 from substrate.execution.durable_remote_transport import (  # noqa: E402
+    DurableRemoteRequest,
     sha256_json,
     terminal_result_identity,
 )
@@ -1403,6 +1404,194 @@ def test_cancel_during_non_cancellable_executor_does_not_publish_false_cancelled
     assert lifecycle == "SUCCEEDED"
     assert result_state == "SUCCEEDED"
     assert execution_count == 1
+
+
+def test_foreign_claim_cancel_cannot_mutate_active_logical_execution(tmp_path):
+    class BlockingAdapter:
+        def __init__(self) -> None:
+            self.started = threading.Event()
+            self.release = threading.Event()
+            self.execution_count = 0
+
+        def execute(self, _capability, _params):
+            self.execution_count += 1
+            self.started.set()
+            assert self.release.wait(timeout=5)
+            return {
+                "success": True,
+                "stdout": "canonical outcome",
+                "cleanup": {"process_residue": [], "cleanup_verified": True},
+            }
+
+    async def run() -> tuple[str, str, int, str]:
+        client = _durable_node_client(tmp_path / "foreign-cancel")
+        adapter = BlockingAdapter()
+        client._adapters = {"terminal": adapter}
+        client._ws = _DurableAckWs(client)
+        request = _durable_request(
+            capability="terminal.execute",
+            params={"command": "sanctioned-non-destructive", "timeout": 5},
+        )
+        await client._handle_message(
+            json.dumps({"method": "durable_command.request", "params": request.to_dict()}),
+            generation=1,
+        )
+        assert await asyncio.to_thread(adapter.started.wait, 2)
+        active = client._durable_store.get_request(request.request_id)
+        assert active is not None and active.lifecycle_state == "RUNNING"
+        active_claim = active.claim_id
+
+        foreign = DurableRemoteRequest.from_dict(active.to_dict())
+        foreign.lifecycle_state = "CANCEL_REQUESTED"
+        foreign.claim_id = "foreign-claim"
+        foreign.cancellation_requested_at = time.time()
+        foreign.cancellation_deadline_at = time.time() + 30
+        await client._handle_message(
+            json.dumps({"method": "durable_command.request", "params": foreign.to_dict()}),
+            generation=1,
+        )
+        await asyncio.sleep(0)
+        unchanged = client._durable_store.get_request(request.request_id)
+        assert unchanged is not None
+        assert unchanged.lifecycle_state == "RUNNING"
+        assert unchanged.claim_id == active_claim
+        assert client._durable_store.result_for(request.request_id) is None
+
+        logical_task = client._durable_logical_executions[request.request_id]["task"]
+        adapter.release.set()
+        await asyncio.wait_for(asyncio.shield(logical_task), timeout=2)
+        terminal = client._durable_store.result_for(request.request_id)
+        assert terminal is not None
+        return (
+            terminal["state"],
+            unchanged.lifecycle_state,
+            adapter.execution_count,
+            active_claim,
+        )
+
+    state, state_during_foreign_cancel, execution_count, active_claim = asyncio.run(run())
+    assert state == "SUCCEEDED"
+    assert state_during_foreign_cancel == "RUNNING"
+    assert execution_count == 1
+    assert active_claim != "foreign-claim"
+
+
+def test_completed_executor_outcome_cannot_be_replaced_by_interruption_failure(
+    tmp_path,
+    monkeypatch,
+):
+    async def run() -> tuple[str, str]:
+        client = _durable_node_client(tmp_path / "known-outcome")
+        request = client._durable_store.put_request(_durable_request())
+        claim_id = "claim-known-success"
+        client._durable_store.mark_claimed(request.request_id, claim_id=claim_id)
+        running = client._durable_store.mark_running(request.request_id, claim_id=claim_id)
+        operation = asyncio.get_running_loop().create_future()
+        operation.set_result(
+            {
+                "success": True,
+                "stdout": "side effect completed",
+                "cleanup": {"process_residue": [], "cleanup_verified": True},
+            }
+        )
+        logical = {
+            "identity": client._durable_request_identity(running),
+            "execution_identity": client._durable_execution_identity(
+                running,
+                claim_id=claim_id,
+            ),
+            "state": "STARTED",
+            "operation_future": operation,
+        }
+        client._durable_logical_executions[running.request_id] = logical
+        trajectory = client._durable_request_trajectory(running)
+        trajectory["claim_id"] = claim_id
+        trajectory["status"] = "RUNNING_OR_RECONCILING"
+
+        async def _send_event(_method, _payload, **_kwargs):
+            return {"ok": False, "error": "transport unavailable"}
+
+        monkeypatch.setattr(client, "_send_durable_event", _send_event)
+        await client._fail_interrupted_durable_request_trajectory(
+            running,
+            trajectory=trajectory,
+            exc=ConnectionError("synthetic disconnect"),
+        )
+        result = client._durable_store.result_for(running.request_id)
+        final = client._durable_store.get_request(running.request_id)
+        assert result is not None and final is not None
+        return result["state"], final.lifecycle_state
+
+    assert asyncio.run(run()) == ("SUCCEEDED", "SUCCEEDED")
+
+
+def test_completed_executor_outcome_wins_exact_late_cancel_without_conflicting_result(
+    tmp_path,
+    monkeypatch,
+):
+    async def run() -> tuple[str, list[str]]:
+        client = _durable_node_client(tmp_path / "known-outcome-late-cancel")
+        request = client._durable_store.put_request(_durable_request())
+        claim_id = "claim-known-success-cancel"
+        client._durable_store.mark_claimed(request.request_id, claim_id=claim_id)
+        running = client._durable_store.mark_running(request.request_id, claim_id=claim_id)
+        operation = asyncio.get_running_loop().create_future()
+        operation.set_result(
+            {
+                "success": True,
+                "stdout": "completed before cancel",
+                "cleanup": {"process_residue": [], "cleanup_verified": True},
+            }
+        )
+        client._durable_logical_executions[running.request_id] = {
+            "identity": client._durable_request_identity(running),
+            "execution_identity": client._durable_execution_identity(
+                running,
+                claim_id=claim_id,
+            ),
+            "claim_id": claim_id,
+            "state": "STARTED",
+            "operation_future": operation,
+        }
+        sent_states: list[str] = []
+
+        async def _send_event(method, payload, **_kwargs):
+            if method == "durable_command.result":
+                sent_states.append(str(payload["state"]))
+            return {"ok": True, "accepted": True}
+
+        monkeypatch.setattr(client, "_send_durable_event", _send_event)
+        cancel = DurableRemoteRequest.from_dict(running.to_dict())
+        cancel.lifecycle_state = "CANCEL_REQUESTED"
+        cancel.cancellation_requested_at = time.time()
+        cancel.cancellation_deadline_at = time.time() + 30
+        await client._handle_durable_command(
+            {"method": "durable_command.request", "params": cancel.to_dict()}
+        )
+        result = client._durable_store.result_for(running.request_id)
+        assert result is not None
+        return result["state"], sent_states
+
+    assert asyncio.run(run()) == ("SUCCEEDED", ["SUCCEEDED"])
+
+
+def test_observerless_running_redelivery_enters_reconciliation_without_false_failure(
+    tmp_path,
+) -> None:
+    async def run() -> tuple[str, bool]:
+        client = _durable_node_client(tmp_path / "observerless")
+        request = client._durable_store.put_request(_durable_request())
+        claim_id = "claim-observerless"
+        client._durable_store.mark_claimed(request.request_id, claim_id=claim_id)
+        running = client._durable_store.mark_running(request.request_id, claim_id=claim_id)
+        current = await client._fail_durable_running_redelivery(
+            running,
+            claim_id=claim_id,
+            reason="transport acknowledgement unavailable",
+        )
+        return current.lifecycle_state, client._durable_store.result_for(request.request_id) is None
+
+    assert asyncio.run(run()) == ("RECONCILIATION_REQUIRED", True)
 
 
 def test_node_durable_delivery_rejects_malformed_request_material(tmp_path):
@@ -4992,16 +5181,14 @@ def test_durable_running_redelivery_ack_failure_with_root_enters_reconciliation(
     )
 
     result_events = [msg for msg in sent if msg["method"] == "durable_command.result"]
-    assert len(result_events) == 1
-    payload = result_events[0]["payload"]
-    assert payload["state"] == "FAILED"
-    assert payload["result"]["error"] == "durable running acknowledgement failed closed"
-    assert payload["cleanup"]["process_residue"] == [
-        {"pid": 4242, "state": "running_redelivery_ack_unresolved"}
-    ]
+    assert result_events == []
+    assert client._durable_store.result_for(req.request_id) is None
     current = client._durable_store.get_request(req.request_id)
     assert current is not None
     assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert current.cleanup["process_residue"] == [
+        {"pid": 4242, "state": "running_redelivery_ack_unresolved"}
+    ]
 
 
 def test_durable_shell_cancel_after_running_ack_before_popen_does_not_spawn(

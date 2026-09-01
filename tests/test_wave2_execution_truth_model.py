@@ -33,6 +33,20 @@ def test_transport_send_and_canonical_result_acceptance_are_distinct_model_actio
     assert "!.accepted = TRUE" in canonical_acceptance
 
 
+def test_claim_send_receipt_and_canonical_persistence_are_distinct_model_actions() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    complete_send = _action(source, "CompleteSend", "ReceiveClaim")
+    receive_claim = _action(source, "ReceiveClaim", "PersistCanonicalClaim")
+    persist_claim = _action(source, "PersistCanonicalClaim", "SendDeadline")
+
+    assert "!.sent = TRUE" in complete_send
+    assert "!.persisted = TRUE" not in complete_send
+    assert "claim.sent" in receive_claim
+    assert "!.received = TRUE" in receive_claim
+    assert "claim.received" in persist_claim
+    assert "!.persisted = TRUE" in persist_claim
+
+
 def test_model_represents_execution_truth_receipt_conflict_and_pump_quiescence() -> None:
     source = TLA.read_text(encoding="utf-8")
     config = CFG.read_text(encoding="utf-8")
@@ -88,3 +102,46 @@ def test_model_requires_closed_generation_pump_quiescence() -> None:
     )
     assert "QuiescedGeneration" in property_text
     assert "~transport.pumpActive" in property_text
+
+
+def test_model_structurally_bounds_connection_and_pump_singletons() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    connection = _action(
+        source,
+        "AtMostOneActiveConnectionGeneration",
+        "AtMostOneDurablePumpGeneration",
+    )
+    pump = _action(
+        source,
+        "AtMostOneDurablePumpGeneration",
+        "DurablePumpQuiescedBeforeReplacement",
+    )
+
+    assert "activeGenerationCount <= 1" in connection
+    assert "pumpActiveCount <= 1" in pump
+    assert "pumpGeneration = transport.generation" in pump
+
+
+def test_model_binds_ack_to_logical_authority_without_rejecting_reconnect() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    stale_ack = _action(
+        source,
+        "StaleAckCannotSatisfyNewGeneration",
+        "ReconnectDoesNotInvalidateProvenLogicalAuthority",
+    )
+    assert "proofLogicalAuthorityId = claim.logicalAuthorityId" in stale_ack
+    assert "proofGeneration <= transport.generation" in stale_ack
+    assert "proofGeneration = transport.generation" not in stale_ack
+
+
+def test_model_requires_exact_cancel_identity_and_monotonic_outcome() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    foreign_cancel = _action(
+        source,
+        "ForeignClaimCannotCancelActiveExecution",
+        "ClaimSendDoesNotImplyCanonicalPersistence",
+    )
+    assert "foreignControlRejected" in foreign_cancel
+    assert "~cancelled" in foreign_cancel
+    assert "ExecutionOutcomeIsMonotonic ==" in source
+    assert "KnownSuccessCannotBecomeFailure ==" in source

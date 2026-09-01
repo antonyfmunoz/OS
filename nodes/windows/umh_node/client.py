@@ -56,6 +56,7 @@ from substrate.execution.durable_remote_transport import (
     STATE_ORDER,
     TERMINAL_STATES,
     default_node_root,
+    sha256_json,
 )
 
 logger = logging.getLogger(__name__)
@@ -1827,6 +1828,15 @@ class NodeClient:
                 )
                 return
             if delivered_req.lifecycle_state == "CANCEL_REQUESTED":
+                if not self._durable_cancel_matches_active_execution(
+                    delivered_req,
+                    logical=existing,
+                ):
+                    self._record_rejected_durable_control(
+                        delivered_req,
+                        reason="cancel execution identity mismatch",
+                    )
+                    return
                 current = self._durable_store.put_request(delivered_req)
                 current.lifecycle_state = "CANCEL_REQUESTED"
                 current.cancellation_requested_at = delivered_req.cancellation_requested_at
@@ -1844,6 +1854,8 @@ class NodeClient:
             "state": "NOT_STARTED",
             "task": None,
             "operation_future": None,
+            "execution_identity": None,
+            "outcome_state": "UNKNOWN",
             "created_at": time.monotonic(),
         }
         registry[delivered_req.request_id] = entry
@@ -1907,6 +1919,63 @@ class NodeClient:
             "idempotency_key": req.idempotency_key,
             "payload_digest": req.payload_digest,
         }
+
+    def _durable_execution_identity(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+    ) -> dict[str, str]:
+        identity = self._durable_request_identity(req)
+        identity["claim_id"] = str(claim_id or "")
+        identity["execution_id"] = sha256_json(identity)
+        return identity
+
+    def _durable_cancel_matches_active_execution(
+        self,
+        delivered_req: DurableRemoteRequest,
+        *,
+        logical: dict[str, Any] | None = None,
+    ) -> bool:
+        current = self._durable_store.get_request(delivered_req.request_id)
+        if current is None:
+            return True
+        if self._durable_request_identity(current) != self._durable_request_identity(delivered_req):
+            return False
+        execution_identity = dict((logical or {}).get("execution_identity") or {})
+        active_claim_id = str(
+            execution_identity.get("claim_id")
+            or (logical or {}).get("claim_id")
+            or current.claim_id
+            or ""
+        )
+        if not active_claim_id:
+            return not delivered_req.claim_id
+        return str(delivered_req.claim_id or "") == active_claim_id
+
+    def _record_rejected_durable_control(
+        self,
+        delivered_req: DurableRemoteRequest,
+        *,
+        reason: str,
+    ) -> None:
+        current = self._durable_store.get_request(delivered_req.request_id)
+        if current is None:
+            return
+        logical = getattr(self, "_durable_logical_executions", {}).get(
+            delivered_req.request_id
+        )
+        active_identity = dict((logical or {}).get("execution_identity") or {})
+        self._durable_store.record_transport_diagnostic(
+            delivered_req.request_id,
+            "STALE_OR_FOREIGN_EXECUTION_CONTROL_REJECTED",
+            {
+                "reason": reason,
+                "incoming_claim_id": delivered_req.claim_id,
+                "active_claim_id": active_identity.get("claim_id", current.claim_id),
+                "execution_id": active_identity.get("execution_id", ""),
+            },
+        )
 
     @staticmethod
     def _durable_trajectory_identity_matches(
@@ -2090,8 +2159,23 @@ class NodeClient:
                 delivered_req.request_id
             )
             operation_future = (logical or {}).get("operation_future")
+            if (
+                (logical or {}).get("state") == "STARTED"
+                and operation_future is not None
+                and operation_future.done()
+                and not operation_future.cancelled()
+            ):
+                terminal = await self._persist_completed_logical_execution_outcome(
+                    current,
+                    logical=logical,
+                    claim_id=claim_id or current.claim_id,
+                )
+                if terminal is not None:
+                    return
             if (logical or {}).get("state") == "STARTED" and (
-                operation_future is None or not operation_future.done()
+                operation_future is None
+                or operation_future.cancelled()
+                or not operation_future.done()
             ):
                 logical["state"] = "OUTCOME_UNKNOWN"
                 self._durable_store.mark_reconciliation_required(
@@ -2099,6 +2183,29 @@ class NodeClient:
                     reason=reason,
                     cleanup={
                         "process_residue": [{"state": "execution_outcome_unresolved"}],
+                        "execution_outcome_unknown": True,
+                        "request_id": current.request_id,
+                        "correlation_id": current.correlation_id,
+                        "candidate_sha": current.candidate_sha,
+                        "node_id": current.node_id,
+                        "claim_id": claim_id or current.claim_id or "unclaimed",
+                    },
+                )
+                self._record_durable_request_trajectory(
+                    current.request_id,
+                    status="RECONCILIATION_PENDING",
+                    claim_id=claim_id,
+                    terminal=True,
+                )
+                return
+            if proc is None or proc.poll() is not None:
+                self._durable_store.mark_reconciliation_required(
+                    current.request_id,
+                    reason=reason,
+                    cleanup={
+                        "process_residue": [
+                            {"state": "execution_outcome_unresolved_after_observer_loss"}
+                        ],
                         "execution_outcome_unknown": True,
                         "request_id": current.request_id,
                         "correlation_id": current.correlation_id,
@@ -2176,6 +2283,60 @@ class NodeClient:
             )
             return
         await self._fail_unresolved_durable_request(current, reason=reason)
+
+    async def _persist_completed_logical_execution_outcome(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        logical: dict[str, Any],
+        claim_id: str,
+    ) -> DurableRemoteRequest | None:
+        operation = logical.get("operation_future")
+        if operation is None or not operation.done() or operation.cancelled():
+            return None
+        try:
+            observed = operation.result()
+        except Exception as exc:  # noqa: BLE001
+            result: dict[str, Any] = {
+                "success": False,
+                "error": f"adapter execution failed: {type(exc).__name__}: {exc}",
+            }
+        else:
+            if isinstance(observed, dict):
+                result = dict(observed)
+            else:
+                result = {
+                    "success": False,
+                    "error": "adapter returned non-object execution outcome",
+                }
+        state = "SUCCEEDED" if result.get("success") else "FAILED"
+        cleanup = dict(result.get("cleanup") or {"process_residue": []})
+        terminal = self._durable_store.publish_result(
+            req.request_id,
+            claim_id=claim_id,
+            state=state,
+            result=result,
+            cleanup=cleanup,
+        )
+        logical["state"] = "TERMINAL_PERSISTED"
+        logical["outcome_state"] = state
+        self._record_durable_request_trajectory(
+            req.request_id,
+            status="TERMINAL_OBSERVED",
+            claim_id=claim_id,
+            terminal=True,
+        )
+        await self._send_durable_event(
+            "durable_command.result",
+            {
+                "request_id": req.request_id,
+                "claim_id": claim_id,
+                "state": state,
+                "result": result,
+                "cleanup": cleanup,
+            },
+        )
+        return terminal
 
     async def _fail_durable_trajectory_identity_mismatch(
         self,
@@ -2454,6 +2615,18 @@ class NodeClient:
                     delivered_req.request_id,
                 )
                 return
+            logical = getattr(self, "_durable_logical_executions", {}).get(
+                delivered_req.request_id
+            )
+            if not self._durable_cancel_matches_active_execution(
+                delivered_req,
+                logical=logical,
+            ):
+                self._record_rejected_durable_control(
+                    delivered_req,
+                    reason="cancel execution identity mismatch",
+                )
+                return
             self._durable_store.put_request(delivered_req)
             self._durable_store.update_request(delivered_req, "CANCEL_REQUESTED")
 
@@ -2517,6 +2690,8 @@ class NodeClient:
                 claim_id=req.claim_id or f"{self._config.node_id}-{uuid4().hex[:12]}",
                 reason="cancel requested by controller",
             )
+            if terminal.lifecycle_state != "CANCELLED":
+                return
             self._record_durable_request_trajectory(
                 req.request_id,
                 status="TERMINAL_OBSERVED",
@@ -2597,6 +2772,8 @@ class NodeClient:
                     claim_id=req.claim_id,
                     reason="cancel requested by controller",
                 )
+                if terminal.lifecycle_state != "CANCELLED":
+                    return
                 await self._send_durable_event(
                     "durable_command.result",
                     {
@@ -2745,6 +2922,8 @@ class NodeClient:
                 claim_id=claim_id,
                 reason="cancel requested by controller",
             )
+            if terminal.lifecycle_state != "CANCELLED":
+                return
             await self._send_durable_event(
                 "durable_command.result",
                 {
@@ -2822,6 +3001,8 @@ class NodeClient:
                 claim_id=claim_id,
                 reason="cancel requested by controller",
             )
+            if terminal.lifecycle_state != "CANCELLED":
+                return
             await self._send_durable_event(
                 "durable_command.result",
                 {
@@ -2974,6 +3155,11 @@ class NodeClient:
             )
             state = "SUCCEEDED" if result.get("success") else "FAILED"
             cleanup = dict(result.get("cleanup") or {"process_residue": []})
+            logical = getattr(self, "_durable_logical_executions", {}).get(
+                current.request_id
+            )
+            if logical is not None:
+                logical["outcome_state"] = state
             if result.get("durable_request_missing_after_running"):
                 await self._send_durable_event(
                     "durable_command.result",
@@ -3055,8 +3241,9 @@ class NodeClient:
         reason: str,
     ) -> DurableRemoteRequest:
         cleanup = {
-            "process_residue": [],
-            "running_redelivery_failed_closed": True,
+            "process_residue": [{"state": "running_execution_outcome_unresolved"}],
+            "running_redelivery_reconciliation_required": True,
+            "execution_outcome_unknown": True,
             "claim_id": claim_id,
             "request_id": req.request_id,
             "correlation_id": req.correlation_id,
@@ -3068,38 +3255,18 @@ class NodeClient:
             cleanup["process_residue"] = [
                 {"pid": root_pid, "state": "running_redelivery_ack_unresolved"}
             ]
-        result: dict[str, Any] = {
-            "success": False,
-            "error": "durable running acknowledgement failed closed",
-            "reason": reason,
-        }
-        try:
-            self._durable_store.publish_result(
-                req.request_id,
-                claim_id=claim_id,
-                state="FAILED",
-                result=result,
-                cleanup=cleanup,
-            )
-        except KeyError:
-            result["durable_request_missing_after_running"] = True
+        current = self._durable_store.mark_reconciliation_required(
+            req.request_id,
+            reason=f"running acknowledgement unresolved: {reason}",
+            cleanup=cleanup,
+        )
         self._record_durable_request_trajectory(
             req.request_id,
-            status="FAIL_CLOSED",
+            status="RECONCILIATION_PENDING",
             claim_id=claim_id,
             terminal=True,
         )
-        await self._send_durable_event(
-            "durable_command.result",
-            {
-                "request_id": req.request_id,
-                "claim_id": claim_id,
-                "state": "FAILED",
-                "result": result,
-                "cleanup": cleanup,
-            },
-        )
-        return self._durable_store.get_request(req.request_id) or req
+        return current
 
     async def _fail_durable_claim_acquisition(
         self,
@@ -3117,6 +3284,8 @@ class NodeClient:
                 claim_id=claim_id,
                 reason="cancel requested by controller",
             )
+            if terminal.lifecycle_state != "CANCELLED":
+                return terminal
             self._record_durable_request_trajectory(
                 current.request_id,
                 status="TERMINAL_OBSERVED",
@@ -3690,6 +3859,49 @@ class NodeClient:
     ) -> DurableRemoteRequest:
         if not req.cancellation_requested_at or not req.cancellation_deadline_at:
             raise ValueError(f"cancel identity missing for durable request {req.request_id}")
+        logical = getattr(self, "_durable_logical_executions", {}).get(req.request_id)
+        if logical is not None and not self._durable_cancel_matches_active_execution(
+            req,
+            logical=logical,
+        ):
+            self._record_rejected_durable_control(
+                req,
+                reason="cancel execution identity mismatch",
+            )
+            return self._durable_store.get_request(req.request_id) or req
+        if logical is not None and logical.get("state") == "STARTED":
+            operation = logical.get("operation_future")
+            if operation is not None and operation.done() and not operation.cancelled():
+                terminal = await self._persist_completed_logical_execution_outcome(
+                    req,
+                    logical=logical,
+                    claim_id=claim_id,
+                )
+                if terminal is not None:
+                    return terminal
+            logical["cancel_requested"] = True
+            self._durable_store.record_transport_diagnostic(
+                req.request_id,
+                "CANCEL_REQUESTED_EXECUTION_OUTCOME_PENDING",
+                {
+                    "claim_id": claim_id,
+                    "execution_id": dict(logical.get("execution_identity") or {}).get(
+                        "execution_id",
+                        "",
+                    ),
+                },
+            )
+            return self._durable_store.get_request(req.request_id) or req
+        if (
+            req.lifecycle_state == "RECONCILIATION_REQUIRED"
+            and bool((req.cleanup or {}).get("execution_outcome_unknown"))
+        ):
+            self._durable_store.record_transport_diagnostic(
+                req.request_id,
+                "CANCEL_REQUESTED_EXECUTION_OUTCOME_UNRESOLVED",
+                {"claim_id": claim_id},
+            )
+            return self._durable_store.get_request(req.request_id) or req
         proc = self._durable_processes.get(req.request_id)
         cleanup = {
             "process_residue": [],
@@ -3700,14 +3912,25 @@ class NodeClient:
             cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
             cleanup["cancel_reason"] = reason
             cleanup.update(req.cancellation_identity(claim_id=claim_id))
-        elif req.process_tree.get("root_pid"):
-            cleanup["process_residue"] = [
-                {
-                    "pid": req.process_tree.get("root_pid"),
-                    "state": "running_process_owner_lost_after_restart",
-                }
-            ]
+        elif req.process_tree.get("root_pid") or req.lifecycle_state == "RUNNING":
+            cleanup["process_residue"] = [{
+                "pid": req.process_tree.get("root_pid"),
+                "state": "running_process_owner_lost_after_restart",
+            }]
             cleanup["process_owner_lost_after_restart"] = True
+            cleanup["execution_outcome_unknown"] = True
+            current = self._durable_store.mark_reconciliation_required(
+                req.request_id,
+                reason="cancel requested while execution outcome is observerless",
+                cleanup=cleanup,
+            )
+            self._record_durable_request_trajectory(
+                req.request_id,
+                status="RECONCILIATION_PENDING",
+                claim_id=claim_id,
+                terminal=True,
+            )
+            return current
         terminal = self._durable_store.publish_result(
             req.request_id,
             claim_id=claim_id,
@@ -3946,6 +4169,10 @@ class NodeClient:
         if logical is not None:
             logical["state"] = "STARTED"
             logical["claim_id"] = claim_id
+            logical["execution_identity"] = self._durable_execution_identity(
+                req,
+                claim_id=claim_id,
+            )
             logical["started_at"] = time.monotonic()
         if hasattr(adapter, "execute_async") and callable(adapter.execute_async):
             operation = asyncio.create_task(adapter.execute_async(cap_name, cap_params))

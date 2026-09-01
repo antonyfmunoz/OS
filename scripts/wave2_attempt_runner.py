@@ -771,8 +771,8 @@ def main() -> int:
     # Wave 2's active production policy is Codex/Sol. The provider-neutral
     # executor contract still owns invocation and proof binding; this only pins
     # runtime selection before any worker subprocess is admitted.
-    os.environ.setdefault("UMH_MODEL_EXECUTOR_PROVIDER", "codex")
-    os.environ.setdefault("UMH_CODEX_MODEL", "gpt-5.6-sol")
+    os.environ["UMH_MODEL_EXECUTOR_PROVIDER"] = "codex"
+    os.environ["UMH_CODEX_MODEL"] = "gpt-5.6-sol"
     return run_loop(
         spool_root=args.spool_root,
         secret=secret,

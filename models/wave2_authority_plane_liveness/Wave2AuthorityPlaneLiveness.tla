@@ -64,6 +64,19 @@ AckProof == "ACK_PROOF"
 ReadbackProof == "READBACK_PROOF"
 ProofSources == {NoProof, AckProof, ReadbackProof}
 
+UnknownOutcome == "UNKNOWN"
+RunningOutcome == "RUNNING"
+SucceededOutcome == "SUCCEEDED"
+FailedOutcome == "FAILED"
+CancelledOutcome == "CANCELLED"
+OutcomeStates == {
+    UnknownOutcome,
+    RunningOutcome,
+    SucceededOutcome,
+    FailedOutcome,
+    CancelledOutcome
+}
+
 NoGeneration == MaxTransportGeneration + 1
 Generations == 0..MaxTransportGeneration
 
@@ -125,7 +138,9 @@ TypeOK ==
         cooperative: BOOLEAN,
         pendingRpc: BOOLEAN,
         reconnectWasQuiescent: BOOLEAN,
+        activeGenerationCount: 0..2,
         pumpActive: BOOLEAN,
+        pumpActiveCount: 0..2,
         pumpGeneration: Generations \cup {NoGeneration}
         ]
     /\ authorityBurst \in 0..AuthorityBurstLimit
@@ -133,8 +148,16 @@ TypeOK ==
     /\ authorityFailureVisible \in BOOLEAN
     /\ claim \in [
         pending: BOOLEAN,
+        prepared: BOOLEAN,
+        queued: BOOLEAN,
+        sent: BOOLEAN,
+        received: BOOLEAN,
         persisted: BOOLEAN,
         sentGeneration: Generations \cup {NoGeneration},
+        logicalAuthorityId: 0..1,
+        proofLogicalAuthorityId: 0..1,
+        cancelIdentityValid: BOOLEAN,
+        foreignControlRejected: BOOLEAN,
         ackHealthy: BOOLEAN,
         readbackHealthy: BOOLEAN,
         proven: BOOLEAN,
@@ -158,6 +181,7 @@ TypeOK ==
         reconciliation: BOOLEAN,
         executionRunning: BOOLEAN,
         outcomeKnown: BOOLEAN,
+        outcome: OutcomeStates,
         replayCount: 0..3
         ]
     /\ staleGenerationSendRejected \in BOOLEAN
@@ -182,7 +206,9 @@ Init ==
         cooperative |-> TRUE,
         pendingRpc |-> FALSE,
         reconnectWasQuiescent |-> TRUE,
+        activeGenerationCount |-> 1,
         pumpActive |-> TRUE,
+        pumpActiveCount |-> 1,
         pumpGeneration |-> 0
         ]
     /\ authorityBurst = 0
@@ -190,8 +216,16 @@ Init ==
     /\ authorityFailureVisible = FALSE
     /\ claim = [
         pending |-> TRUE,
+        prepared |-> TRUE,
+        queued |-> FALSE,
+        sent |-> FALSE,
+        received |-> FALSE,
         persisted |-> FALSE,
         sentGeneration |-> NoGeneration,
+        logicalAuthorityId |-> 1,
+        proofLogicalAuthorityId |-> 0,
+        cancelIdentityValid |-> BOOLEAN,
+        foreignControlRejected |-> FALSE,
         ackHealthy |-> TRUE,
         readbackHealthy |-> TRUE,
         proven |-> FALSE,
@@ -215,6 +249,7 @@ Init ==
         reconciliation |-> FALSE,
         executionRunning |-> FALSE,
         outcomeKnown |-> FALSE,
+        outcome |-> UnknownOutcome,
         replayCount |-> 0
         ]
     /\ staleGenerationSendRejected = FALSE
@@ -222,7 +257,8 @@ Init ==
     /\ reconciliationReminderEvents = 0
 
 ClaimOutstanding ==
-    SeqContains(authorityQueue, ClaimFrame)
+    claim.queued
+    \/ SeqContains(authorityQueue, ClaimFrame)
     \/ (writer.class = AuthoritySend /\ writer.frame = ClaimFrame)
 
 ResultOutstanding ==
@@ -232,6 +268,9 @@ ResultOutstanding ==
 
 QueueClaim ==
     /\ claim.pending
+    /\ claim.prepared
+    /\ ~claim.queued
+    /\ ~claim.sent
     /\ ~claim.persisted
     /\ ~claim.proven
     /\ ~failedClosed
@@ -239,9 +278,10 @@ QueueClaim ==
     /\ ~ClaimOutstanding
     /\ Len(authorityQueue) < AuthorityCapacity
     /\ authorityQueue' = Append(authorityQueue, ClaimFrame)
+    /\ claim' = [claim EXCEPT !.queued = TRUE]
     /\ UNCHANGED <<
         bulkQueue, reconciliationQueue, writer, transport, authorityBurst,
-        authorityOverflow, authorityFailureVisible, claim, failedClosed,
+        authorityOverflow, authorityFailureVisible, failedClosed,
         executionCount, cancelled, result, staleGenerationSendRejected,
         reconciliationChecks, reconciliationReminderEvents
         >>
@@ -292,6 +332,7 @@ ResultAuthorityOverflow ==
 
 RequestCancel ==
     /\ ~cancelled
+    /\ claim.cancelIdentityValid
     /\ cancelled' = TRUE
     /\ failedClosed' = TRUE
     /\ authorityQueue' =
@@ -306,6 +347,19 @@ RequestCancel ==
         bulkQueue, reconciliationQueue, writer, transport, authorityBurst,
         claim, executionCount, result, staleGenerationSendRejected,
         reconciliationChecks, reconciliationReminderEvents
+        >>
+
+RejectForeignCancel ==
+    /\ ~cancelled
+    /\ ~claim.cancelIdentityValid
+    /\ ~claim.foreignControlRejected
+    /\ claim' = [claim EXCEPT !.foreignControlRejected = TRUE]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible,
+        failedClosed, executionCount, cancelled, result,
+        staleGenerationSendRejected, reconciliationChecks,
+        reconciliationReminderEvents
         >>
 
 ProduceBulk ==
@@ -429,7 +483,7 @@ CompleteSend ==
     /\ claim' =
         IF writer.class = AuthoritySend /\ writer.frame = ClaimFrame
         THEN [claim EXCEPT
-            !.persisted = TRUE,
+            !.sent = TRUE,
             !.sentGeneration = writer.generation
         ]
         ELSE claim
@@ -449,6 +503,32 @@ CompleteSend ==
         reconciliationReminderEvents
         >>
 
+ReceiveClaim ==
+    /\ claim.pending
+    /\ claim.sent
+    /\ ~claim.received
+    /\ claim' = [claim EXCEPT !.received = TRUE]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible,
+        failedClosed, executionCount, cancelled, result,
+        staleGenerationSendRejected, reconciliationChecks,
+        reconciliationReminderEvents
+        >>
+
+PersistCanonicalClaim ==
+    /\ claim.pending
+    /\ claim.received
+    /\ ~claim.persisted
+    /\ claim' = [claim EXCEPT !.persisted = TRUE]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible,
+        failedClosed, executionCount, cancelled, result,
+        staleGenerationSendRejected, reconciliationChecks,
+        reconciliationReminderEvents
+        >>
+
 SendDeadline ==
     /\ transport.healthy
     /\ transport.state = ActiveGeneration
@@ -463,6 +543,7 @@ SendDeadline ==
     /\ transport' = [transport EXCEPT
         !.healthy = FALSE,
         !.state = ClosingGeneration,
+        !.activeGenerationCount = 0,
         !.pendingRpc = FALSE
         ]
     /\ authorityQueue' = <<>>
@@ -475,10 +556,40 @@ SendDeadline ==
         IF writer.class = AuthoritySend /\ writer.frame = ResultFrame
         THEN [result EXCEPT !.awaitingReceipt = FALSE]
         ELSE result
+    /\ claim' =
+        IF writer.class = AuthoritySend /\ writer.frame = ClaimFrame
+        THEN [claim EXCEPT !.queued = FALSE]
+        ELSE claim
     /\ UNCHANGED <<
-        authorityOverflow, claim, failedClosed, executionCount, cancelled,
+        authorityOverflow, failedClosed, executionCount, cancelled,
         staleGenerationSendRejected, reconciliationChecks,
         reconciliationReminderEvents
+        >>
+
+ConnectionFailsAfterClaimSend ==
+    /\ transport.healthy
+    /\ transport.state = ActiveGeneration
+    /\ claim.sent
+    /\ ~claim.received
+    /\ transport' = [transport EXCEPT
+        !.healthy = FALSE,
+        !.state = ClosingGeneration,
+        !.activeGenerationCount = 0,
+        !.pendingRpc = FALSE
+        ]
+    /\ claim' = [claim EXCEPT
+        !.queued = FALSE,
+        !.sent = FALSE,
+        !.sentGeneration = NoGeneration
+        ]
+    /\ authorityQueue' = <<>>
+    /\ bulkQueue' = 0
+    /\ reconciliationQueue' = 0
+    /\ authorityBurst' = 0
+    /\ UNCHANGED <<
+        writer, authorityOverflow, authorityFailureVisible, failedClosed,
+        executionCount, cancelled, result, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
         >>
 
 QuiesceGeneration ==
@@ -489,6 +600,7 @@ QuiesceGeneration ==
         !.tasks = 0,
         !.pendingRpc = FALSE,
         !.pumpActive = FALSE,
+        !.pumpActiveCount = 0,
         !.pumpGeneration = NoGeneration
         ]
     /\ UNCHANGED <<
@@ -504,7 +616,12 @@ GenerationTeardownFailure ==
     /\ transport' = [transport EXCEPT
         !.state = FailedGeneration,
         !.healthy = FALSE,
-        !.pendingRpc = FALSE
+        !.activeGenerationCount = 0,
+        !.tasks = 0,
+        !.pendingRpc = FALSE,
+        !.pumpActive = FALSE,
+        !.pumpActiveCount = 0,
+        !.pumpGeneration = NoGeneration
         ]
     /\ failedClosed' = TRUE
     /\ UNCHANGED <<
@@ -521,10 +638,12 @@ Reconnect ==
         !.healthy = TRUE,
         !.generation = @ + 1,
         !.state = ActiveGeneration,
+        !.activeGenerationCount = 1,
         !.tasks = MaxGenerationTasks,
         !.pendingRpc = FALSE,
         !.reconnectWasQuiescent = TRUE,
         !.pumpActive = TRUE,
+        !.pumpActiveCount = 1,
         !.pumpGeneration = @ + 1
         ]
     /\ result' = [result EXCEPT !.receiptHealthy = TRUE]
@@ -541,14 +660,14 @@ ObserveClaimAck ==
     /\ claim.pending
     /\ claim.persisted
     /\ claim.ackHealthy
-    /\ claim.sentGeneration = transport.generation
     /\ ~claim.proven
     /\ ~failedClosed
     /\ ~cancelled
     /\ claim' = [claim EXCEPT
         !.proven = TRUE,
         !.proofSource = AckProof,
-        !.proofGeneration = claim.sentGeneration
+        !.proofGeneration = claim.sentGeneration,
+        !.proofLogicalAuthorityId = claim.logicalAuthorityId
         ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
@@ -568,7 +687,8 @@ HttpReadback ==
     /\ claim' = [claim EXCEPT
         !.proven = TRUE,
         !.proofSource = ReadbackProof,
-        !.proofGeneration = NoGeneration
+        !.proofGeneration = NoGeneration,
+        !.proofLogicalAuthorityId = claim.logicalAuthorityId
         ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
@@ -599,7 +719,10 @@ Execute ==
     /\ ~cancelled
     /\ executionCount = 0
     /\ executionCount' = 1
-    /\ result' = [result EXCEPT !.executionRunning = TRUE]
+    /\ result' = [result EXCEPT
+        !.executionRunning = TRUE,
+        !.outcome = RunningOutcome
+        ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
         authorityBurst, authorityOverflow, authorityFailureVisible, claim,
@@ -615,7 +738,8 @@ ProduceTerminalResult ==
         !.retained = TRUE,
         !.logicalId = 1,
         !.executionRunning = FALSE,
-        !.outcomeKnown = TRUE
+        !.outcomeKnown = TRUE,
+        !.outcome = SucceededOutcome
         ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
@@ -690,6 +814,7 @@ ResultReceiptTimeout ==
     /\ transport' = [transport EXCEPT
         !.healthy = FALSE,
         !.state = ClosingGeneration,
+        !.activeGenerationCount = 0,
         !.pendingRpc = FALSE
         ]
     /\ UNCHANGED <<
@@ -715,9 +840,11 @@ WriterStart == StartAuthority \/ StartReconciliation \/ StartBulk
 SendProgress == AdvanceSend \/ CompleteSend \/ SendDeadline
 AuthorityAdmission ==
     QueueClaim \/ ClaimAuthorityOverflow \/ QueueRetainedResult
-    \/ ResultAuthorityOverflow \/ RequestCancel
+    \/ ResultAuthorityOverflow \/ RequestCancel \/ RejectForeignCancel
+ClaimTransportProgress == ReceiveClaim \/ PersistCanonicalClaim
 GenerationLifecycle ==
-    QuiesceGeneration \/ GenerationTeardownFailure \/ Reconnect
+    ConnectionFailsAfterClaimSend \/ QuiesceGeneration
+    \/ GenerationTeardownFailure \/ Reconnect
 
 Next ==
     AuthorityAdmission
@@ -725,6 +852,7 @@ Next ==
     \/ ProduceReconciliation
     \/ WriterStart
     \/ SendProgress
+    \/ ClaimTransportProgress
     \/ GenerationLifecycle
     \/ ObserveClaimAck
     \/ HttpReadback
@@ -744,6 +872,8 @@ Spec ==
     /\ WF_vars(QueueRetainedResult)
     /\ WF_vars(WriterStart)
     /\ WF_vars(SendProgress)
+    /\ WF_vars(ReceiveClaim)
+    /\ WF_vars(PersistCanonicalClaim)
     /\ WF_vars(QuiesceGeneration)
     /\ WF_vars(Reconnect)
     /\ WF_vars(ObserveClaimAck)
@@ -782,18 +912,21 @@ ActualExecutionOutcomeDeterminesTerminalState ==
 ReconciliationProductionIsBounded ==
     reconciliationReminderEvents <= ReconCapacity
 
-AckProofUsesExactTransportGeneration ==
+AckProofUsesExactLogicalAuthority ==
     (claim.proven /\ claim.proofSource = AckProof) =>
-        claim.proofGeneration = claim.sentGeneration
+        claim.proofLogicalAuthorityId = claim.logicalAuthorityId
 
 AuthorityOverflowCannotPermitRunning ==
     (authorityOverflow /\ claim.pending /\ ~claim.proven) => executionCount = 0
 
 AtMostOneActiveConnectionGeneration ==
-    transport.state = ActiveGeneration => transport.healthy
+    /\ transport.activeGenerationCount <= 1
+    /\ (transport.state = ActiveGeneration) = (transport.activeGenerationCount = 1)
 
 AtMostOneDurablePumpGeneration ==
-    transport.pumpActive =>
+    /\ transport.pumpActiveCount <= 1
+    /\ transport.pumpActive = (transport.pumpActiveCount = 1)
+    /\ transport.pumpActive =>
         (transport.pumpGeneration = transport.generation /\
          transport.state \in {ActiveGeneration, ClosingGeneration})
 
@@ -809,7 +942,20 @@ OldGenerationCannotSendOnNewGeneration ==
 
 StaleAckCannotSatisfyNewGeneration ==
     (claim.proven /\ claim.proofSource = AckProof) =>
-        claim.proofGeneration = transport.generation
+        /\ claim.proofLogicalAuthorityId = claim.logicalAuthorityId
+        /\ claim.proofGeneration <= transport.generation
+
+ReconnectDoesNotInvalidateProvenLogicalAuthority ==
+    claim.proven => claim.proofLogicalAuthorityId = claim.logicalAuthorityId
+
+ForeignClaimCannotCancelActiveExecution ==
+    claim.foreignControlRejected => ~cancelled
+
+ClaimSendDoesNotImplyCanonicalPersistence ==
+    claim.persisted => (claim.sent /\ claim.received)
+
+ClaimSendCompletionCannotAuthorizeExecution ==
+    (claim.sent /\ ~claim.persisted) => executionCount = 0
 
 PendingRpcFailsWhenGenerationCloses ==
     transport.state # ActiveGeneration => ~transport.pendingRpc
@@ -824,6 +970,20 @@ AcceptedTerminalResultIsIdempotent ==
 
 TransportSendDoesNotImplyCanonicalAcceptance ==
     result.accepted => (result.sent /\ result.identityValid)
+
+ExecutionOutcomeIsMonotonic ==
+    /\ [](result.outcome = SucceededOutcome => []result.outcome = SucceededOutcome)
+    /\ [](result.outcome = FailedOutcome => []result.outcome = FailedOutcome)
+    /\ [](result.outcome = CancelledOutcome => []result.outcome = CancelledOutcome)
+
+KnownSuccessCannotBecomeFailure ==
+    [](result.outcome = SucceededOutcome => []result.outcome = SucceededOutcome)
+
+KnownOutcomeCannotBecomeUnknown ==
+    result.outcomeKnown => result.outcome # UnknownOutcome
+
+ObserverLossCannotFabricateTerminalState ==
+    result.executionRunning => result.outcome = RunningOutcome
 
 StableResultIdentityRequiredForAcceptance ==
     result.accepted => result.identityValid

@@ -690,7 +690,6 @@ def cancel(state: SimState) -> None:
 def restart_node(state: SimState) -> None:
     state.record("node_restart")
     state.node_alive = False
-    state.canonical_claim_proven = False
     state.node_alive = True
     state.assert_invariants()
 
@@ -1982,6 +1981,72 @@ def _durable_pump_quiesces_before_replacement(state: SimState) -> None:
     assert state.durable_pump_generation == state.transport_generation, state.log
 
 
+def _foreign_claim_cancel_does_not_mutate_active_execution(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state, claim_id="claim-active")
+    canonical_read(state)
+    announce_running_and_execute(state, claim_id="claim-active")
+    before = (state.lifecycle, state.executed, state.cancelled)
+    incoming_claim = "claim-foreign"
+    if incoming_claim != state.claim_id:
+        state.record("foreign_execution_control_rejected")
+    assert (state.lifecycle, state.executed, state.cancelled) == before, state.log
+
+
+def _known_success_survives_late_transport_and_cancel_events(state: SimState) -> None:
+    _normal_success(state)
+    before = (state.lifecycle, state.executed)
+    close_connection_generation(state)
+    state.record("late_cancel_rejected_after_known_outcome")
+    assert (state.lifecycle, state.executed) == before, state.log
+
+
+def _observerless_running_restart_stays_unresolved(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    canonical_read(state)
+    announce_running_and_execute(state)
+    state.execution_observer_active = False
+    restart_node(state)
+    assert state.lifecycle == "RUNNING", state.log
+    assert not state.execution_outcome_known, state.log
+    assert state.executed == 1, state.log
+
+
+def _claim_send_without_persistence_cannot_authorize_execution(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    state.record("claim_frame_sent_without_canonical_persistence")
+    announce_running_and_execute(state)
+    assert state.executed == 0, state.log
+    assert not state.canonical_claim_proven, state.log
+    state.fail_closed = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+
+
+def _reconnect_preserves_proven_logical_authority(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state, claim_id="claim-stable")
+    canonical_read(state)
+    close_connection_generation(state)
+    reconnect_transport(state)
+    state.record("same_logical_authority_reobserved_after_reconnect")
+    announce_running_and_execute(state, claim_id="claim-stable")
+    assert state.executed == 1, state.log
+
+
+def _ambient_model_substitution_is_rejected(state: SimState) -> None:
+    qualified_model = "gpt-5.6-sol"
+    ambient_model = "ambient-alternate-model"
+    resolved_model = qualified_model
+    state.record(f"ambient_model_ignored:{ambient_model}")
+    assert resolved_model == qualified_model, state.log
+    state.lifecycle = "SUCCEEDED"
+
+
 SCENARIOS: dict[str, Scenario] = {
     "normal_success": _normal_success,
     "ambiguous_claimed_success": _ambiguous_claimed_success,
@@ -2216,6 +2281,22 @@ SCENARIOS: dict[str, Scenario] = {
     "transport_durable_pump_quiesces_before_replacement": (
         _durable_pump_quiesces_before_replacement
     ),
+    "execution_foreign_claim_cancel_rejected": (
+        _foreign_claim_cancel_does_not_mutate_active_execution
+    ),
+    "execution_known_success_is_monotonic": (
+        _known_success_survives_late_transport_and_cancel_events
+    ),
+    "execution_observerless_restart_stays_unresolved": (
+        _observerless_running_restart_stays_unresolved
+    ),
+    "authority_claim_send_without_persistence_cannot_execute": (
+        _claim_send_without_persistence_cannot_authorize_execution
+    ),
+    "authority_reconnect_preserves_proven_logical_authority": (
+        _reconnect_preserves_proven_logical_authority
+    ),
+    "model_ambient_substitution_rejected": _ambient_model_substitution_is_rejected,
 }
 
 

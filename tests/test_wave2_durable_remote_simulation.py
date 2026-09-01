@@ -64,6 +64,12 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
         "execution_cancel_non_cancellable_records_actual_outcome",
         "terminal_result_send_not_canonical_acceptance",
         "transport_durable_pump_quiesces_before_replacement",
+        "execution_foreign_claim_cancel_rejected",
+        "execution_known_success_is_monotonic",
+        "execution_observerless_restart_stays_unresolved",
+        "authority_claim_send_without_persistence_cannot_execute",
+        "authority_reconnect_preserves_proven_logical_authority",
+        "model_ambient_substitution_rejected",
         "durable_unknown_policy_denied",
         "event_journal_malformed_line_fails_closed",
         "event_journal_read_error_fails_closed",
@@ -119,6 +125,12 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
     assert results["transport_stubborn_generation_task_blocks_reconnect"][
         "fail_closed"
     ] is True
+    assert results["execution_foreign_claim_cancel_rejected"]["executed"] == 1
+    assert results["execution_foreign_claim_cancel_rejected"]["lifecycle"] == "RUNNING"
+    assert results["execution_known_success_is_monotonic"]["lifecycle"] == "SUCCEEDED"
+    assert results["execution_observerless_restart_stays_unresolved"]["lifecycle"] == "RUNNING"
+    assert results["authority_claim_send_without_persistence_cannot_execute"]["executed"] == 0
+    assert results["authority_reconnect_preserves_proven_logical_authority"]["executed"] == 1
     assert results["sync_generic_shell_declares_read_only_denied"]["fail_closed"] is True
     assert results["sync_policy_lookup_unavailable_denied"]["fail_closed"] is True
     assert results["sync_stale_effect_policy_verdict_rejected"]["fail_closed"] is True
