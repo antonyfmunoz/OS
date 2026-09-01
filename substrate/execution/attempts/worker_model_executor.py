@@ -31,6 +31,9 @@ from substrate.execution.attempts.host_isolation import (
 )
 from substrate.execution.attempts.model_executor_contract import ModelWorkPacketInput
 from substrate.execution.attempts.model_executor_selection import build_model_executor
+from substrate.execution.attempts.model_executors.codex import (
+    validate_codex_executable_attestation,
+)
 from substrate.execution.attempts.scope_contract import (
     TRUSTED_PROJECTION_PATHS,
     sealed_writable_scope,
@@ -177,12 +180,25 @@ def _governed_codex_attestation_error(
         "usage_present",
         "credential_isolation_verified",
         "workspace_integrity_verified",
+        "codex_executable_approved",
     )
     mismatches.extend(
         f"{key} is not true" for key in required_true if evidence.get(key) is not True
     )
-    if not str(evidence.get("trusted_model_resolution_source", "") or "").strip():
-        mismatches.append("trusted_model_resolution_source is missing")
+    if evidence.get("trusted_model_resolution_source") != "turn.completed.model":
+        mismatches.append("trusted_model_resolution_source is not trusted terminal metadata")
+    for key in (
+        "codex_executable_path",
+        "codex_executable_sha256",
+        "codex_executable_version",
+        "codex_executable_policy",
+        "codex_executable_policy_identity",
+    ):
+        if not str(evidence.get(key, "") or "").strip():
+            mismatches.append(f"{key} is missing")
+    executable_error = validate_codex_executable_attestation(evidence)
+    if executable_error:
+        mismatches.append(executable_error)
     return "; ".join(mismatches)
 
 

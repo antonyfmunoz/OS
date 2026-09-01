@@ -71,9 +71,10 @@ def test_model_preserves_started_execution_truth_after_cancel_request() -> None:
         "CancellationSafetyPreserved",
         "ConnectionFailureCannotPublishFalseFailure",
     )
-    assert "~result.executionRunning" in cancellation
-    assert "~result.outcomeKnown" in cancellation
-    assert "executionCount = 0" in cancellation
+    assert "cancelProvenBeforeLaunch" in cancellation
+    assert "cancelDuringLaunchUncertainty" in cancellation
+    assert "~result.processCreated" in cancellation
+    assert "result.launchReconciliation" in cancellation
 
 
 def test_model_replays_retained_results_without_attempt_cutoff() -> None:
@@ -125,8 +126,8 @@ def test_model_binds_ack_to_logical_authority_without_rejecting_reconnect() -> N
         "ReconnectDoesNotInvalidateProvenLogicalAuthority",
     )
     assert "proofLogicalAuthorityId = claim.logicalAuthorityId" in stale_ack
-    assert "proofGeneration <= transport.generation" in stale_ack
-    assert "proofGeneration = transport.generation" not in stale_ack
+    assert "proofGeneration = transport.generation" in stale_ack
+    assert "proofExchangeId = claim.ackExchangeId" in stale_ack
 
 
 def test_model_requires_exact_cancel_identity_and_monotonic_outcome() -> None:
@@ -220,6 +221,38 @@ def test_model_shell_launch_uncertainty_is_reachable_and_fences_execution() -> N
     assert "~result.processIdentityPersisted" in crash
     assert "!.outcome = ReconciliationOutcome" in crash
     assert "UncertainShellLaunchCannotExecuteOrRelaunch" in source
+
+
+def test_model_prelaunch_cancel_guards_process_creation_and_connection_loss_preserves_execution() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    create = _action(source, "CreateShellProcess", "PersistShellProcessIdentity")
+    disconnect = _action(
+        source,
+        "ConnectionFailsDuringExecution",
+        "AttemptConnectionGenerationOverlap",
+    )
+    observer_loss = _action(source, "LoseExecutionObserver", "ProduceTerminalResult")
+
+    assert "~cancelled" in create
+    assert "~result.cancelProvenBeforeLaunch" in create
+    assert "result.executionRunning" in disconnect
+    assert "!.connectionLossObserved = TRUE" in disconnect
+    assert "!.executionRunning = FALSE" not in disconnect
+    assert "!.executionRunning = FALSE" not in observer_loss
+    assert "PreLaunchCancellationPreventsProcessCreation" in source
+    assert "ConnectionLossDoesNotTerminateExecution" in source
+
+
+def test_model_stale_ack_requires_exact_transport_and_exchange_generation() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    observe = _action(source, "ObserveClaimAck", "HttpReadback")
+    stale = _action(source, "PresentStaleAck", "RejectStaleAck")
+    reject = _action(source, "RejectStaleAck", "ConnectionFailsDuringExecution")
+
+    assert "claim.sentGeneration = transport.generation" in observe
+    assert "claim.incomingAckExchangeId = claim.ackExchangeId" in observe
+    assert "incomingAckExchangeId" in stale
+    assert "!.staleAckRejected = TRUE" in reject
 
 
 def test_model_claim_ack_and_result_acceptance_have_separate_observation_stages() -> None:

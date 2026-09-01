@@ -5896,13 +5896,16 @@ def test_durable_shell_normal_exit_publishes_positive_zero_residue(tmp_path, mon
     )
 
     assert result["success"] is True
-    assert result["cleanup"] == {
-        "root_pid": 7171,
-        "post_exit_process_check": True,
-        "post_exit_process_check_ok": True,
-        "forced": False,
-        "process_residue": [],
-    }
+    assert result["cleanup"]["root_pid"] == 7171
+    assert result["cleanup"]["post_exit_process_check"] is True
+    assert result["cleanup"]["post_exit_process_check_ok"] is True
+    assert result["cleanup"]["forced"] is False
+    assert result["cleanup"]["process_residue"] == []
+    assert result["cleanup"]["enumeration_complete"] is True
+    assert result["cleanup"]["ownership_validated"] is True
+    assert result["cleanup"]["post_termination_enumeration_complete"] is True
+    assert result["cleanup"]["residue_count"] == 0
+    assert result["cleanup"]["cleanup_verified"] is True
 
 
 def test_durable_shell_normal_exit_fails_closed_when_residue_check_errors(tmp_path, monkeypatch):
@@ -6491,6 +6494,125 @@ def test_durable_process_cleanup_targets_posix_process_group(tmp_path, monkeypat
     assert signaled == [(8888, client_mod.signal.SIGTERM), (8888, client_mod.signal.SIGKILL)]
     assert cleanup["forced"] is True
     assert cleanup["process_residue"] == []
+
+
+def test_cleanup_pid_reuse_never_targets_unrelated_process(tmp_path, monkeypatch):
+    from nodes.windows.umh_node import client as client_mod
+
+    class _Proc:
+        pid = 7001
+        returncode = 0
+
+    proc = _Proc()
+    proc._umh_process_identity = {
+        "pid": 7001,
+        "start_token": "root-old",
+        "executable": "shell.exe",
+        "command_digest": "command",
+    }
+    proc._umh_owned_process_identities = {
+        7001: dict(proc._umh_process_identity),
+        7002: {
+            "pid": 7002,
+            "start_token": "child-old",
+            "executable": "child.exe",
+            "command_digest": "command",
+        },
+    }
+    forced: list[list[int]] = []
+    monkeypatch.setattr(client_mod, "_durable_contained_pids", lambda _proc: [7001, 7002])
+    monkeypatch.setattr(client_mod, "_durable_alive_pids", lambda _pids: [7002])
+    monkeypatch.setattr(
+        client_mod,
+        "_durable_process_identity_matches",
+        lambda stored, **_kwargs: (
+            False,
+            "process identity mismatch for start_token",
+            {**stored, "start_token": "child-reused", "executable": "unrelated.exe"},
+        ),
+    )
+    monkeypatch.setattr(
+        client_mod,
+        "_durable_force_exact_pids",
+        lambda pids: forced.append(list(pids)) or [],
+    )
+
+    cleanup = client_mod._durable_post_exit_process_cleanup(proc, [7001, 7002])
+
+    assert forced == []
+    assert cleanup["process_residue"] == []
+    assert cleanup["cleanup_verified"] is True
+    assert cleanup["pid_reuse_or_identity_mismatch"][0]["pid"] == 7002
+
+
+def test_containment_visible_escaped_descendant_is_not_reported_as_zero(
+    tmp_path, monkeypatch
+):
+    from nodes.windows.umh_node import client as client_mod
+
+    class _Containment:
+        def pids(self):
+            return [7101, 7109]
+
+    class _Proc:
+        pid = 7101
+        returncode = 0
+
+    proc = _Proc()
+    proc._umh_containment = _Containment()
+    proc._umh_process_identity = {
+        "pid": 7101,
+        "start_token": "root",
+        "executable": "shell.exe",
+        "command_digest": "command",
+    }
+    proc._umh_owned_process_identities = {7101: dict(proc._umh_process_identity)}
+    monkeypatch.setattr(
+        client_mod,
+        "_durable_process_identity",
+        lambda pid, **_kwargs: {
+            "pid": pid,
+            "start_token": f"start-{pid}",
+            "executable": "owned-child.exe",
+            "command_digest": "command",
+        },
+    )
+    alive_calls = iter(([7109], [7109]))
+    monkeypatch.setattr(client_mod, "_durable_alive_pids", lambda _pids: list(next(alive_calls)))
+    monkeypatch.setattr(
+        client_mod,
+        "_durable_process_identity_matches",
+        lambda stored, **_kwargs: (True, "exact", dict(stored)),
+    )
+    monkeypatch.setattr(client_mod, "_durable_force_exact_pids", lambda _pids: [])
+
+    cleanup = client_mod._durable_post_exit_process_cleanup(proc, [7101])
+
+    assert cleanup["process_residue"] == [{"pid": 7109, "state": "still_alive"}]
+    assert cleanup["cleanup_verified"] is False
+    assert cleanup["enumeration_complete"] is True
+
+
+def test_cleanup_enumeration_failure_cannot_serialize_positive_zero(monkeypatch):
+    from nodes.windows.umh_node import client as client_mod
+
+    class _Proc:
+        pid = 7201
+        returncode = 0
+
+    proc = _Proc()
+    proc._umh_process_identity = {"pid": 7201, "command_digest": "command"}
+    monkeypatch.setattr(
+        client_mod,
+        "_durable_contained_pids",
+        lambda _proc: (_ for _ in ()).throw(TimeoutError("enumeration timed out")),
+    )
+
+    cleanup = client_mod._durable_post_exit_process_cleanup(proc, [7201])
+
+    assert cleanup["cleanup_verified"] is False
+    assert cleanup["enumeration_complete"] is False
+    assert cleanup["process_residue"] == [{"state": "post_exit_process_tree_unverified"}]
 
 
 # ── Remote write-class terminal dispatch requires DurableRemote ────────────

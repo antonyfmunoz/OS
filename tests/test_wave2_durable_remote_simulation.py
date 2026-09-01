@@ -69,6 +69,12 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
         "execution_observerless_restart_stays_unresolved",
         "authority_claim_send_without_persistence_cannot_execute",
         "authority_reconnect_preserves_proven_logical_authority",
+        "shell_prelaunch_cancel_prevents_process_creation",
+        "shell_cancel_during_launch_uncertainty_reconciles",
+        "cleanup_pid_reuse_does_not_touch_unrelated_process",
+        "cleanup_escaped_descendant_fails_positive_zero",
+        "cleanup_incomplete_enumeration_fails_closed",
+        "sol_unapproved_executable_cannot_attest",
         "model_ambient_substitution_rejected",
         "durable_unknown_policy_denied",
         "event_journal_malformed_line_fails_closed",
@@ -131,6 +137,22 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
     assert results["execution_observerless_restart_stays_unresolved"]["lifecycle"] == "RUNNING"
     assert results["authority_claim_send_without_persistence_cannot_execute"]["executed"] == 0
     assert results["authority_reconnect_preserves_proven_logical_authority"]["executed"] == 1
+    assert results["shell_prelaunch_cancel_prevents_process_creation"][
+        "shell_process_created"
+    ] is False
+    assert results["shell_cancel_during_launch_uncertainty_reconciles"][
+        "lifecycle"
+    ] == "RECONCILIATION_REQUIRED"
+    assert results["cleanup_pid_reuse_does_not_touch_unrelated_process"][
+        "unrelated_reused_process_touched"
+    ] is False
+    assert results["cleanup_escaped_descendant_fails_positive_zero"][
+        "cleanup_verified"
+    ] is False
+    assert results["cleanup_incomplete_enumeration_fails_closed"][
+        "cleanup_verified"
+    ] is False
+    assert results["sol_unapproved_executable_cannot_attest"]["fail_closed"] is True
     assert results["sync_generic_shell_declares_read_only_denied"]["fail_closed"] is True
     assert results["sync_policy_lookup_unavailable_denied"]["fail_closed"] is True
     assert results["sync_stale_effect_policy_verdict_rejected"]["fail_closed"] is True

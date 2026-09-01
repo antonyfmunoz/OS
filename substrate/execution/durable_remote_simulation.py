@@ -118,10 +118,18 @@ class SimState:
     shell_launch_intent_id: str = ""
     shell_process_identity: dict[str, str] = field(default_factory=dict)
     shell_duplicate_launch_fenced: bool = False
+    shell_launch_attempted: bool = False
+    shell_process_created: bool = False
+    cleanup_enumeration_complete: bool = True
+    cleanup_ownership_validated: bool = True
+    cleanup_verified: bool = True
+    cleanup_residue_count: int | None = 0
+    unrelated_reused_process_touched: bool = False
     governed_model_requested: str = "gpt-5.6-sol"
     governed_model_resolved: str = ""
     governed_model_attempt_id: str = ""
     governed_model_attested: bool = False
+    codex_executable_approved: bool = False
     next_request_order: int = 0
     log: list[str] = field(default_factory=list)
 
@@ -138,6 +146,15 @@ class SimState:
         if self.shell_launch_state == "LAUNCH_OUTCOME_UNCERTAIN":
             assert self.shell_duplicate_launch_fenced, self.log
             assert self.executed == 0, self.log
+        if self.cancelled and not self.shell_launch_attempted:
+            assert not self.shell_process_created, self.log
+        if self.cleanup_verified:
+            assert self.cleanup_enumeration_complete, self.log
+            assert self.cleanup_ownership_validated, self.log
+            assert self.cleanup_residue_count == 0, self.log
+        assert not self.unrelated_reused_process_touched, self.log
+        if self.governed_model_attested:
+            assert self.codex_executable_approved, self.log
         if self.cancelled and not self.running_announced:
             assert self.executed == 0, self.log
         if self.lifecycle in TERMINAL:
@@ -2224,6 +2241,62 @@ def _shell_cancel_or_redelivery_during_uncertainty_cannot_relaunch(state: SimSta
     state.record("cancel_and_redelivery_preserve_uncertainty")
 
 
+def _shell_prelaunch_cancel_prevents_process_creation(state: SimState) -> None:
+    state.cancelled = True
+    state.shell_launch_attempted = False
+    state.shell_process_created = False
+    state.lifecycle = "CANCELLED"
+    state.record("prelaunch_cancel_proven_no_process")
+
+
+def _shell_cancel_during_launch_uncertainty_reconciles(state: SimState) -> None:
+    state.shell_launch_attempted = True
+    state.shell_process_created = False
+    state.shell_launch_state = "LAUNCH_OUTCOME_UNCERTAIN"
+    state.shell_duplicate_launch_fenced = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("cancel_preserved_launch_uncertainty")
+
+
+def _cleanup_pid_reuse_does_not_touch_unrelated_process(state: SimState) -> None:
+    state.shell_process_identity = {"pid": "4242", "start_token": "old"}
+    observed = {"pid": "4242", "start_token": "reused"}
+    state.unrelated_reused_process_touched = (
+        observed["start_token"] == state.shell_process_identity["start_token"]
+    )
+    state.cleanup_verified = True
+    state.cleanup_residue_count = 0
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("pid_reuse_rejected_before_cleanup_action")
+
+
+def _cleanup_escaped_descendant_fails_positive_zero(state: SimState) -> None:
+    state.cleanup_enumeration_complete = True
+    state.cleanup_ownership_validated = True
+    state.cleanup_residue_count = 1
+    state.cleanup_verified = False
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("containment_found_escaped_descendant")
+
+
+def _cleanup_incomplete_enumeration_fails_closed(state: SimState) -> None:
+    state.cleanup_enumeration_complete = False
+    state.cleanup_ownership_validated = False
+    state.cleanup_residue_count = None
+    state.cleanup_verified = False
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("cleanup_enumeration_unknown_not_zero")
+
+
+def _sol_unapproved_executable_cannot_attest(state: SimState) -> None:
+    state.governed_model_resolved = "gpt-5.6-sol"
+    state.codex_executable_approved = False
+    state.governed_model_attested = False
+    state.fail_closed = True
+    state.lifecycle = "FAILED"
+    state.record("unapproved_codex_executable_rejected")
+
+
 def _governed_sol_missing_or_mismatched_attestation_fails_closed(state: SimState) -> None:
     state.governed_model_attempt_id = "ea-sol"
     state.governed_model_resolved = "gpt-5.5"
@@ -2480,6 +2553,22 @@ SCENARIOS: dict[str, Scenario] = {
     "shell_cancel_redelivery_uncertainty_fenced": (
         _shell_cancel_or_redelivery_during_uncertainty_cannot_relaunch
     ),
+    "shell_prelaunch_cancel_prevents_process_creation": (
+        _shell_prelaunch_cancel_prevents_process_creation
+    ),
+    "shell_cancel_during_launch_uncertainty_reconciles": (
+        _shell_cancel_during_launch_uncertainty_reconciles
+    ),
+    "cleanup_pid_reuse_does_not_touch_unrelated_process": (
+        _cleanup_pid_reuse_does_not_touch_unrelated_process
+    ),
+    "cleanup_escaped_descendant_fails_positive_zero": (
+        _cleanup_escaped_descendant_fails_positive_zero
+    ),
+    "cleanup_incomplete_enumeration_fails_closed": (
+        _cleanup_incomplete_enumeration_fails_closed
+    ),
+    "sol_unapproved_executable_cannot_attest": _sol_unapproved_executable_cannot_attest,
     "model_governed_sol_attestation_mismatch_rejected": (
         _governed_sol_missing_or_mismatched_attestation_fails_closed
     ),
@@ -2529,6 +2618,12 @@ def run_all_scenarios() -> dict[str, dict[str, object]]:
             "transport_generation": state.transport_generation,
             "terminal_result_retained": state.terminal_result_retained,
             "reconciliation_reminder_events": state.reconciliation_reminder_events,
+            "shell_process_created": state.shell_process_created,
+            "cleanup_verified": state.cleanup_verified,
+            "cleanup_enumeration_complete": state.cleanup_enumeration_complete,
+            "cleanup_residue_count": state.cleanup_residue_count,
+            "unrelated_reused_process_touched": state.unrelated_reused_process_touched,
+            "codex_executable_approved": state.codex_executable_approved,
             "log": list(state.log),
         }
     return results

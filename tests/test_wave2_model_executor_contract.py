@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import time
@@ -20,7 +21,10 @@ from substrate.execution.attempts.model_executor_selection import (
     selected_codex_model,
     selected_provider_name,
 )
-from substrate.execution.attempts.model_executors.codex import CodexModelExecutor
+from substrate.execution.attempts.model_executors.codex import (
+    CodexModelExecutor,
+    _file_sha256,
+)
 from substrate.execution.attempts.model_executors.deterministic import (
     DeterministicConformanceExecutor,
 )
@@ -183,6 +187,134 @@ def test_codex_adapter_invokes_exec_with_prompt_on_stdin(tmp_path, monkeypatch):
     assert result.identity.provider == "codex"
     assert result.usage["output_tokens"] == 11
     assert result.proof_binding["attempt_id"] == "ea-1"
+
+
+def test_governed_sol_binds_success_to_approved_exact_codex_executable(
+    tmp_path, monkeypatch
+):
+    executable = tmp_path / "codex"
+    executable.write_bytes(b"approved-codex-binary")
+    executable.chmod(0o755)
+    executable_hash = _file_sha256(str(executable))
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(executable.resolve()): executable_hash}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(executable),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_metadata_command",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0, stdout="codex-cli 0.approved\n", stderr=""
+        ),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":{"text":"real Sol content"}}\n'
+                '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":2},'
+                '"model":"gpt-5.6-sol"}\n'
+            ),
+            stderr="",
+        ),
+    )
+
+    result = CodexModelExecutor(model="gpt-5.6-sol").invoke(_packet(tmp_path), env={})
+
+    assert result.ok is True
+    assert result.execution_identity["codex_executable_approved"] is True
+    assert result.execution_identity["codex_executable_path"] == str(executable.resolve())
+    assert result.execution_identity["codex_executable_sha256"] == executable_hash
+
+
+def test_governed_sol_rejects_tampered_or_unapproved_codex_executable(tmp_path, monkeypatch):
+    executable = tmp_path / "codex"
+    executable.write_bytes(b"approved-before-tamper")
+    approved_hash = _file_sha256(str(executable))
+    executable.write_bytes(b"tampered-wrapper")
+    executable.chmod(0o755)
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(executable.resolve()): approved_hash}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(executable),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_metadata_command",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0, stdout="codex-cli fake\n", stderr=""
+        ),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":{"text":"claimed Sol content"}}\n'
+                '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":2},'
+                '"model":"gpt-5.6-sol"}\n'
+            ),
+            stderr="",
+        ),
+    )
+
+    result = CodexModelExecutor(model="gpt-5.6-sol").invoke(_packet(tmp_path), env={})
+
+    assert result.ok is False
+    assert result.execution_identity["codex_executable_approved"] is False
+    assert "not approved by realpath/hash policy" in result.stderr
+
+
+def test_governed_sol_rejects_byte_identical_copy_at_unapproved_realpath(
+    tmp_path, monkeypatch
+):
+    approved = tmp_path / "approved" / "codex"
+    copied = tmp_path / "copied" / "codex"
+    approved.parent.mkdir()
+    copied.parent.mkdir()
+    approved.write_bytes(b"same-codex-binary")
+    copied.write_bytes(approved.read_bytes())
+    approved.chmod(0o755)
+    copied.chmod(0o755)
+    executable_hash = _file_sha256(str(approved))
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(approved.resolve()): executable_hash}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(copied),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_metadata_command",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0, stdout="codex-cli copied\n", stderr=""
+        ),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0,
+            stdout=(
+                '{"type":"item.completed","item":{"text":"claimed Sol content"}}\n'
+                '{"type":"turn.completed","usage":{"input_tokens":1,"output_tokens":2},'
+                '"model":"gpt-5.6-sol"}\n'
+            ),
+            stderr="",
+        ),
+    )
+
+    result = CodexModelExecutor(model="gpt-5.6-sol").invoke(_packet(tmp_path), env={})
+
+    assert result.ok is False
+    assert result.execution_identity["codex_executable_path"] == str(copied.resolve())
+    assert result.execution_identity["codex_executable_approved"] is False
 
 
 def test_codex_adapter_rejects_empty_output(tmp_path, monkeypatch):
@@ -1225,6 +1357,12 @@ def test_neutral_worker_wraps_actual_provider_invocation_in_isolation(tmp_path, 
                     "model_resolution_observable": True,
                     "output_content_present": True,
                     "usage_present": True,
+                    "codex_executable_approved": True,
+                    "codex_executable_path": "/opt/codex/bin/codex",
+                    "codex_executable_sha256": "a" * 64,
+                    "codex_executable_version": "codex-cli 0.test",
+                    "codex_executable_policy": "codex-executable-realpath-sha256-v1",
+                    "codex_executable_policy_identity": "b" * 64,
                 },
                 proof_binding=packet.proof_binding,
             )
@@ -1502,6 +1640,12 @@ def test_codex_retry_without_denial_uses_normal_writable_policy(tmp_path, monkey
                     "model_resolution_observable": True,
                     "output_content_present": True,
                     "usage_present": True,
+                    "codex_executable_approved": True,
+                    "codex_executable_path": "/opt/codex/bin/codex",
+                    "codex_executable_sha256": "a" * 64,
+                    "codex_executable_version": "codex-cli 0.test",
+                    "codex_executable_policy": "codex-executable-realpath-sha256-v1",
+                    "codex_executable_policy_identity": "b" * 64,
                 },
                 proof_binding=packet.proof_binding,
             )
@@ -1515,6 +1659,7 @@ def test_codex_retry_without_denial_uses_normal_writable_policy(tmp_path, monkey
             return {"HOME": self.home_path, "CODEX_HOME": self.home_path}
 
     monkeypatch.setattr(worker, "build_model_executor", lambda provider=None: FakeExecutor())
+    monkeypatch.setattr(worker, "validate_codex_executable_attestation", lambda _evidence: "")
     monkeypatch.setattr(worker, "make_lease_selfcontained", lambda path: None)
     monkeypatch.setattr(worker, "open_attempt_credential_home", lambda **kw: FakeHome())
     monkeypatch.setattr(worker, "close_attempt_credential_home", lambda home: None)

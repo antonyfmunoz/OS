@@ -39,6 +39,9 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+from substrate.execution.attempts.model_executors.codex import (
+    validate_codex_executable_attestation,
+)
 from substrate.execution.attempts.records import ExecutionAttemptStatus as _S
 from substrate.execution.attempts.store import AttemptStoreConflict, ExecutionAttemptStore
 
@@ -570,11 +573,24 @@ class ControlPlanePoller:
             "usage_present",
             "credential_isolation_verified",
             "workspace_integrity_verified",
+            "codex_executable_approved",
         ):
             if evidence.get(key) is not True:
                 return f"execution_identity.{key} is not true"
-        if not str(evidence.get("trusted_model_resolution_source", "") or "").strip():
-            return "execution_identity.trusted_model_resolution_source is missing"
+        if evidence.get("trusted_model_resolution_source") != "turn.completed.model":
+            return "execution_identity.trusted_model_resolution_source is not trusted"
+        for key in (
+            "codex_executable_path",
+            "codex_executable_sha256",
+            "codex_executable_version",
+            "codex_executable_policy",
+            "codex_executable_policy_identity",
+        ):
+            if not str(evidence.get(key, "") or "").strip():
+                return f"execution_identity.{key} is missing"
+        executable_error = validate_codex_executable_attestation(evidence)
+        if executable_error:
+            return f"execution_identity.{executable_error}"
         return ""
 
     def _build_independent_checks(self, attempt: Any, lease: Any) -> Any:

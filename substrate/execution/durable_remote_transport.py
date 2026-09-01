@@ -552,7 +552,13 @@ def shell_running_identity_error(
         return "shell RUNNING requires positive root_pid"
     if process_identity.get("pid") != root_pid:
         return "shell RUNNING process identity PID mismatch"
-    for key in ("start_token", "executable", "command_digest", "identity_source"):
+    for key in (
+        "start_token",
+        "executable",
+        "observed_command_digest",
+        "command_digest",
+        "identity_source",
+    ):
         if not str(process_identity.get(key, "") or "").strip():
             return f"shell RUNNING process identity missing {key}"
     if process_identity.get("command_digest") != request.payload_digest:

@@ -385,41 +385,27 @@ def _durable_process_identity(
     if root_pid <= 0:
         raise ValueError("root_pid must be positive")
     if sys.platform == "win32":
-        import ctypes
-        from ctypes import wintypes
+        import psutil
 
-        process_query_limited_information = 0x1000
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
-        handle = kernel32.OpenProcess(process_query_limited_information, False, root_pid)
-        if not handle:
-            raise OSError(ctypes.get_last_error(), "OpenProcess failed")
         try:
-            creation = wintypes.FILETIME()
-            exit_time = wintypes.FILETIME()
-            kernel = wintypes.FILETIME()
-            user = wintypes.FILETIME()
-            if not kernel32.GetProcessTimes(
-                handle,
-                ctypes.byref(creation),
-                ctypes.byref(exit_time),
-                ctypes.byref(kernel),
-                ctypes.byref(user),
-            ):
-                raise OSError(ctypes.get_last_error(), "GetProcessTimes failed")
-            start_token = (int(creation.dwHighDateTime) << 32) | int(creation.dwLowDateTime)
-            size = wintypes.DWORD(32768)
-            image = ctypes.create_unicode_buffer(size.value)
-            executable = ""
-            if kernel32.QueryFullProcessImageNameW(handle, 0, image, ctypes.byref(size)):
-                executable = image.value
-        finally:
-            kernel32.CloseHandle(handle)
+            process = psutil.Process(root_pid)
+            with process.oneshot():
+                start_token = str(round(process.create_time() * 10_000_000))
+                executable = process.exe()
+                parent_pid = process.ppid()
+                command_line = process.cmdline()
+        except psutil.Error as exc:
+            raise OSError(f"psutil process identity failed: {exc}") from exc
         return {
             "pid": root_pid,
-            "start_token": str(start_token),
+            "start_token": start_token,
+            "parent_pid": parent_pid,
             "executable": executable,
+            "observed_command_digest": hashlib.sha256(
+                json.dumps(command_line, ensure_ascii=True, separators=(",", ":")).encode()
+            ).hexdigest(),
             "command_digest": command_digest,
-            "identity_source": "windows_process_times",
+            "identity_source": "psutil_process_identity",
         }
 
     stat_text = (Path(f"/proc/{root_pid}/stat")).read_text(encoding="utf-8")
@@ -462,14 +448,228 @@ def _durable_process_identity_matches(
         return False, f"process identity unavailable: {type(exc).__name__}: {exc}", None
     if str(stored.get("command_digest", "")) != command_digest:
         return False, "persisted command digest mismatch", observed
-    for key in ("pid", "start_token", "executable"):
+    for key in ("pid", "start_token", "executable", "parent_pid", "observed_command_digest"):
         expected = str(stored.get(key, "") or "")
         actual = str(observed.get(key, "") or "")
         if expected and expected != actual:
             return False, f"process identity mismatch for {key}", observed
     if not str(stored.get("start_token", "") or ""):
         return False, "persisted process start token missing", observed
+    if not str(stored.get("observed_command_digest", "") or ""):
+        return False, "persisted observed command digest missing", observed
     return True, "exact process identity matched", observed
+
+
+class _WindowsDurableJob:
+    """Windows Job Object used as the owned process-tree boundary."""
+
+    def __init__(self, *, containment_id: str) -> None:
+        import ctypes
+        from ctypes import wintypes
+
+        class _BasicLimit(ctypes.Structure):
+            _fields_ = [
+                ("PerProcessUserTimeLimit", ctypes.c_longlong),
+                ("PerJobUserTimeLimit", ctypes.c_longlong),
+                ("LimitFlags", wintypes.DWORD),
+                ("MinimumWorkingSetSize", ctypes.c_size_t),
+                ("MaximumWorkingSetSize", ctypes.c_size_t),
+                ("ActiveProcessLimit", wintypes.DWORD),
+                ("Affinity", ctypes.c_size_t),
+                ("PriorityClass", wintypes.DWORD),
+                ("SchedulingClass", wintypes.DWORD),
+            ]
+
+        class _IoCounters(ctypes.Structure):
+            _fields_ = [
+                ("ReadOperationCount", ctypes.c_ulonglong),
+                ("WriteOperationCount", ctypes.c_ulonglong),
+                ("OtherOperationCount", ctypes.c_ulonglong),
+                ("ReadTransferCount", ctypes.c_ulonglong),
+                ("WriteTransferCount", ctypes.c_ulonglong),
+                ("OtherTransferCount", ctypes.c_ulonglong),
+            ]
+
+        class _ExtendedLimit(ctypes.Structure):
+            _fields_ = [
+                ("BasicLimitInformation", _BasicLimit),
+                ("IoInfo", _IoCounters),
+                ("ProcessMemoryLimit", ctypes.c_size_t),
+                ("JobMemoryLimit", ctypes.c_size_t),
+                ("PeakProcessMemoryUsed", ctypes.c_size_t),
+                ("PeakJobMemoryUsed", ctypes.c_size_t),
+            ]
+
+        class _ThreadEntry(ctypes.Structure):
+            _fields_ = [
+                ("dwSize", wintypes.DWORD),
+                ("cntUsage", wintypes.DWORD),
+                ("th32ThreadID", wintypes.DWORD),
+                ("th32OwnerProcessID", wintypes.DWORD),
+                ("tpBasePri", wintypes.LONG),
+                ("tpDeltaPri", wintypes.LONG),
+                ("dwFlags", wintypes.DWORD),
+            ]
+
+        self._ctypes = ctypes
+        self._kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        self._kernel32.CreateJobObjectW.argtypes = [ctypes.c_void_p, wintypes.LPCWSTR]
+        self._kernel32.CreateJobObjectW.restype = wintypes.HANDLE
+        self._kernel32.SetInformationJobObject.argtypes = [
+            wintypes.HANDLE,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+        ]
+        self._kernel32.SetInformationJobObject.restype = wintypes.BOOL
+        self._kernel32.AssignProcessToJobObject.argtypes = [wintypes.HANDLE, wintypes.HANDLE]
+        self._kernel32.AssignProcessToJobObject.restype = wintypes.BOOL
+        self._kernel32.QueryInformationJobObject.argtypes = [
+            wintypes.HANDLE,
+            ctypes.c_int,
+            ctypes.c_void_p,
+            wintypes.DWORD,
+            ctypes.c_void_p,
+        ]
+        self._kernel32.QueryInformationJobObject.restype = wintypes.BOOL
+        self._kernel32.TerminateJobObject.argtypes = [wintypes.HANDLE, wintypes.UINT]
+        self._kernel32.TerminateJobObject.restype = wintypes.BOOL
+        self._kernel32.CreateToolhelp32Snapshot.argtypes = [wintypes.DWORD, wintypes.DWORD]
+        self._kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+        self._kernel32.Thread32First.argtypes = [wintypes.HANDLE, ctypes.c_void_p]
+        self._kernel32.Thread32First.restype = wintypes.BOOL
+        self._kernel32.Thread32Next.argtypes = [wintypes.HANDLE, ctypes.c_void_p]
+        self._kernel32.Thread32Next.restype = wintypes.BOOL
+        self._kernel32.OpenThread.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+        self._kernel32.OpenThread.restype = wintypes.HANDLE
+        self._kernel32.ResumeThread.argtypes = [wintypes.HANDLE]
+        self._kernel32.ResumeThread.restype = wintypes.DWORD
+        self._kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+        self._kernel32.CloseHandle.restype = wintypes.BOOL
+        self._ThreadEntry = _ThreadEntry
+        self._handle = self._kernel32.CreateJobObjectW(None, None)
+        self.containment_id = containment_id
+        self.closed = False
+        if not self._handle:
+            raise OSError(ctypes.get_last_error(), "CreateJobObjectW failed")
+        limits = _ExtendedLimit()
+        limits.BasicLimitInformation.LimitFlags = 0x00002000  # KILL_ON_JOB_CLOSE
+        if not self._kernel32.SetInformationJobObject(
+            self._handle,
+            9,
+            ctypes.byref(limits),
+            ctypes.sizeof(limits),
+        ):
+            error = ctypes.get_last_error()
+            self.close()
+            raise OSError(error, "SetInformationJobObject failed")
+
+    def assign(self, proc: subprocess.Popen[str]) -> None:
+        process_handle = getattr(proc, "_handle", None)
+        if process_handle is None or not self._kernel32.AssignProcessToJobObject(
+            self._handle, self._ctypes.c_void_p(int(process_handle))
+        ):
+            raise OSError(self._ctypes.get_last_error(), "AssignProcessToJobObject failed")
+
+    def pids(self) -> list[int]:
+        capacity = 64
+        while capacity <= 4096:
+            header = 8
+            pointer_size = self._ctypes.sizeof(self._ctypes.c_size_t)
+            buffer = self._ctypes.create_string_buffer(header + capacity * pointer_size)
+            returned = self._ctypes.c_ulong()
+            ok = self._kernel32.QueryInformationJobObject(
+                self._handle,
+                3,
+                buffer,
+                len(buffer),
+                self._ctypes.byref(returned),
+            )
+            if ok:
+                assigned = self._ctypes.c_ulong.from_buffer(buffer, 0).value
+                listed = self._ctypes.c_ulong.from_buffer(buffer, 4).value
+                if assigned > listed:
+                    capacity *= 2
+                    continue
+                return sorted(
+                    int(self._ctypes.c_size_t.from_buffer(buffer, header + i * pointer_size).value)
+                    for i in range(listed)
+                )
+            error = self._ctypes.get_last_error()
+            if error != 122:  # ERROR_INSUFFICIENT_BUFFER
+                raise OSError(error, "QueryInformationJobObject failed")
+            capacity *= 2
+        raise RuntimeError("job process enumeration exceeded bounded capacity")
+
+    def resume_suspended_process(self, proc: subprocess.Popen[str]) -> None:
+        snapshot = self._kernel32.CreateToolhelp32Snapshot(0x00000004, 0)
+        invalid_handle = self._ctypes.c_void_p(-1).value
+        if not snapshot or int(snapshot) == invalid_handle:
+            raise OSError(self._ctypes.get_last_error(), "thread snapshot failed")
+        try:
+            entry = self._ThreadEntry()
+            entry.dwSize = self._ctypes.sizeof(entry)
+            found = bool(self._kernel32.Thread32First(snapshot, self._ctypes.byref(entry)))
+            while found:
+                if int(entry.th32OwnerProcessID) == int(proc.pid):
+                    thread = self._kernel32.OpenThread(0x0002, False, entry.th32ThreadID)
+                    if not thread:
+                        raise OSError(self._ctypes.get_last_error(), "OpenThread failed")
+                    try:
+                        previous_count = self._kernel32.ResumeThread(thread)
+                        if previous_count == 0xFFFFFFFF:
+                            raise OSError(self._ctypes.get_last_error(), "ResumeThread failed")
+                        return
+                    finally:
+                        self._kernel32.CloseHandle(thread)
+                found = bool(self._kernel32.Thread32Next(snapshot, self._ctypes.byref(entry)))
+        finally:
+            self._kernel32.CloseHandle(snapshot)
+        raise RuntimeError(f"suspended initial thread not found for pid {proc.pid}")
+
+    def terminate(self) -> None:
+        if not self._kernel32.TerminateJobObject(self._handle, 1):
+            raise OSError(self._ctypes.get_last_error(), "TerminateJobObject failed")
+
+    def close(self) -> None:
+        if not self.closed and self._handle:
+            self._kernel32.CloseHandle(self._handle)
+            self.closed = True
+
+
+def _durable_attach_process_containment(
+    proc: subprocess.Popen[str], *, containment_id: str
+) -> _WindowsDurableJob | None:
+    if sys.platform != "win32":
+        return None
+    job = _WindowsDurableJob(containment_id=containment_id)
+    try:
+        job.assign(proc)
+    except Exception:
+        job.close()
+        raise
+    return job
+
+
+def _durable_contained_pids(proc: subprocess.Popen[str]) -> list[int]:
+    containment = getattr(proc, "_umh_containment", None)
+    if containment is not None:
+        return containment.pids()
+    return _durable_owned_process_tree_pids(proc.pid)
+
+
+def _durable_capture_owned_identities(
+    proc: subprocess.Popen[str],
+    *,
+    command_digest: str,
+) -> dict[int, dict[str, Any]]:
+    identities = dict(getattr(proc, "_umh_owned_process_identities", {}) or {})
+    for pid in _durable_contained_pids(proc):
+        if pid in identities:
+            continue
+        identities[pid] = _durable_process_identity(pid, command_digest=command_digest)
+    setattr(proc, "_umh_owned_process_identities", identities)
+    return identities
 
 
 def _durable_alive_pids(pids: list[int]) -> list[int]:
@@ -531,32 +731,95 @@ def _durable_force_exact_pids(pids: list[int]) -> list[str]:
     return lines
 
 
+def _durable_terminate_owned_processes(
+    proc: subprocess.Popen[str], exact_owned: list[int]
+) -> list[str]:
+    """Terminate only through a containment handle on Windows.
+
+    A PID can be reused between identity validation and a later taskkill call.  The
+    Job Object handle is the stable ownership boundary for Windows executions.
+    """
+
+    containment = getattr(proc, "_umh_containment", None)
+    if sys.platform == "win32":
+        if containment is None:
+            raise RuntimeError("Windows process containment unavailable; refusing PID cleanup")
+        containment.terminate()
+        return ["terminated owned Windows Job Object"]
+    return _durable_force_exact_pids(exact_owned)
+
+
 def _durable_fail_closed_reader_timeout_cleanup(
     proc: subprocess.Popen[str],
     cleanup: dict[str, Any],
     last_tree_pids: list[int],
 ) -> dict[str, Any]:
+    cleanup.setdefault("enumeration_performed", False)
+    cleanup.setdefault("enumeration_complete", False)
+    cleanup.setdefault("ownership_validated", False)
+    cleanup.setdefault("post_termination_enumeration_complete", False)
+    cleanup["cleanup_verified"] = False
     try:
-        last_tree_pids = sorted(set(last_tree_pids + _durable_owned_process_tree_pids(proc.pid)))
-    except Exception:
-        last_tree_pids = sorted(set(last_tree_pids + [proc.pid]))
-    alive = _durable_alive_pids(last_tree_pids)
-    if alive:
+        command_digest = str(
+            (getattr(proc, "_umh_process_identity", {}) or {}).get("command_digest", "")
+        )
+        identities = _durable_capture_owned_identities(proc, command_digest=command_digest)
+        last_tree_pids = sorted(set(last_tree_pids + list(identities)))
+        cleanup["enumeration_performed"] = True
+        cleanup["enumeration_complete"] = True
+    except Exception as exc:  # noqa: BLE001
+        cleanup["enumeration_performed"] = True
+        cleanup["reader_timeout_enumeration_error"] = f"{type(exc).__name__}: {exc}"
+        cleanup["process_residue"] = [{"state": "reader_timeout_descendant_identity_unknown"}]
+        return cleanup
+    try:
+        alive = _durable_alive_pids(last_tree_pids)
+    except Exception as exc:  # noqa: BLE001
+        cleanup["process_residue"] = [{"state": "reader_timeout_alive_scan_unverified"}]
+        cleanup["reader_timeout_alive_scan_error"] = f"{type(exc).__name__}: {exc}"
+        return cleanup
+    exact_owned: list[int] = []
+    for pid in alive:
+        stored = dict(identities.get(pid) or {})
+        if not stored:
+            cleanup["process_residue"] = [
+                {"pid": pid, "state": "reader_timeout_ownership_unverified"}
+            ]
+            return cleanup
+        matched, _reason, _observed = _durable_process_identity_matches(
+            stored,
+            command_digest=str(stored.get("command_digest", "")),
+        )
+        if matched:
+            exact_owned.append(pid)
+    cleanup["ownership_validated"] = True
+    if getattr(proc, "_umh_containment", None) is None and not any(
+        pid != proc.pid for pid in identities
+    ):
+        cleanup["process_residue"] = [
+            {"state": "reader_timeout_descendant_identity_unknown"}
+        ]
+        return cleanup
+    if exact_owned:
         cleanup.setdefault("force_stdout", "")
         cleanup["force_stdout"] = "\n".join(
             str(x)
             for x in [
                 cleanup.get("force_stdout", ""),
-                *_durable_force_exact_pids(alive),
+                *_durable_terminate_owned_processes(proc, exact_owned),
             ]
             if x
         )
-        remaining = _durable_alive_pids(alive)
+        remaining = _durable_alive_pids(exact_owned)
         cleanup["process_residue"] = [{"pid": pid, "state": "still_alive"} for pid in remaining]
-    elif not any(pid != proc.pid for pid in last_tree_pids):
-        cleanup["process_residue"] = [{"state": "reader_timeout_descendant_identity_unknown"}]
+        cleanup["post_termination_enumeration_complete"] = True
+        cleanup["residue_count"] = len(remaining)
+        cleanup["cleanup_verified"] = not remaining
     else:
         cleanup["process_residue"] = []
+        cleanup["post_termination_enumeration_complete"] = True
+        cleanup["residue_count"] = 0
+        cleanup["cleanup_verified"] = True
     return cleanup
 
 
@@ -567,12 +830,30 @@ def _durable_post_exit_process_cleanup(
     cleanup: dict[str, Any] = {
         "root_pid": proc.pid,
         "post_exit_process_check": True,
+        "enumeration_performed": False,
+        "enumeration_complete": False,
+        "ownership_validated": False,
+        "matched_processes": [],
+        "termination_attempted": False,
+        "post_termination_enumeration_complete": False,
+        "residue_count": None,
+        "cleanup_verified": False,
         "forced": False,
         "process_residue": [],
     }
     try:
-        observed = _durable_owned_process_tree_pids(proc.pid)
+        command_digest = str(
+            (getattr(proc, "_umh_process_identity", {}) or {}).get("command_digest", "")
+        )
+        identities = _durable_capture_owned_identities(
+            proc,
+            command_digest=command_digest,
+        )
+        observed = list(identities)
+        cleanup["enumeration_performed"] = True
+        cleanup["enumeration_complete"] = True
     except Exception as exc:  # noqa: BLE001
+        cleanup["enumeration_performed"] = True
         cleanup["post_exit_process_check_ok"] = False
         cleanup["post_exit_process_check_error"] = f"{type(exc).__name__}: {exc}"
         cleanup["process_residue"] = [{"state": "post_exit_process_tree_unverified"}]
@@ -586,27 +867,76 @@ def _durable_post_exit_process_cleanup(
         cleanup["post_exit_alive_scan_error"] = f"{type(exc).__name__}: {exc}"
         cleanup["process_residue"] = [{"state": "post_exit_alive_scan_unverified"}]
         return cleanup
-    if not alive:
+    exact_owned: list[int] = []
+    ownership_mismatches: list[dict[str, Any]] = []
+    for pid in alive:
+        stored = dict(identities.get(pid) or {})
+        if not stored:
+            cleanup["post_exit_process_check_ok"] = False
+            cleanup["process_residue"] = [
+                {"pid": pid, "state": "descendant_ownership_unverified"}
+            ]
+            return cleanup
+        matched, reason, observed_identity = _durable_process_identity_matches(
+            stored,
+            command_digest=str(stored.get("command_digest", "")),
+        )
+        if matched:
+            exact_owned.append(pid)
+            cleanup["matched_processes"].append(observed_identity or stored)
+        else:
+            ownership_mismatches.append(
+                {
+                    "pid": pid,
+                    "reason": reason,
+                    "stored": stored,
+                    "observed": observed_identity or {},
+                }
+            )
+    cleanup["ownership_validated"] = True
+    if ownership_mismatches:
+        cleanup["pid_reuse_or_identity_mismatch"] = ownership_mismatches
+    if not exact_owned:
+        cleanup["post_termination_enumeration_complete"] = True
+        cleanup["residue_count"] = 0
+        cleanup["cleanup_verified"] = True
         return cleanup
     cleanup["forced"] = True
+    cleanup["termination_attempted"] = True
     cleanup["process_residue_detected_after_exit"] = True
     try:
-        cleanup["force_stdout"] = "\n".join(_durable_force_exact_pids(alive))
+        cleanup["force_stdout"] = "\n".join(
+            _durable_terminate_owned_processes(proc, exact_owned)
+        )
     except Exception as exc:  # noqa: BLE001
         cleanup["post_exit_process_check_ok"] = False
         cleanup["force_cleanup_error"] = f"{type(exc).__name__}: {exc}"
-        cleanup["process_residue"] = [{"pid": pid, "state": "cleanup_unverified"} for pid in alive]
+        cleanup["process_residue"] = [
+            {"pid": pid, "state": "cleanup_unverified"} for pid in exact_owned
+        ]
         return cleanup
     try:
-        remaining = _durable_alive_pids(alive)
+        remaining_alive = _durable_alive_pids(exact_owned)
     except Exception as exc:  # noqa: BLE001
         cleanup["post_exit_process_check_ok"] = False
         cleanup["post_exit_remaining_scan_error"] = f"{type(exc).__name__}: {exc}"
         cleanup["process_residue"] = [
-            {"pid": pid, "state": "remaining_scan_unverified"} for pid in alive
+            {"pid": pid, "state": "remaining_scan_unverified"} for pid in exact_owned
         ]
         return cleanup
+    remaining: list[int] = []
+    for pid in remaining_alive:
+        stored = identities[pid]
+        matched, _reason, _observed = _durable_process_identity_matches(
+            stored,
+            command_digest=str(stored.get("command_digest", "")),
+        )
+        if matched:
+            remaining.append(pid)
+    cleanup["post_termination_enumeration_complete"] = True
     cleanup["process_residue"] = [{"pid": pid, "state": "still_alive"} for pid in remaining]
+    cleanup["residue_count"] = len(remaining)
+    cleanup["cleanup_verified"] = not remaining
     return cleanup
 
 
@@ -2718,8 +3048,11 @@ class NodeClient:
                     reason="cancel execution identity mismatch",
                 )
                 return
-            self._durable_store.put_request(delivered_req)
-            self._durable_store.update_request(delivered_req, "CANCEL_REQUESTED")
+            current = self._durable_store.put_request(delivered_req)
+            current.lifecycle_state = "CANCEL_REQUESTED"
+            current.cancellation_requested_at = delivered_req.cancellation_requested_at
+            current.cancellation_deadline_at = delivered_req.cancellation_deadline_at
+            self._durable_store.update_request(current, "CANCEL_REQUESTED")
 
         async def _run(trajectory: dict[str, Any]) -> None:
             await self._handle_durable_command_locked(delivered_req, trajectory)
@@ -2751,8 +3084,11 @@ class NodeClient:
                     delivered_req.request_id,
                 )
                 return
-            self._durable_store.update_request(delivered_req, "CANCEL_REQUESTED")
-            req = self._durable_store.get_request(delivered_req.request_id) or delivered_req
+            req.lifecycle_state = "CANCEL_REQUESTED"
+            req.cancellation_requested_at = delivered_req.cancellation_requested_at
+            req.cancellation_deadline_at = delivered_req.cancellation_deadline_at
+            self._durable_store.update_request(req, "CANCEL_REQUESTED")
+            req = self._durable_store.get_request(delivered_req.request_id) or req
             self._sync_durable_request_trajectory(trajectory, req)
         existing = self._durable_store.result_for(req.request_id)
         if existing:
@@ -3366,6 +3702,34 @@ class NodeClient:
                 claim_id=claim_id,
                 process_tree=current.process_tree or process_tree,
             )
+            launch_state = str(
+                (self._durable_store.get_request(current.request_id) or current).process_tree.get(
+                    "launch_state", ""
+                )
+                or ""
+            )
+            cleanup = dict(result.get("cleanup") or {})
+            if (
+                self._durable_request_is_shell_backed(current)
+                and launch_state
+                in {
+                    SHELL_LAUNCH_IN_PROGRESS,
+                    SHELL_PROCESS_IDENTITY_PERSISTED,
+                    SHELL_LAUNCH_RUNNING,
+                }
+                and cleanup.get("cleanup_verified") is not True
+            ):
+                cleanup.setdefault(
+                    "process_residue",
+                    [{"state": "shell_cleanup_completeness_unverified"}],
+                )
+                if cleanup.get("process_residue") == []:
+                    cleanup["process_residue"] = [
+                        {"state": "shell_cleanup_completeness_unverified"}
+                    ]
+                cleanup["execution_outcome_unknown"] = True
+                result["cleanup"] = cleanup
+                result["execution_outcome_unresolved"] = True
             if result.get("execution_outcome_unresolved"):
                 cleanup = dict(
                     result.get("cleanup")
@@ -4187,11 +4551,7 @@ class NodeClient:
             )
             return self._durable_store.get_request(req.request_id) or req
         launch_state = str(req.process_tree.get("launch_state", "") or "")
-        if launch_state in {
-            SHELL_LAUNCH_IN_PROGRESS,
-            SHELL_PROCESS_IDENTITY_PERSISTED,
-            SHELL_LAUNCH_RUNNING,
-        }:
+        if launch_state == SHELL_LAUNCH_IN_PROGRESS:
             current = self._durable_store.mark_reconciliation_required(
                 req.request_id,
                 reason="cancel requested while shell launch/execution outcome is uncertain",
@@ -4225,6 +4585,24 @@ class NodeClient:
             cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
             cleanup["cancel_reason"] = reason
             cleanup.update(req.cancellation_identity(claim_id=claim_id))
+            if cleanup.get("cleanup_verified") is not True:
+                if cleanup.get("process_residue") == []:
+                    cleanup["process_residue"] = [
+                        {"state": "shell_cleanup_completeness_unverified"}
+                    ]
+                cleanup["execution_outcome_unknown"] = True
+                current = self._durable_store.mark_reconciliation_required(
+                    req.request_id,
+                    reason="cancel cleanup completeness could not be proven",
+                    cleanup=cleanup,
+                )
+                self._record_durable_request_trajectory(
+                    req.request_id,
+                    status="RECONCILIATION_PENDING",
+                    claim_id=claim_id,
+                    terminal=True,
+                )
+                return current
         elif req.process_tree.get("root_pid") or req.lifecycle_state == "RUNNING":
             cleanup["process_residue"] = [
                 {
@@ -4268,43 +4646,77 @@ class NodeClient:
         cleanup: dict[str, Any] = {
             "root_pid": pid,
             "graceful_attempted": True,
+            "enumeration_performed": False,
+            "enumeration_complete": False,
+            "ownership_validated": False,
+            "matched_processes": [],
+            "termination_attempted": False,
+            "post_termination_enumeration_complete": False,
+            "residue_count": None,
+            "cleanup_verified": False,
             "forced": False,
             "process_residue": [],
         }
+        containment = getattr(proc, "_umh_containment", None)
+        root_identity = dict(getattr(proc, "_umh_process_identity", {}) or {})
         try:
-            if sys.platform == "win32":
-                first = subprocess.run(
-                    ["taskkill", "/PID", str(pid), "/T"],
-                    capture_output=True,
-                    text=True,
-                    timeout=max(1.0, graceful_timeout),
+            try:
+                command_digest = str(root_identity.get("command_digest", ""))
+                identities = _durable_capture_owned_identities(
+                    proc,
+                    command_digest=command_digest,
                 )
-                cleanup["graceful_exit_code"] = first.returncode
-                cleanup["graceful_stdout"] = first.stdout[-2000:]
-                cleanup["graceful_stderr"] = first.stderr[-2000:]
+                cleanup["enumeration_performed"] = True
+                cleanup["enumeration_complete"] = True
+                cleanup["matched_processes"] = list(identities.values())
+                cleanup["ownership_validated"] = True
+            except Exception as exc:  # noqa: BLE001
+                identities = dict(
+                    getattr(proc, "_umh_owned_process_identities", {}) or {}
+                )
+                cleanup["enumeration_performed"] = True
+                cleanup["enumeration_error"] = f"{type(exc).__name__}: {exc}"
+            if sys.platform == "win32":
+                if containment is None:
+                    matched, reason, observed = _durable_process_identity_matches(
+                        root_identity,
+                        command_digest=str(root_identity.get("command_digest", "")),
+                    )
+                    cleanup["ownership_validated"] = matched
+                    cleanup["observed_root_identity"] = observed or {}
+                    if not matched:
+                        cleanup["process_residue"] = [
+                            {"pid": pid, "state": "process_ownership_unverified", "reason": reason}
+                        ]
+                        return cleanup
+                    proc.terminate()
+                    cleanup["graceful_stdout"] = "terminated exact process handle"
+                else:
+                    containment.terminate()
+                    cleanup["graceful_stdout"] = "terminated owned Windows Job Object"
+                cleanup["termination_attempted"] = True
             else:
                 try:
                     os.killpg(pid, signal.SIGTERM)
                     cleanup["graceful_stdout"] = f"sent SIGTERM to process group {pid}"
+                    cleanup["termination_attempted"] = True
                 except ProcessLookupError:
                     cleanup["graceful_stdout"] = "process group already absent"
                 except Exception as exc:  # noqa: BLE001
                     cleanup["graceful_stderr"] = f"process group SIGTERM failed: {exc}"
                     proc.terminate()
+                    cleanup["termination_attempted"] = True
             try:
                 proc.wait(timeout=graceful_timeout)
             except subprocess.TimeoutExpired:
                 cleanup["forced"] = True
                 if sys.platform == "win32":
-                    forced = subprocess.run(
-                        ["taskkill", "/PID", str(pid), "/T", "/F"],
-                        capture_output=True,
-                        text=True,
-                        timeout=max(1.0, graceful_timeout),
-                    )
-                    cleanup["force_exit_code"] = forced.returncode
-                    cleanup["force_stdout"] = forced.stdout[-2000:]
-                    cleanup["force_stderr"] = forced.stderr[-2000:]
+                    if containment is not None:
+                        containment.terminate()
+                        cleanup["force_stdout"] = "force-terminated owned Windows Job Object"
+                    else:
+                        proc.kill()
+                        cleanup["force_stdout"] = "killed exact process handle"
                 else:
                     try:
                         os.killpg(pid, signal.SIGKILL)
@@ -4320,6 +4732,40 @@ class NodeClient:
                     cleanup["process_residue"] = [{"pid": pid, "state": "still_alive"}]
         except Exception as exc:  # noqa: BLE001
             cleanup["process_residue"] = [{"pid": pid, "error": f"{type(exc).__name__}: {exc}"}]
+            return cleanup
+        try:
+            observed_pids = _durable_contained_pids(proc)
+            cleanup["post_termination_enumeration_complete"] = True
+            alive = _durable_alive_pids(observed_pids)
+            exact_remaining: list[int] = []
+            for remaining_pid in alive:
+                stored = dict(identities.get(remaining_pid) or {})
+                if not stored:
+                    cleanup["process_residue"] = [
+                        {"pid": remaining_pid, "state": "descendant_ownership_unverified"}
+                    ]
+                    return cleanup
+                matched, _reason, _observed = _durable_process_identity_matches(
+                    stored,
+                    command_digest=str(stored.get("command_digest", "")),
+                )
+                if matched:
+                    exact_remaining.append(remaining_pid)
+            cleanup["process_residue"] = [
+                {"pid": remaining_pid, "state": "still_alive"}
+                for remaining_pid in exact_remaining
+            ]
+            cleanup["residue_count"] = len(exact_remaining)
+            cleanup["cleanup_verified"] = bool(
+                cleanup["enumeration_complete"]
+                and cleanup["ownership_validated"]
+                and not exact_remaining
+            )
+        except Exception as exc:  # noqa: BLE001
+            cleanup["post_termination_enumeration_error"] = f"{type(exc).__name__}: {exc}"
+            cleanup["process_residue"] = [
+                {"state": "post_termination_enumeration_unverified"}
+            ]
         return cleanup
 
     def _capture_timed_out_process_output(
@@ -4619,7 +5065,7 @@ class NodeClient:
 
             extra: dict[str, Any] = {}
             if sys.platform == "win32":
-                extra["creationflags"] = subprocess.CREATE_NO_WINDOW
+                extra["creationflags"] = subprocess.CREATE_NO_WINDOW | 0x00000004
             else:
                 extra["start_new_session"] = True
             launch_material["launch_not_attempted"] = False
@@ -4649,21 +5095,51 @@ class NodeClient:
                 text=True,
                 **extra,
             )
+            try:
+                containment = _durable_attach_process_containment(
+                    proc,
+                    containment_id=launch_intent_id,
+                )
+            except Exception:
+                # The Windows child is still suspended here, so terminating its
+                # exact process handle cannot race PID reuse or escaped children.
+                proc.kill()
+                proc.wait(timeout=5)
+                raise
+            setattr(proc, "_umh_containment", containment)
             output_collector = _DurablePipeCollector(proc)
             self._durable_processes[req.request_id] = proc
             try:
-                last_tree_pids = _durable_owned_process_tree_pids(proc.pid)
+                last_tree_pids = _durable_contained_pids(proc)
             except Exception:
                 last_tree_pids = [proc.pid]
             process_identity = _durable_process_identity(
                 proc.pid,
                 command_digest=req.payload_digest,
             )
+            process_identity.update(
+                {
+                    "logical_execution_id": execution_identity["logical_execution_id"],
+                    "launch_intent_id": launch_intent_id,
+                    "parent_identity": {
+                        "pid": os.getpid(),
+                        "node_id": req.node_id,
+                    },
+                }
+            )
+            setattr(proc, "_umh_process_identity", dict(process_identity))
+            setattr(proc, "_umh_owned_process_identities", {proc.pid: dict(process_identity)})
+            containment_material = {
+                "kind": "windows_job_object" if containment is not None else "process_group",
+                "containment_id": launch_intent_id,
+                "complete_tree_boundary": bool(containment is not None or sys.platform != "win32"),
+            }
             process_tree = {
                 **process_tree,
                 **launch_material,
                 "root_pid": proc.pid,
                 "process_identity": process_identity,
+                "process_containment": containment_material,
             }
             current = self._durable_store.mark_shell_launch_state(
                 req.request_id,
@@ -4679,6 +5155,8 @@ class NodeClient:
                     "cleanup": cleanup,
                     "execution_outcome_unresolved": bool(cleanup.get("process_residue")),
                 }
+            if containment is not None:
+                containment.resume_suspended_process(proc)
             running_ack = await self._announce_durable_running(
                 req,
                 claim_id=claim_id,
@@ -4698,7 +5176,11 @@ class NodeClient:
             deadline = time.time() + timeout
             while proc.poll() is None:
                 try:
-                    observed = _durable_owned_process_tree_pids(proc.pid)
+                    observed_identities = _durable_capture_owned_identities(
+                        proc,
+                        command_digest=req.payload_digest,
+                    )
+                    observed = list(observed_identities)
                     last_tree_pids = sorted(set(last_tree_pids + observed))
                 except Exception:
                     last_tree_pids = sorted(set(last_tree_pids + [proc.pid]))
@@ -4830,6 +5312,10 @@ class NodeClient:
             }
         finally:
             self._durable_processes.pop(req.request_id, None)
+            if proc is not None:
+                containment = getattr(proc, "_umh_containment", None)
+                if containment is not None:
+                    containment.close()
 
     async def _handle_capability(self, msg: dict[str, Any]) -> None:
         async with self._capability_semaphore:

@@ -196,6 +196,8 @@ def _validate_probe_result(result: dict, *, expected_model: str, expected_versio
         "model_selector_source": "explicit_argument",
         "executable_version": expected_version,
         "terminal_status": "completed",
+        "trusted_model_resolution_source": "turn.completed.model",
+        "codex_executable_approved": True,
     }
     for key, value in expected_contract.items():
         if contract.get(key) != value:
@@ -230,6 +232,15 @@ def _validate_probe_result(result: dict, *, expected_model: str, expected_versio
     ):
         if contract.get(key) is not True:
             failures.append(f"execution_identity.{key} is not true")
+    for key in (
+        "codex_executable_path",
+        "codex_executable_sha256",
+        "codex_executable_version",
+        "codex_executable_policy",
+        "codex_executable_policy_identity",
+    ):
+        if not str(contract.get(key) or "").strip():
+            failures.append(f"execution_identity.{key} is missing")
     required_false = ("attempt_home_exists_after_close", "run_root_exists_after_cleanup")
     for key in required_false:
         if result.get(key) is not False:

@@ -13,6 +13,7 @@ import subprocess
 import threading
 import time
 from collections.abc import Callable
+from pathlib import Path
 
 from substrate.execution.attempts.model_executor_contract import (
     ModelExecutorIdentity,
@@ -50,6 +51,8 @@ _CODEX_GRACEFUL_DRAIN_SECONDS = 3.0
 _CODEX_TREE_KILL_SECONDS = 3.0
 _CODEX_FORCE_DRAIN_SECONDS = 3.0
 _CODEX_PHASE_CALLBACK_SECONDS = 0.05
+_CODEX_EXECUTABLE_POLICY_ENV = "UMH_CODEX_APPROVED_EXECUTABLES_JSON"
+_CODEX_EXECUTABLE_POLICY_VERSION = "codex-executable-realpath-sha256-v1"
 _CODEX_CLEANUP_MARGIN_SECONDS = (
     _CODEX_TREE_TERMINATE_SECONDS
     + _CODEX_GRACEFUL_DRAIN_SECONDS
@@ -59,7 +62,76 @@ _CODEX_CLEANUP_MARGIN_SECONDS = (
 
 
 def _resolve_codex() -> str:
-    return shutil.which("codex") or ""
+    resolved = shutil.which("codex") or ""
+    return os.path.realpath(resolved) if resolved else ""
+
+
+def _file_sha256(path: str) -> str:
+    digest = hashlib.sha256()
+    with Path(path).open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _approved_codex_executables() -> dict[str, str]:
+    raw = os.environ.get(_CODEX_EXECUTABLE_POLICY_ENV, "")
+    try:
+        parsed = json.loads(raw) if raw else {}
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(parsed, dict):
+        return {}
+    approved: dict[str, str] = {}
+    for path, digest in parsed.items():
+        realpath = os.path.realpath(str(path))
+        normalized_digest = str(digest).strip().lower()
+        if (
+            os.path.isabs(str(path))
+            and realpath == str(path)
+            and re.fullmatch(r"[0-9a-f]{64}", normalized_digest)
+        ):
+            approved[realpath] = normalized_digest
+    return dict(sorted(approved.items()))
+
+
+def _codex_executable_attestation(path: str, *, version: str) -> dict[str, object]:
+    realpath = os.path.realpath(path) if path else ""
+    try:
+        executable_hash = _file_sha256(realpath) if realpath else ""
+    except OSError:
+        executable_hash = ""
+    approved_executables = _approved_codex_executables()
+    policy_identity = _json_digest(
+        {
+            "policy": _CODEX_EXECUTABLE_POLICY_VERSION,
+            "approved_executables": approved_executables,
+        }
+    )
+    return {
+        "codex_executable_path": realpath,
+        "codex_executable_sha256": executable_hash,
+        "codex_executable_version": version,
+        "codex_executable_policy": _CODEX_EXECUTABLE_POLICY_VERSION,
+        "codex_executable_policy_identity": policy_identity,
+        "codex_executable_approved": bool(
+            executable_hash and approved_executables.get(realpath) == executable_hash
+        ),
+    }
+
+
+def validate_codex_executable_attestation(evidence: dict[str, object]) -> str:
+    """Recompute executable trust instead of trusting worker-authored booleans."""
+
+    path = str(evidence.get("codex_executable_path", "") or "")
+    version = str(evidence.get("codex_executable_version", "") or "")
+    expected = _codex_executable_attestation(path, version=version)
+    for key, expected_value in expected.items():
+        if evidence.get(key) != expected_value:
+            return f"{key} does not match the active Codex executable policy"
+    if not expected["codex_executable_approved"]:
+        return "Codex executable is not approved by realpath/hash policy"
+    return ""
 
 
 def _sanitize(text: str) -> str:
@@ -717,6 +789,10 @@ class CodexModelExecutor:
             version=self._version(),
             adapter=type(self).__name__,
         )
+        self.executable_attestation = _codex_executable_attestation(
+            _resolve_codex(),
+            version=self.identity.version,
+        )
 
     def _version(self) -> str:
         cli = _resolve_codex()
@@ -833,6 +909,19 @@ class CodexModelExecutor:
             and not parse_meta.get("turn_failed_count")
             and not parse_meta.get("error_event_count")
         )
+        executable_attestation = _codex_executable_attestation(
+            argv[0] if argv else "",
+            version=self.identity.version,
+        )
+        if self.model == "gpt-5.6-sol" and not executable_attestation[
+            "codex_executable_approved"
+        ]:
+            parse_errors.append(
+                "Codex executable is not approved by realpath/hash policy"
+            )
+            stderr = "\n".join(
+                [stderr, "Codex executable is not approved by realpath/hash policy"]
+            ).strip()
         execution_identity = {
             "provider_requested": "codex",
             "provider_adapter": type(self).__name__,
@@ -859,6 +948,7 @@ class CodexModelExecutor:
             "package_hash": packet.package_hash,
             "operation_identity_digest": _json_digest(packet.operation_identity),
             "proof_binding_digest": _json_digest(packet.proof_binding),
+            **executable_attestation,
         }
         terminal = ModelTerminalResult(
             ok=returncode == 0 and bool(parsed.strip()) and not parse_errors,
