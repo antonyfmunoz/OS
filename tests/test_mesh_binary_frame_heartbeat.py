@@ -767,7 +767,7 @@ async def _durable_claim_handler_progresses_while_pump_is_busy(tmp_path) -> dict
         await release_pump.wait()
 
     s._pump_durable_requests = slow_pump  # type: ignore[method-assign]
-    s._schedule_durable_pump("n1", ws, "", reason="test_pressure")
+    await s._schedule_durable_pump("n1", ws, "", reason="test_pressure")
     await asyncio.wait_for(pump_started.wait(), timeout=1)
 
     start = time.monotonic()
@@ -1532,6 +1532,11 @@ def test_claim_state_foreign_node_does_not_echo_request(tmp_path):
 
 
 async def _duplicate_terminal_result_ack_reports_rejection(tmp_path) -> dict:
+    from substrate.execution.durable_remote_transport import (
+        sha256_json,
+        terminal_result_identity,
+    )
+
     s = _server()
     s._durable_store = DurableRemoteStore(tmp_path)
     req = make_request(
@@ -1561,13 +1566,37 @@ async def _duplicate_terminal_result_ack_reports_rejection(tmp_path) -> dict:
             self.sent.append(payload)
 
     ws = Ws()
+    cleanup = {"process_residue": []}
+    result = {"success": True, "stdout": "foreign"}
+    result_digest = sha256_json(
+        {
+            "state": "SUCCEEDED",
+            "claim_id": "foreign",
+            "result": result,
+            "cleanup": cleanup,
+        }
+    )
+    identity = terminal_result_identity(
+        req,
+        {
+            "claim_id": "foreign",
+            "state": "SUCCEEDED",
+            "result_digest": result_digest,
+            "cleanup_digest": sha256_json(cleanup),
+        },
+    )
     await s._handle_durable_result(
         "n1",
         {
             "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "candidate_sha": req.candidate_sha,
+            "node_id": req.node_id,
             "claim_id": "foreign",
             "state": "SUCCEEDED",
-            "result": {"success": True, "stdout": "foreign"},
+            "result": result,
+            "cleanup": cleanup,
+            "result_id": identity["result_id"],
         },
         100,
         ws,  # type: ignore[arg-type]

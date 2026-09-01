@@ -32,6 +32,7 @@ def _client(root) -> NodeClient:
     client._durable_store = DurableRemoteStore(root)
     client._durable_processes = {}
     client._durable_execution_locks = {}
+    client._durable_logical_executions = {}
     client._durable_request_gates = {}
     client._durable_request_trajectories = {}
     client._media_queue = deque(maxlen=4)
@@ -259,7 +260,7 @@ def test_terminal_result_send_failure_preserves_pending_delivery(tmp_path) -> No
     assert client._durable_store.result_for(request.request_id) == result
 
 
-def test_result_receipt_with_foreign_identity_remains_pending(tmp_path) -> None:
+def test_result_receipt_with_foreign_identity_enters_reconciliation(tmp_path) -> None:
     client = _client(tmp_path)
     request, _result = _persist_terminal(client, suffix="foreign-receipt")
 
@@ -284,7 +285,97 @@ def test_result_receipt_with_foreign_identity_remains_pending(tmp_path) -> None:
     )
     delivery = client._durable_store.terminal_result_delivery_for(request.request_id)
     assert ack["ok"] is False
-    assert delivery is not None and delivery["delivery_state"] == "PENDING"
+    assert delivery is not None
+    assert delivery["delivery_state"] == "RECONCILIATION_REQUIRED"
+    assert delivery["next_attempt_at"] == 0.0
+    second = asyncio.run(
+        client._send_durable_event(
+            "durable_command.result",
+            {"request_id": request.request_id},
+        )
+    )
+    assert second["ok"] is False
+    assert "governed reconciliation" in second["error"]
+
+
+def test_node_shutdown_marks_unresolved_logical_execution_for_reconciliation(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setattr(client_mod, "_LOGICAL_EXECUTION_TEARDOWN_S", 0.01)
+
+    async def run() -> tuple[str, bool, bool]:
+        client = _client(tmp_path)
+        request = make_request(
+            correlation_id="corr-shutdown-unresolved",
+            candidate_sha="a" * 40,
+            node_id="windows-desktop",
+            operation_type="shutdown_unresolved",
+            capability="terminal.execute",
+            params={},
+            idempotency_key="shutdown-unresolved",
+        )
+        request = client._durable_store.put_request(request)
+        client._durable_store.mark_claimed(request.request_id, claim_id="claim-shutdown")
+        client._durable_store.mark_running(request.request_id, claim_id="claim-shutdown")
+
+        async def blocked_observer() -> None:
+            await asyncio.Event().wait()
+
+        task = asyncio.create_task(blocked_observer())
+        client._durable_logical_executions[request.request_id] = {
+            "identity": client._durable_request_identity(request),
+            "state": "STARTED",
+            "task": task,
+            "operation_future": None,
+        }
+        await client._quiesce_logical_executions()
+        current = client._durable_store.get_request(request.request_id)
+        assert current is not None
+        return current.lifecycle_state, task.done(), client._durable_store.result_for(
+            request.request_id
+        ) is None
+
+    assert asyncio.run(run()) == ("RECONCILIATION_REQUIRED", True, True)
+
+
+def test_logical_execution_callback_persists_unresolved_outcome(tmp_path) -> None:
+    async def run() -> tuple[str, bool]:
+        client = _client(tmp_path)
+        request = make_request(
+            correlation_id="corr-observer-unresolved",
+            candidate_sha="a" * 40,
+            node_id="windows-desktop",
+            operation_type="observer_unresolved",
+            capability="terminal.execute",
+            params={},
+            idempotency_key="observer-unresolved",
+        )
+        request = client._durable_store.put_request(request)
+        client._durable_store.mark_claimed(request.request_id, claim_id="claim-observer")
+        client._durable_store.mark_running(request.request_id, claim_id="claim-observer")
+
+        async def interrupted_handler(_msg) -> None:
+            entry = client._durable_logical_executions[request.request_id]
+            entry["state"] = "STARTED"
+            raise RuntimeError("synthetic observer loss")
+
+        client._handle_durable_command = interrupted_handler
+        client._schedule_logical_durable_command(
+            {"method": "durable_command.request", "params": request.to_dict()}
+        )
+        task = client._durable_logical_executions[request.request_id]["task"]
+        await task
+        await asyncio.sleep(0)
+
+        current = client._durable_store.get_request(request.request_id)
+        assert current is not None
+        return (
+            current.lifecycle_state,
+            client._durable_store.result_for(request.request_id) is None,
+        )
+
+    assert asyncio.run(run()) == ("RECONCILIATION_REQUIRED", True)
 
 
 def test_old_generation_handler_cannot_enqueue_on_replacement_socket(tmp_path) -> None:
@@ -333,32 +424,61 @@ def test_generation_teardown_cancels_awaits_and_clears_pending_rpc(tmp_path) -> 
     assert asyncio.run(run()) == (0, 0, True, True)
 
 
-def test_real_message_handlers_are_generation_owned_and_awaited(tmp_path) -> None:
-    async def run() -> tuple[int, int, bool]:
+def test_logical_durable_execution_survives_connection_generation_teardown(tmp_path) -> None:
+    async def run() -> tuple[int, int, bool, bool]:
         client = _client(tmp_path)
-        entered = asyncio.Event()
+        capability_entered = asyncio.Event()
+        durable_entered = asyncio.Event()
 
-        async def blocked_handler(_msg) -> None:
-            entered.set()
+        async def blocked_capability(_msg) -> None:
+            capability_entered.set()
             await asyncio.Event().wait()
 
-        client._safe_handle_capability = blocked_handler
-        client._safe_handle_durable_command = blocked_handler
+        async def blocked_durable(_msg) -> None:
+            durable_entered.set()
+            await asyncio.Event().wait()
+
+        request = make_request(
+            correlation_id="corr-logical-owner",
+            candidate_sha="a" * 40,
+            node_id="windows-desktop",
+            operation_type="logical_execution_owner",
+            capability="terminal.read",
+            params={},
+            idempotency_key="logical-execution-owner",
+        )
+        client._safe_handle_capability = blocked_capability
+        client._safe_handle_durable_command = blocked_durable
         await client._handle_message(
             json.dumps({"method": "capability.execute"}), generation=1
         )
         await client._handle_message(
-            json.dumps({"method": "durable_command.request"}), generation=1
+            json.dumps(
+                {
+                    "method": "durable_command.request",
+                    "params": request.to_dict(),
+                }
+            ),
+            generation=1,
         )
-        await entered.wait()
-        tasks = tuple(client._generation_tasks[1])
-        assert len(tasks) == 2
+        await capability_entered.wait()
+        await durable_entered.wait()
+        generation_tasks = tuple(client._generation_tasks[1])
+        logical_task = client._durable_logical_executions[request.request_id]["task"]
+        assert len(generation_tasks) == 1
+        assert logical_task not in generation_tasks
         await client._teardown_connection_generation(1, client._ws)
-        return len(client._generation_tasks), len(client._pending_rpc), all(
-            task.done() for task in tasks
+        logical_survived = not logical_task.done()
+        logical_task.cancel()
+        await asyncio.gather(logical_task, return_exceptions=True)
+        return (
+            len(client._generation_tasks),
+            len(client._pending_rpc),
+            all(task.done() for task in generation_tasks),
+            logical_survived,
         )
 
-    assert asyncio.run(run()) == (0, 0, True)
+    assert asyncio.run(run()) == (0, 0, True, True)
 
 
 def test_generation_teardown_awaits_blocked_real_writer(tmp_path, monkeypatch) -> None:

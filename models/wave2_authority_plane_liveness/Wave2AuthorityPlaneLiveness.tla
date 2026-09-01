@@ -14,6 +14,9 @@ Implementation correspondence:
 - stale generation work is rejected rather than transferred to a new writer;
 - result.retained is the durable node-local terminal result/outbox identity;
 - WebSocket send completion is not canonical result acknowledgement;
+- canonical VPS acceptance and result receipt are separate transitions;
+- started execution remains logical-operation owned across connection failure;
+- each server generation owns at most one durable pump and quiesces it before replacement;
 - an accepted result with a lost receipt remains retained and is replayed;
 - replay changes delivery attempts only, never executionCount;
 - HTTP claim readback remains independent of the WebSocket queues.
@@ -121,7 +124,9 @@ TypeOK ==
         tasks: 0..MaxGenerationTasks,
         cooperative: BOOLEAN,
         pendingRpc: BOOLEAN,
-        reconnectWasQuiescent: BOOLEAN
+        reconnectWasQuiescent: BOOLEAN,
+        pumpActive: BOOLEAN,
+        pumpGeneration: Generations \cup {NoGeneration}
         ]
     /\ authorityBurst \in 0..AuthorityBurstLimit
     /\ authorityOverflow \in BOOLEAN
@@ -142,12 +147,17 @@ TypeOK ==
     /\ result \in [
         retained: BOOLEAN,
         logicalId: 0..1,
+        sent: BOOLEAN,
+        identityValid: BOOLEAN,
         accepted: BOOLEAN,
         acknowledged: BOOLEAN,
         awaitingReceipt: BOOLEAN,
         sentGeneration: Generations \cup {NoGeneration},
         receiptHealthy: BOOLEAN,
         conflict: BOOLEAN,
+        reconciliation: BOOLEAN,
+        executionRunning: BOOLEAN,
+        outcomeKnown: BOOLEAN,
         replayCount: 0..3
         ]
     /\ staleGenerationSendRejected \in BOOLEAN
@@ -171,7 +181,9 @@ Init ==
         tasks |-> MaxGenerationTasks,
         cooperative |-> TRUE,
         pendingRpc |-> FALSE,
-        reconnectWasQuiescent |-> TRUE
+        reconnectWasQuiescent |-> TRUE,
+        pumpActive |-> TRUE,
+        pumpGeneration |-> 0
         ]
     /\ authorityBurst = 0
     /\ authorityOverflow = FALSE
@@ -192,12 +204,17 @@ Init ==
     /\ result = [
         retained |-> FALSE,
         logicalId |-> 0,
+        sent |-> FALSE,
+        identityValid |-> BOOLEAN,
         accepted |-> FALSE,
         acknowledged |-> FALSE,
         awaitingReceipt |-> FALSE,
         sentGeneration |-> NoGeneration,
         receiptHealthy |-> TRUE,
         conflict |-> FALSE,
+        reconciliation |-> FALSE,
+        executionRunning |-> FALSE,
+        outcomeKnown |-> FALSE,
         replayCount |-> 0
         ]
     /\ staleGenerationSendRejected = FALSE
@@ -249,7 +266,6 @@ QueueRetainedResult ==
     /\ result.retained
     /\ ~result.acknowledged
     /\ ~result.conflict
-    /\ result.replayCount < 3
     /\ ~ResultOutstanding
     /\ Len(authorityQueue) < AuthorityCapacity
     /\ authorityQueue' = Append(authorityQueue, ResultFrame)
@@ -420,17 +436,15 @@ CompleteSend ==
     /\ result' =
         IF writer.class = AuthoritySend /\ writer.frame = ResultFrame
         THEN [result EXCEPT
-            !.accepted = @ \/ ~result.conflict,
-            !.awaitingReceipt = ~result.conflict,
+            !.sent = TRUE,
+            !.awaitingReceipt = TRUE,
             !.sentGeneration = writer.generation,
-            !.replayCount = @ + 1
+            !.replayCount = IF @ < 3 THEN @ + 1 ELSE @
         ]
         ELSE result
-    /\ failedClosed' = failedClosed \/
-        (writer.class = AuthoritySend /\ writer.frame = ResultFrame /\ result.conflict)
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, authorityBurst,
-        authorityOverflow, authorityFailureVisible, executionCount, cancelled,
+        authorityOverflow, authorityFailureVisible, failedClosed, executionCount, cancelled,
         staleGenerationSendRejected, reconciliationChecks,
         reconciliationReminderEvents
         >>
@@ -473,7 +487,9 @@ QuiesceGeneration ==
     /\ transport' = [transport EXCEPT
         !.state = QuiescedGeneration,
         !.tasks = 0,
-        !.pendingRpc = FALSE
+        !.pendingRpc = FALSE,
+        !.pumpActive = FALSE,
+        !.pumpGeneration = NoGeneration
         ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, authorityBurst,
@@ -507,7 +523,9 @@ Reconnect ==
         !.state = ActiveGeneration,
         !.tasks = MaxGenerationTasks,
         !.pendingRpc = FALSE,
-        !.reconnectWasQuiescent = TRUE
+        !.reconnectWasQuiescent = TRUE,
+        !.pumpActive = TRUE,
+        !.pumpGeneration = @ + 1
         ]
     /\ result' = [result EXCEPT !.receiptHealthy = TRUE]
     /\ UNCHANGED <<
@@ -581,20 +599,42 @@ Execute ==
     /\ ~cancelled
     /\ executionCount = 0
     /\ executionCount' = 1
+    /\ result' = [result EXCEPT !.executionRunning = TRUE]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
         authorityBurst, authorityOverflow, authorityFailureVisible, claim,
-        failedClosed, cancelled, result, staleGenerationSendRejected,
+        failedClosed, cancelled, staleGenerationSendRejected,
         reconciliationChecks, reconciliationReminderEvents
         >>
 
 ProduceTerminalResult ==
     /\ executionCount = 1
+    /\ result.executionRunning
     /\ ~result.retained
     /\ result' = [result EXCEPT
         !.retained = TRUE,
-        !.logicalId = 1
+        !.logicalId = 1,
+        !.executionRunning = FALSE,
+        !.outcomeKnown = TRUE
         ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+AcceptCanonicalResult ==
+    /\ transport.healthy
+    /\ transport.state = ActiveGeneration
+    /\ result.retained
+    /\ result.sent
+    /\ result.awaitingReceipt
+    /\ result.identityValid
+    /\ result.sentGeneration = transport.generation
+    /\ ~result.accepted
+    /\ ~result.conflict
+    /\ result' = [result EXCEPT !.accepted = TRUE]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
         authorityBurst, authorityOverflow, authorityFailureVisible, claim,
@@ -618,6 +658,25 @@ ObserveResultReceipt ==
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
         authorityBurst, authorityOverflow, authorityFailureVisible, claim,
         failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+ResultReceiptConflict ==
+    /\ result.retained
+    /\ result.sent
+    /\ result.awaitingReceipt
+    /\ ~result.identityValid
+    /\ ~result.conflict
+    /\ result' = [result EXCEPT
+        !.conflict = TRUE,
+        !.reconciliation = TRUE,
+        !.awaitingReceipt = FALSE
+        ]
+    /\ failedClosed' = TRUE
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        executionCount, cancelled, staleGenerationSendRejected,
         reconciliationChecks, reconciliationReminderEvents
         >>
 
@@ -672,7 +731,9 @@ Next ==
     \/ FailClaimClosed
     \/ Execute
     \/ ProduceTerminalResult
+    \/ AcceptCanonicalResult
     \/ ObserveResultReceipt
+    \/ ResultReceiptConflict
     \/ ResultReceiptTimeout
     \/ StaleGenerationHandlerAttempt
 
@@ -690,7 +751,9 @@ Spec ==
     /\ WF_vars(FailClaimClosed)
     /\ WF_vars(Execute)
     /\ WF_vars(ProduceTerminalResult)
+    /\ WF_vars(AcceptCanonicalResult)
     /\ WF_vars(ObserveResultReceipt)
+    /\ WF_vars(ResultReceiptConflict)
 
 AuthorityQueueIsBounded == Len(authorityQueue) <= AuthorityCapacity
 
@@ -706,7 +769,15 @@ BothObservationPathsUnavailableNeverAllowsRunning ==
     (claim.pending /\ ~claim.ackHealthy /\ ~claim.readbackHealthy) =>
         executionCount = 0
 
-CancellationSafetyPreserved == cancelled => executionCount = 0
+CancellationSafetyPreserved ==
+    (cancelled /\ ~result.executionRunning /\ ~result.outcomeKnown) =>
+        executionCount = 0
+
+ConnectionFailureCannotPublishFalseFailure ==
+    result.executionRunning => (~result.outcomeKnown /\ ~result.retained)
+
+ActualExecutionOutcomeDeterminesTerminalState ==
+    result.retained => (result.outcomeKnown /\ ~result.executionRunning)
 
 ReconciliationProductionIsBounded ==
     reconciliationReminderEvents <= ReconCapacity
@@ -720,6 +791,15 @@ AuthorityOverflowCannotPermitRunning ==
 
 AtMostOneActiveConnectionGeneration ==
     transport.state = ActiveGeneration => transport.healthy
+
+AtMostOneDurablePumpGeneration ==
+    transport.pumpActive =>
+        (transport.pumpGeneration = transport.generation /\
+         transport.state \in {ActiveGeneration, ClosingGeneration})
+
+DurablePumpQuiescedBeforeReplacement ==
+    transport.state \in {QuiescedGeneration, FailedGeneration} =>
+        ~transport.pumpActive
 
 ReplacementGenerationRequiresPriorGenerationQuiescence ==
     transport.generation > 0 => transport.reconnectWasQuiescent
@@ -741,6 +821,15 @@ TerminalReplayDoesNotReexecute == executionCount <= 1
 
 AcceptedTerminalResultIsIdempotent ==
     result.accepted => result.logicalId = 1
+
+TransportSendDoesNotImplyCanonicalAcceptance ==
+    result.accepted => (result.sent /\ result.identityValid)
+
+StableResultIdentityRequiredForAcceptance ==
+    result.accepted => result.identityValid
+
+ConflictingResultEntersReconciliation ==
+    result.conflict => result.reconciliation
 
 LostResultAckDoesNotLoseTerminalEvidence ==
     (result.accepted /\ ~result.acknowledged) => result.retained
@@ -770,12 +859,16 @@ PersistedClaimEventuallyObservedViaAckOrReadbackUnderHealthyPaths ==
 PendingTerminalResultEventuallyReplayedAfterHealthyReconnect ==
     []((transport.healthy /\ transport.state = ActiveGeneration /\
         result.retained /\ ~result.acknowledged /\ result.receiptHealthy /\
-        ~result.conflict /\ result.replayCount < 3) =>
+        ~result.conflict) =>
         <>(result.acknowledged \/ result.conflict \/ ~transport.healthy))
 
 GenerationTasksEventuallyQuiesceUnderCooperativeTasks ==
     []((transport.state = ClosingGeneration /\ transport.cooperative) =>
         <>(transport.state = QuiescedGeneration))
+
+DurablePumpEventuallyQuiescesOnShutdown ==
+    []((transport.state = ClosingGeneration /\ transport.cooperative) =>
+        <>~transport.pumpActive)
 
 SafetyNeverDependsOnLivenessSuccess == []((~claim.proven) => (executionCount = 0))
 

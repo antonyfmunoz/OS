@@ -35,6 +35,8 @@ class SimState:
     canonical_claim_proven: bool = False
     running_announced: bool = False
     executed: int = 0
+    execution_observer_active: bool = False
+    execution_outcome_known: bool = False
     cancelled: bool = False
     fail_closed: bool = False
     node_alive: bool = True
@@ -89,6 +91,9 @@ class SimState:
     terminal_result_retained: bool = False
     terminal_result_id: str = ""
     terminal_result_acknowledged: bool = False
+    terminal_result_sent: bool = False
+    terminal_result_accepted: bool = False
+    terminal_result_reconciliation: bool = False
     terminal_replay_attempts: int = 0
     claim_ack_received: bool = False
     http_readback_reached_vps: bool = False
@@ -105,6 +110,8 @@ class SimState:
     pending_generation_rpcs: int = 0
     stale_generation_send_rejected: bool = False
     generation_teardown_failed: bool = False
+    durable_pump_active: bool = True
+    durable_pump_generation: int = 1
     next_request_order: int = 0
     log: list[str] = field(default_factory=list)
 
@@ -184,6 +191,12 @@ class SimState:
         if self.terminal_result_acknowledged:
             assert self.terminal_result_retained, self.log
             assert self.terminal_result_id, self.log
+            assert self.terminal_result_accepted, self.log
+        if self.terminal_result_accepted:
+            assert self.terminal_result_sent, self.log
+        if self.execution_observer_active and not self.execution_outcome_known:
+            assert self.lifecycle == "RUNNING", self.log
+            assert not self.terminal_result_retained, self.log
         if self.connection_generation_active:
             assert not self.connection_generation_closing, self.log
             assert not self.generation_teardown_failed, self.log
@@ -192,6 +205,8 @@ class SimState:
             assert self.pending_generation_rpcs == 0, self.log
         if self.generation_teardown_failed:
             assert not self.connection_generation_active, self.log
+        if self.durable_pump_active:
+            assert self.durable_pump_generation == self.transport_generation, self.log
         assert self.reconciliation_reminder_events <= self.reconciliation_checks, self.log
 
 
@@ -627,6 +642,7 @@ def announce_running_and_execute(state: SimState, claim_id: str = "claim-1") -> 
         state.lifecycle = "RUNNING"
         state.running_announced = True
         state.executed += 1
+        state.execution_observer_active = True
         for key in state.execution_for_key:
             state.execution_for_key[key] += 1
             break
@@ -637,6 +653,9 @@ def announce_running_and_execute(state: SimState, claim_id: str = "claim-1") -> 
 
 def terminal(state: SimState, value: str = "SUCCEEDED") -> None:
     state.record(f"terminal:{value}")
+    if state.lifecycle == "RUNNING":
+        state.execution_outcome_known = True
+        state.execution_observer_active = False
     for request_id in state.persisted_request_key:
         if request_id in state.corrupt_result_records:
             state.record(f"corrupt_result_isolated:{request_id}")
@@ -749,6 +768,7 @@ def wedge_transport_send(state: SimState, *, traffic_class: str) -> None:
     state.transport_send_inflight = traffic_class
     state.record(f"send_deadline_exceeded:{traffic_class}")
     state.transport_healthy = False
+    state.durable_pump_active = False
     state.transport_generation += 1
     state.transport_send_inflight = ""
     state.fail_closed = True
@@ -762,6 +782,8 @@ def reconnect_transport(state: SimState) -> None:
     state.transport_healthy = True
     state.connection_generation_active = True
     state.connection_generation_closing = False
+    state.durable_pump_active = True
+    state.durable_pump_generation = state.transport_generation
     state.assert_invariants()
 
 
@@ -779,6 +801,7 @@ def close_connection_generation(state: SimState, *, cooperative: bool = True) ->
     state.connection_generation_closing = True
     state.transport_healthy = False
     state.pending_generation_rpcs = 0
+    state.durable_pump_active = False
     if cooperative:
         state.connection_generation_tasks = 0
         state.connection_generation_quiesced = True
@@ -793,7 +816,12 @@ def close_connection_generation(state: SimState, *, cooperative: bool = True) ->
     state.assert_invariants()
 
 
-def replay_terminal_result(state: SimState, *, accepted: bool = True) -> None:
+def replay_terminal_result(
+    state: SimState,
+    *,
+    accepted: bool = True,
+    receipt_lost: bool = False,
+) -> None:
     assert state.terminal_result_retained, state.log
     assert state.terminal_result_id, state.log
     assert state.connection_generation_active, state.log
@@ -801,11 +829,16 @@ def replay_terminal_result(state: SimState, *, accepted: bool = True) -> None:
     state.terminal_replay_attempts += 1
     enqueue_transport(state, authority=["result"])
     service_transport(state, steps=1)
-    if accepted:
+    state.terminal_result_sent = True
+    if receipt_lost:
+        state.record(f"terminal_result_receipt_lost:{state.terminal_result_id}")
+    elif accepted:
+        state.terminal_result_accepted = True
         state.terminal_result_acknowledged = True
         state.record(f"terminal_result_acknowledged:{state.terminal_result_id}")
     else:
         state.record(f"terminal_result_conflict:{state.terminal_result_id}")
+        state.terminal_result_reconciliation = True
         state.fail_closed = True
     assert state.executed == before_execution, state.log
     state.assert_invariants()
@@ -1840,8 +1873,7 @@ def _terminal_result_startup_replay(state: SimState) -> None:
 def _terminal_result_ack_lost_replays_same_identity(state: SimState) -> None:
     _normal_success(state)
     persist_terminal_result(state, result_id="stable-result")
-    replay_terminal_result(state, accepted=False)
-    state.fail_closed = False
+    replay_terminal_result(state, receipt_lost=True)
     state.terminal_result_acknowledged = False
     close_connection_generation(state)
     reconnect_transport(state)
@@ -1899,6 +1931,55 @@ def _terminal_result_and_stale_handler_generation_race(state: SimState) -> None:
     assert state.terminal_result_acknowledged, state.log
     assert state.stale_generation_send_rejected, state.log
     assert state.executed == 1, state.log
+
+
+def _executor_disconnect_preserves_actual_terminal_truth(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    canonical_read(state)
+    announce_running_and_execute(state)
+    close_connection_generation(state)
+    assert state.lifecycle == "RUNNING", state.log
+    assert state.execution_observer_active, state.log
+    assert not state.terminal_result_retained, state.log
+    reconnect_transport(state)
+    terminal(state, "SUCCEEDED")
+    persist_terminal_result(state, result_id="post-disconnect-result")
+    replay_terminal_result(state)
+    assert state.executed == 1, state.log
+    assert state.terminal_result_acknowledged, state.log
+
+
+def _cancel_during_non_cancellable_execution_records_actual_outcome(state: SimState) -> None:
+    admit_durable_request(state, request_id="A", idempotency_key="K", payload_identity="P")
+    deliver(state)
+    claim_write(state)
+    canonical_read(state)
+    announce_running_and_execute(state)
+    cancel(state)
+    assert state.lifecycle == "RUNNING", state.log
+    terminal(state, "SUCCEEDED")
+    assert state.execution_outcome_known, state.log
+    assert state.executed == 1, state.log
+
+
+def _result_send_completion_does_not_imply_canonical_acceptance(state: SimState) -> None:
+    _normal_success(state)
+    persist_terminal_result(state, result_id="sent-not-accepted")
+    replay_terminal_result(state, receipt_lost=True)
+    assert state.terminal_result_sent, state.log
+    assert not state.terminal_result_accepted, state.log
+    assert not state.terminal_result_acknowledged, state.log
+
+
+def _durable_pump_quiesces_before_replacement(state: SimState) -> None:
+    assert state.durable_pump_active, state.log
+    close_connection_generation(state)
+    assert not state.durable_pump_active, state.log
+    reconnect_transport(state)
+    assert state.durable_pump_active, state.log
+    assert state.durable_pump_generation == state.transport_generation, state.log
 
 
 SCENARIOS: dict[str, Scenario] = {
@@ -2122,6 +2203,18 @@ SCENARIOS: dict[str, Scenario] = {
     ),
     "terminal_result_and_stale_handler_generation_race": (
         _terminal_result_and_stale_handler_generation_race
+    ),
+    "execution_disconnect_preserves_actual_terminal_truth": (
+        _executor_disconnect_preserves_actual_terminal_truth
+    ),
+    "execution_cancel_non_cancellable_records_actual_outcome": (
+        _cancel_during_non_cancellable_execution_records_actual_outcome
+    ),
+    "terminal_result_send_not_canonical_acceptance": (
+        _result_send_completion_does_not_imply_canonical_acceptance
+    ),
+    "transport_durable_pump_quiesces_before_replacement": (
+        _durable_pump_quiesces_before_replacement
     ),
 }
 

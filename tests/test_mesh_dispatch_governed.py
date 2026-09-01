@@ -20,6 +20,7 @@ import os
 import subprocess
 import sys
 import textwrap
+import threading
 import time
 from collections import deque
 from types import SimpleNamespace
@@ -32,6 +33,10 @@ import httpx  # noqa: E402
 import pytest  # noqa: E402
 from fastapi import HTTPException  # noqa: E402
 
+from substrate.execution.durable_remote_transport import (  # noqa: E402
+    sha256_json,
+    terminal_result_identity,
+)
 from substrate.execution.mesh_verdict import (  # noqa: E402
     CONSEQUENTIAL_WRITE_EFFECT,
     READ_ONLY_EFFECT,
@@ -42,8 +47,35 @@ from substrate.execution.mesh_verdict import (  # noqa: E402
     sign_verdict,
     verify_verdict,
 )
+from transports.node_mesh import server as mesh_server_mod  # noqa: E402
 
 _SECRET = "unit-test-verdict-secret"
+
+
+def _bound_terminal_result(req, params: dict) -> dict:
+    state = str(params["state"]).upper()
+    claim_id = str(params["claim_id"])
+    result = dict(params.get("result") or {})
+    cleanup = dict(params.get("cleanup") or {})
+    result_digest = sha256_json(
+        {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup}
+    )
+    identity = terminal_result_identity(
+        req,
+        {
+            "claim_id": claim_id,
+            "state": state,
+            "result_digest": result_digest,
+            "cleanup_digest": sha256_json(cleanup),
+        },
+    )
+    return {
+        **params,
+        "correlation_id": req.correlation_id,
+        "candidate_sha": req.candidate_sha,
+        "node_id": req.node_id,
+        "result_id": identity["result_id"],
+    }
 
 
 # ── Verdict token: signing + verification round-trip ───────────────────────
@@ -895,6 +927,7 @@ def _durable_node_client(tmp_path, node_id: str = "windows-desktop"):
     client._durable_store = DurableRemoteStore(tmp_path)
     client._durable_processes = {}
     client._durable_execution_locks = {}
+    client._durable_logical_executions = {}
     client._durable_request_gates = {}
     client._durable_request_trajectories = {}
     client._media_queue = deque(maxlen=4)
@@ -1052,13 +1085,16 @@ def test_vps_durable_result_replay_is_idempotent_and_conflict_fails_closed(tmp_p
     server._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
     server._durable_store.mark_running(req.request_id, claim_id="claim-1")
     ws = _MeshHandlerWs()
-    canonical = {
-        "request_id": req.request_id,
-        "claim_id": "claim-1",
-        "state": "SUCCEEDED",
-        "result": {"success": True, "stdout": "canonical"},
-        "cleanup": {"process_residue": [], "cleanup_verified": True},
-    }
+    canonical = _bound_terminal_result(
+        req,
+        {
+            "request_id": req.request_id,
+            "claim_id": "claim-1",
+            "state": "SUCCEEDED",
+            "result": {"success": True, "stdout": "canonical"},
+            "cleanup": {"process_residue": [], "cleanup_verified": True},
+        },
+    )
 
     async def run() -> None:
         await server._handle_durable_result(
@@ -1086,6 +1122,287 @@ def test_vps_durable_result_replay_is_idempotent_and_conflict_fails_closed(tmp_p
     assert ws.sent[2]["result"]["ok"] is False
     assert stored is not None
     assert stored["result"]["stdout"] == "canonical"
+
+
+def test_vps_rejects_result_id_mismatch_before_canonical_publication(tmp_path):
+    server = _durable_mesh_server(tmp_path)
+    req = server._durable_store.put_request(_durable_request())
+    server._durable_store.mark_claimed(req.request_id, claim_id="claim-identity")
+    server._durable_store.mark_running(req.request_id, claim_id="claim-identity")
+    ws = _MeshHandlerWs()
+    params = _bound_terminal_result(
+        req,
+        {
+            "request_id": req.request_id,
+            "claim_id": "claim-identity",
+            "state": "SUCCEEDED",
+            "result": {"success": True, "stdout": "exact"},
+            "cleanup": {"process_residue": [], "cleanup_verified": True},
+        },
+    )
+    params["result_id"] = "0" * 64
+
+    asyncio.run(
+        server._handle_durable_result(
+            req.node_id,
+            params,
+            "msg-result-identity",
+            ws,
+            "conn-1",
+        )
+    )
+
+    current = server._durable_store.get_request(req.request_id)
+    assert current is not None and current.lifecycle_state == "RUNNING"
+    assert server._durable_store.result_for(req.request_id) is None
+    assert ws.sent[-1]["result"]["ok"] is False
+    assert "result_id" in ws.sent[-1]["result"]["error"]
+
+
+def test_vps_durable_pump_is_cancelled_awaited_before_replacement(tmp_path):
+    async def run() -> tuple[bool, bool, int]:
+        server = _durable_mesh_server(tmp_path)
+        first_started = asyncio.Event()
+        first_quiesced = asyncio.Event()
+        replacement_started = asyncio.Event()
+        active = 0
+        max_active = 0
+
+        async def pump(_node_id, _ws, connection_id="") -> None:
+            nonlocal active, max_active
+            active += 1
+            max_active = max(max_active, active)
+            try:
+                if connection_id == "conn-1":
+                    first_started.set()
+                    await asyncio.Event().wait()
+                replacement_started.set()
+            finally:
+                active -= 1
+                if connection_id == "conn-1":
+                    first_quiesced.set()
+
+        server._pump_durable_requests = pump
+        ws = _MeshHandlerWs()
+        await server._schedule_durable_pump(
+            "windows-desktop", ws, "conn-1", reason="first"
+        )
+        await first_started.wait()
+        first_task = server._durable_pump_tasks["windows-desktop"]
+        await server._schedule_durable_pump(
+            "windows-desktop", ws, "conn-2", reason="replacement"
+        )
+        await replacement_started.wait()
+        await asyncio.sleep(0)
+        return first_task.done(), first_quiesced.is_set(), max_active
+
+    assert asyncio.run(run()) == (True, True, 1)
+
+
+def test_vps_stubborn_durable_pump_blocks_replacement_and_remains_owned(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setattr(mesh_server_mod, "_DURABLE_PUMP_TEARDOWN_S", 0.01)
+
+    async def run() -> tuple[bool, bool, bool]:
+        server = _durable_mesh_server(tmp_path)
+        first_started = asyncio.Event()
+        release = asyncio.Event()
+        replacement_started = asyncio.Event()
+
+        async def pump(_node_id, _ws, connection_id="") -> None:
+            if connection_id == "conn-2":
+                replacement_started.set()
+                return
+            first_started.set()
+            try:
+                await asyncio.Event().wait()
+            except asyncio.CancelledError:
+                await release.wait()
+
+        server._pump_durable_requests = pump
+        ws = _MeshHandlerWs()
+        await server._schedule_durable_pump(
+            "windows-desktop", ws, "conn-1", reason="first"
+        )
+        await first_started.wait()
+        first_task = server._durable_pump_tasks["windows-desktop"]
+        with pytest.raises(RuntimeError, match="teardown exceeded"):
+            await server._schedule_durable_pump(
+                "windows-desktop", ws, "conn-2", reason="replacement"
+            )
+        still_owned = server._durable_pump_tasks.get("windows-desktop") is first_task
+        still_first_generation = (
+            server._durable_pump_connections.get("windows-desktop") == "conn-1"
+        )
+        release.set()
+        await first_task
+        await asyncio.sleep(0)
+        return still_owned, still_first_generation, replacement_started.is_set()
+
+    assert asyncio.run(run()) == (True, True, False)
+
+
+def test_consequential_executor_completion_survives_transport_disconnect(tmp_path):
+    class BlockingAdapter:
+        def __init__(self) -> None:
+            self.started = threading.Event()
+            self.release = threading.Event()
+            self.execution_count = 0
+            self.effects: list[str] = []
+
+        def execute(self, _capability, _params):
+            self.execution_count += 1
+            self.started.set()
+            assert self.release.wait(timeout=5)
+            self.effects.append("completed")
+            return {
+                "success": True,
+                "stdout": "actual executor outcome",
+                "cleanup": {"process_residue": [], "cleanup_verified": True},
+            }
+
+    async def run() -> tuple[str, str, int, list[str], str]:
+        client = _durable_node_client(tmp_path / "node")
+        adapter = BlockingAdapter()
+        client._adapters = {"terminal": adapter}
+        request = _durable_request(
+            capability="terminal.execute",
+            params={"command": "sanctioned-non-destructive", "timeout": 5},
+        )
+        first_ws = _DurableAckWs(client)
+        client._ws = first_ws
+
+        await client._handle_message(
+            json.dumps(
+                {
+                    "method": "durable_command.request",
+                    "params": request.to_dict(),
+                }
+            ),
+            generation=1,
+        )
+        assert await asyncio.to_thread(adapter.started.wait, 2)
+        logical = client._durable_logical_executions[request.request_id]
+        logical_task = logical["task"]
+        running = client._durable_store.get_request(request.request_id)
+        assert running is not None and running.lifecycle_state == "RUNNING"
+
+        await client._teardown_connection_generation(1, first_ws)
+        assert client._durable_store.result_for(request.request_id) is None
+        still_running = client._durable_store.get_request(request.request_id)
+        assert still_running is not None and still_running.lifecycle_state == "RUNNING"
+        assert not logical_task.done()
+        await client._handle_message(
+            json.dumps(
+                {
+                    "method": "durable_command.request",
+                    "params": request.to_dict(),
+                }
+            ),
+            generation=1,
+        )
+        await asyncio.sleep(0)
+        assert adapter.execution_count == 1
+
+        adapter.release.set()
+        await asyncio.wait_for(asyncio.shield(logical_task), timeout=2)
+        result = client._durable_store.result_for(request.request_id)
+        assert result is not None
+        delivery = client._durable_store.stage_terminal_result_delivery(request.request_id)
+
+        replacement_ws = _DurableAckWs(client)
+        generation = client._activate_connection_generation(replacement_ws)
+        client._connected = True
+        client._ws = replacement_ws
+        assert await client._replay_due_terminal_results(generation) == 1
+        acknowledged = client._durable_store.terminal_result_delivery_for(
+            request.request_id
+        )
+        assert acknowledged is not None
+        await client._teardown_connection_generation(generation, replacement_ws)
+        return (
+            result["state"],
+            acknowledged["delivery_state"],
+            adapter.execution_count,
+            adapter.effects,
+            delivery["result_id"],
+        )
+
+    state, delivery_state, execution_count, effects, result_id = asyncio.run(run())
+    assert state == "SUCCEEDED"
+    assert delivery_state == "ACKNOWLEDGED"
+    assert execution_count == 1
+    assert effects == ["completed"]
+    assert len(result_id) == 64
+
+
+def test_cancel_during_non_cancellable_executor_does_not_publish_false_cancelled(tmp_path):
+    class BlockingAdapter:
+        def __init__(self) -> None:
+            self.started = threading.Event()
+            self.release = threading.Event()
+            self.execution_count = 0
+
+        def execute(self, _capability, _params):
+            self.execution_count += 1
+            self.started.set()
+            assert self.release.wait(timeout=5)
+            return {
+                "success": True,
+                "stdout": "completed despite cancellation request",
+                "cleanup": {"process_residue": [], "cleanup_verified": True},
+            }
+
+    async def run() -> tuple[str, str, int]:
+        client = _durable_node_client(tmp_path / "node-cancel")
+        adapter = BlockingAdapter()
+        client._adapters = {"terminal": adapter}
+        request = _durable_request(
+            capability="terminal.execute",
+            params={"command": "sanctioned-non-destructive", "timeout": 5},
+        )
+        client._ws = _DurableAckWs(client)
+        await client._handle_message(
+            json.dumps(
+                {"method": "durable_command.request", "params": request.to_dict()}
+            ),
+            generation=1,
+        )
+        assert await asyncio.to_thread(adapter.started.wait, 2)
+
+        cancel_delivery = client._durable_store.get_request(request.request_id)
+        assert cancel_delivery is not None
+        cancel_delivery.lifecycle_state = "CANCEL_REQUESTED"
+        cancel_delivery.cancellation_requested_at = time.time()
+        cancel_delivery.cancellation_deadline_at = time.time() + 30
+        await client._handle_message(
+            json.dumps(
+                {
+                    "method": "durable_command.request",
+                    "params": cancel_delivery.to_dict(),
+                }
+            ),
+            generation=1,
+        )
+        await asyncio.sleep(0)
+        pending = client._durable_store.get_request(request.request_id)
+        assert pending is not None and pending.lifecycle_state == "CANCEL_REQUESTED"
+        assert client._durable_store.result_for(request.request_id) is None
+
+        logical_task = client._durable_logical_executions[request.request_id]["task"]
+        adapter.release.set()
+        await asyncio.wait_for(asyncio.shield(logical_task), timeout=2)
+        result = client._durable_store.result_for(request.request_id)
+        final = client._durable_store.get_request(request.request_id)
+        assert result is not None and final is not None
+        return final.lifecycle_state, result["state"], adapter.execution_count
+
+    lifecycle, result_state, execution_count = asyncio.run(run())
+    assert lifecycle == "SUCCEEDED"
+    assert result_state == "SUCCEEDED"
+    assert execution_count == 1
 
 
 def test_node_durable_delivery_rejects_malformed_request_material(tmp_path):

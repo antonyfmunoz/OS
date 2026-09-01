@@ -81,6 +81,29 @@ def sha256_json(value: Any) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
+def terminal_result_identity(
+    request: "DurableRemoteRequest",
+    result: dict[str, Any],
+) -> dict[str, Any]:
+    """Return the stable logical identity for exact terminal result material."""
+    identity = {
+        "request_id": request.request_id,
+        "correlation_id": request.correlation_id,
+        "idempotency_key": request.idempotency_key,
+        "candidate_sha": request.candidate_sha,
+        "node_id": request.node_id,
+        "operation_type": request.operation_type,
+        "capability": request.capability,
+        "payload_digest": request.payload_digest,
+        "claim_id": str(result.get("claim_id", "") or ""),
+        "state": str(result.get("state", "") or ""),
+        "result_digest": str(result.get("result_digest", "") or ""),
+        "cleanup_digest": str(result.get("cleanup_digest", "") or ""),
+    }
+    identity["result_id"] = sha256_json(identity)
+    return identity
+
+
 def _normalized_idempotency_key(value: str) -> str:
     return str(value or "").strip()
 
@@ -2760,6 +2783,24 @@ class DurableRemoteStore:
                 raise KeyError(request_id)
             return self._reconcile_request_locked(req, reason=reason)
 
+    def mark_reconciliation_required(
+        self,
+        request_id: str,
+        *,
+        reason: str,
+        cleanup: dict[str, Any] | None = None,
+    ) -> DurableRemoteRequest:
+        """Persist an unresolved execution/delivery truth without inventing a terminal state."""
+        with self._request_lock(request_id):
+            req = self._get_request_raw(request_id)
+            if req is None:
+                raise KeyError(request_id)
+            if req.lifecycle_state in TERMINAL_STATES:
+                return req
+            if cleanup is not None:
+                req.cleanup = dict(cleanup)
+            return self._enter_reconciliation(req, reason=reason)
+
     def _reconcile_request_locked(
         self,
         req: DurableRemoteRequest,
@@ -2880,7 +2921,11 @@ class DurableRemoteStore:
                 identity=request_id,
             )
             return _DurableRecordLoad(LOAD_CORRUPT, path, data=data, reason=reason)
-        if str(data.get("delivery_state", "")) not in {"PENDING", "ACKNOWLEDGED"}:
+        if str(data.get("delivery_state", "")) not in {
+            "PENDING",
+            "ACKNOWLEDGED",
+            "RECONCILIATION_REQUIRED",
+        }:
             reason = "result delivery state invalid"
             _record_persistence_issue(
                 path,
@@ -2900,28 +2945,6 @@ class DurableRemoteStore:
             return _DurableRecordLoad(LOAD_CORRUPT, path, data=data, reason=reason)
         return _DurableRecordLoad(LOAD_VALID, path, data=data)
 
-    @staticmethod
-    def _terminal_result_identity(
-        request: DurableRemoteRequest,
-        result: dict[str, Any],
-    ) -> dict[str, Any]:
-        identity = {
-            "request_id": request.request_id,
-            "correlation_id": request.correlation_id,
-            "idempotency_key": request.idempotency_key,
-            "candidate_sha": request.candidate_sha,
-            "node_id": request.node_id,
-            "operation_type": request.operation_type,
-            "capability": request.capability,
-            "payload_digest": request.payload_digest,
-            "claim_id": str(result.get("claim_id", "") or ""),
-            "state": str(result.get("state", "") or ""),
-            "result_digest": str(result.get("result_digest", "") or ""),
-            "cleanup_digest": str(result.get("cleanup_digest", "") or ""),
-        }
-        identity["result_id"] = sha256_json(identity)
-        return identity
-
     def stage_terminal_result_delivery(self, request_id: str) -> dict[str, Any]:
         """Durably stage exact terminal evidence for transport delivery."""
         with self._request_lock(request_id):
@@ -2937,7 +2960,7 @@ class DurableRemoteStore:
                 raise ValueError(
                     "terminal result delivery requires terminal or reconciliation state"
                 )
-            identity = self._terminal_result_identity(request, result)
+            identity = terminal_result_identity(request, result)
             if not identity["claim_id"] or not identity["result_digest"]:
                 raise ValueError("terminal result delivery identity is incomplete")
 
@@ -3072,6 +3095,39 @@ class DurableRemoteStore:
             )
             _atomic_write_json(self._result_delivery_path(request_id), record)
             self._event(request_id, "TERMINAL_RESULT_DELIVERY_ACKNOWLEDGED")
+            return record
+
+    def mark_terminal_result_delivery_reconciliation_required(
+        self,
+        request_id: str,
+        *,
+        reason: str,
+        receipt: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Stop retrying terminal evidence whose canonical receipt conflicts."""
+        with self._request_lock(request_id):
+            loaded = self._load_result_delivery_record(request_id)
+            if not loaded.valid:
+                raise ValueError("terminal result delivery record is not valid")
+            record = dict(loaded.data or {})
+            if record.get("delivery_state") == "ACKNOWLEDGED":
+                return record
+            now = now_s()
+            record.update(
+                {
+                    "delivery_state": "RECONCILIATION_REQUIRED",
+                    "next_attempt_at": 0.0,
+                    "last_error": str(reason),
+                    "receipt": dict(receipt or {}),
+                    "updated_at": now,
+                }
+            )
+            _atomic_write_json(self._result_delivery_path(request_id), record)
+            self._event(
+                request_id,
+                "TERMINAL_RESULT_DELIVERY_RECONCILIATION_REQUIRED",
+                {"reason": str(reason)},
+            )
             return record
 
     def terminal_result_delivery_for(self, request_id: str) -> dict[str, Any] | None:

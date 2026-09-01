@@ -19,7 +19,11 @@ from uuid import uuid4
 import websockets
 from websockets.asyncio.server import ServerConnection
 
-from substrate.execution.durable_remote_transport import DurableRemoteStore
+from substrate.execution.durable_remote_transport import (
+    DurableRemoteStore,
+    sha256_json,
+    terminal_result_identity,
+)
 from substrate.execution.executor import WorkPacketExecutor
 from substrate.sockets.capability_socket import CapabilitySocket
 from substrate.sockets.envelopes import ViewFrame
@@ -49,6 +53,7 @@ _DURABLE_PUMP_SCAN_LIMIT = 16
 _DURABLE_DELIVERY_SUPPRESSION_MAX = 512
 _DURABLE_DELIVERY_SUPPRESSION_DEFAULT_S = 30.0
 _DURABLE_DELIVERY_SUPPRESSION_MIN_S = 8.0
+_DURABLE_PUMP_TEARDOWN_S = 2.0
 
 
 def hmac_compare(a: str, b: str) -> bool:
@@ -119,6 +124,7 @@ class NodeMeshServer:
         self._durable_store = DurableRemoteStore()
         self._durable_delivery_inflight: dict[str, dict[str, Any]] = {}
         self._durable_pump_tasks: dict[str, asyncio.Task[None]] = {}
+        self._durable_pump_connections: dict[str, str] = {}
         self._ws_send_locks: dict[str, asyncio.Lock] = {}
 
     @property
@@ -368,6 +374,8 @@ class NodeMeshServer:
             server.close()
             await server.wait_closed()
 
+        for node_id in list(self._durable_pump_tasks):
+            await self._stop_durable_pump(node_id)
         self._health_task.cancel()
         self._vps_metrics_task.cancel()
         self._http_task.cancel()
@@ -435,7 +443,7 @@ class NodeMeshServer:
                                     node_id,
                                 )
                             else:
-                                self._schedule_durable_pump(
+                                await self._schedule_durable_pump(
                                     node_id,
                                     ws,
                                     connection_id,
@@ -498,10 +506,8 @@ class NodeMeshServer:
         finally:
             if node_id:
                 self._unregister_node(node_id, connection_id=connection_id)
-            task_key = f"{node_id}:{connection_id}" if node_id else ""
-            pump_task = self._durable_pump_tasks.pop(task_key, None)
-            if pump_task is not None and not pump_task.done():
-                pump_task.cancel()
+            if node_id:
+                await self._stop_durable_pump(node_id, connection_id=connection_id)
             if connection_id:
                 self._ws_send_locks.pop(connection_id, None)
 
@@ -776,7 +782,7 @@ class NodeMeshServer:
             node.hostname,
             len(node.peripherals),
         )
-        self._schedule_durable_pump(node_id, ws, connection_id, reason="hello")
+        await self._schedule_durable_pump(node_id, ws, connection_id, reason="hello")
         return node_id
 
     async def _handle_heartbeat(
@@ -839,7 +845,7 @@ class NodeMeshServer:
                 },
                 connection_id,
             )
-        self._schedule_durable_pump(node_id, ws, connection_id, reason="heartbeat")
+        await self._schedule_durable_pump(node_id, ws, connection_id, reason="heartbeat")
 
     async def _send_ws_json(
         self,
@@ -961,7 +967,30 @@ class NodeMeshServer:
         for request_id, _entry in items[:overflow]:
             self._clear_durable_delivery_inflight(request_id, "bounded_eviction")
 
-    def _schedule_durable_pump(
+    async def _stop_durable_pump(
+        self,
+        node_id: str,
+        *,
+        connection_id: str | None = None,
+    ) -> None:
+        if connection_id is not None and self._durable_pump_connections.get(node_id) != connection_id:
+            return
+        task = self._durable_pump_tasks.get(node_id)
+        if task is None:
+            return
+        if not task.done():
+            task.cancel()
+        try:
+            await asyncio.wait_for(asyncio.shield(task), timeout=_DURABLE_PUMP_TEARDOWN_S)
+        except asyncio.CancelledError:
+            pass
+        except asyncio.TimeoutError as exc:
+            raise RuntimeError("durable pump teardown exceeded bounded deadline") from exc
+        if self._durable_pump_tasks.get(node_id) is task:
+            self._durable_pump_tasks.pop(node_id, None)
+            self._durable_pump_connections.pop(node_id, None)
+
+    async def _schedule_durable_pump(
         self,
         node_id: str,
         ws: ServerConnection,
@@ -969,13 +998,11 @@ class NodeMeshServer:
         *,
         reason: str,
     ) -> None:
-        if not connection_id:
-            task_key = node_id
-        else:
-            task_key = f"{node_id}:{connection_id}"
-        existing = self._durable_pump_tasks.get(task_key)
+        existing = self._durable_pump_tasks.get(node_id)
         if existing is not None and not existing.done():
-            return
+            if self._durable_pump_connections.get(node_id) == connection_id:
+                return
+            await self._stop_durable_pump(node_id)
 
         async def _runner() -> None:
             try:
@@ -984,11 +1011,13 @@ class NodeMeshServer:
                 logger.warning("durable pump failed for %s (%s): %s", node_id, reason, exc)
 
         task = asyncio.create_task(_runner())
-        self._durable_pump_tasks[task_key] = task
+        self._durable_pump_tasks[node_id] = task
+        self._durable_pump_connections[node_id] = connection_id
 
         def _cleanup(done: asyncio.Task[None]) -> None:
-            if self._durable_pump_tasks.get(task_key) is done:
-                self._durable_pump_tasks.pop(task_key, None)
+            if self._durable_pump_tasks.get(node_id) is done:
+                self._durable_pump_tasks.pop(node_id, None)
+                self._durable_pump_connections.pop(node_id, None)
 
         task.add_done_callback(_cleanup)
 
@@ -1380,8 +1409,6 @@ class NodeMeshServer:
         state = "FAILED"
         result: dict[str, Any] = {}
         cleanup: dict[str, Any] = {}
-        from substrate.execution.durable_remote_transport import sha256_json
-
         incoming_digest = ""
         receipt: dict[str, Any] = {}
         ok = False
@@ -1393,6 +1420,7 @@ class NodeMeshServer:
             state = str(params.get("state", "FAILED") or "FAILED").upper()
             result = _durable_dict_field(params, "result")
             cleanup = _durable_dict_field(params, "cleanup")
+            incoming_result_id = str(params.get("result_id", "") or "").strip()
             incoming_digest = sha256_json(
                 {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup}
             )
@@ -1419,6 +1447,29 @@ class NodeMeshServer:
             if req is None or req.node_id != node_id:
                 error = "request not found for node"
             else:
+                result_identity = terminal_result_identity(
+                    req,
+                    {
+                        "claim_id": claim_id,
+                        "state": state,
+                        "result_digest": incoming_digest,
+                        "cleanup_digest": sha256_json(cleanup),
+                    },
+                )
+                identity_mismatches = [
+                    key
+                    for key in ("correlation_id", "candidate_sha", "node_id")
+                    if str(params.get(key, "") or "") != str(result_identity[key])
+                ]
+                if not incoming_result_id:
+                    identity_mismatches.append("result_id")
+                elif incoming_result_id != result_identity["result_id"]:
+                    identity_mismatches.append("result_id")
+                if identity_mismatches:
+                    raise ValueError(
+                        "terminal result identity mismatch: "
+                        + ",".join(identity_mismatches)
+                    )
                 self._record_durable_delivery_progress(
                     request_id,
                     "canonical_write_started",
@@ -1457,24 +1508,9 @@ class NodeMeshServer:
                 if not ok:
                     error = f"result rejected into {updated.lifecycle_state}"
                 else:
-                    result_identity = {
-                        "request_id": req.request_id,
-                        "correlation_id": req.correlation_id,
-                        "idempotency_key": req.idempotency_key,
-                        "candidate_sha": req.candidate_sha,
-                        "node_id": req.node_id,
-                        "operation_type": req.operation_type,
-                        "capability": req.capability,
-                        "payload_digest": req.payload_digest,
-                        "claim_id": claim_id,
-                        "state": state,
-                        "result_digest": incoming_digest,
-                        "cleanup_digest": sha256_json(cleanup),
-                    }
                     receipt = {
                         "ok": True,
                         **result_identity,
-                        "result_id": sha256_json(result_identity),
                     }
         except Exception as exc:  # noqa: BLE001
             error = str(exc)

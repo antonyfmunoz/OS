@@ -119,6 +119,7 @@ _CLAIM_AUTHORITY_ENVELOPE_S = _AUTHORITY_SERVICE_COMPLETE_BOUND_S + _CONTROL_TIM
 assert _CLAIM_AUTHORITY_ENVELOPE_S < _DURABLE_CLAIM_ACQUIRE_TIMEOUT_S
 _DURABLE_CLAIM_RETRY_SLEEP_S = 1.0
 _CONNECTION_GENERATION_TEARDOWN_S = 2.0
+_LOGICAL_EXECUTION_TEARDOWN_S = 2.0
 _RESULT_REPLAY_IDLE_POLL_S = 1.0
 _RESULT_REPLAY_BATCH = _WS_SEND_QUEUE_CAPACITY[_TRAFFIC_AUTHORITY_CONTROL]
 _DURABLE_TRAJECTORY_TOMBSTONE_TTL_S = 300.0
@@ -656,6 +657,7 @@ class NodeClient:
         self._durable_store = DurableRemoteStore(default_node_root())
         self._durable_processes: dict[str, subprocess.Popen[str]] = {}
         self._durable_execution_locks: dict[str, asyncio.Lock] = {}
+        self._durable_logical_executions: dict[str, dict[str, Any]] = {}
         self._durable_request_gates: dict[str, dict[str, Any]] = {}
         self._durable_request_trajectories: dict[str, dict[str, Any]] = {}
 
@@ -1391,6 +1393,11 @@ class NodeClient:
 
     async def stop(self) -> None:
         self._shutdown.set()
+        generation = self._active_generation()
+        ws = self._ws
+        if generation and ws is not None:
+            await self._teardown_connection_generation(generation, ws)
+        await self._quiesce_logical_executions()
         for name, adapter in list(self._adapters.items()):
             try:
                 if name == "camera":
@@ -1401,13 +1408,41 @@ class NodeClient:
                     adapter.stop()
             except Exception as exc:  # noqa: BLE001
                 logger.debug("adapter shutdown failed for %s: %s", name, exc)
-        generation = self._active_generation()
-        ws = self._ws
-        if generation and ws is not None:
-            await self._teardown_connection_generation(generation, ws)
         self._camera_executor.shutdown(wait=False, cancel_futures=True)
         if ws:
             await ws.close()
+
+    async def _quiesce_logical_executions(self) -> None:
+        registry = getattr(self, "_durable_logical_executions", {})
+        tasks = {
+            entry["task"]
+            for entry in registry.values()
+            if isinstance(entry.get("task"), asyncio.Task) and not entry["task"].done()
+        }
+        if not tasks:
+            return
+        done, pending = await asyncio.wait(tasks, timeout=_LOGICAL_EXECUTION_TEARDOWN_S)
+        if done:
+            await asyncio.gather(*done, return_exceptions=True)
+        for request_id, entry in registry.items():
+            task = entry.get("task")
+            if task not in pending:
+                continue
+            entry["state"] = "OUTCOME_UNKNOWN"
+            try:
+                self._durable_store.mark_reconciliation_required(
+                    request_id,
+                    reason="node shutdown before logical execution outcome was observed",
+                    cleanup={
+                        "process_residue": [{"state": "execution_outcome_unresolved"}],
+                        "execution_outcome_unknown": True,
+                    },
+                )
+            except (KeyError, ValueError):
+                logger.exception("failed to persist logical execution shutdown state: %s", request_id)
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
 
     async def _connect_and_serve(self) -> None:
         url = self._config.ws_url
@@ -1585,11 +1620,7 @@ class NodeClient:
                 label="capability-handler",
             )
         elif method == "durable_command.request":
-            self._create_generation_task(
-                self._safe_handle_durable_command(msg),
-                generation=expected_generation,
-                label="durable-command-handler",
-            )
+            self._schedule_logical_durable_command(msg)
         elif method == "outcome.notify":
             logger.info("outcome received: %s", msg.get("params", {}).get("summary", ""))
         elif "result" in msg or "error" in msg:
@@ -1768,6 +1799,104 @@ class NodeClient:
             await self._handle_durable_command(msg)
         except Exception as exc:  # noqa: BLE001
             logger.error("durable command handler crashed: %s", exc, exc_info=True)
+
+    def _schedule_logical_durable_command(self, msg: dict[str, Any]) -> None:
+        """Own authorized execution independently from a WebSocket generation."""
+        params = msg.get("params", {})
+        if not isinstance(params, dict):
+            logger.warning("durable delivery rejected: params must be an object")
+            return
+        try:
+            delivered_req = DurableRemoteRequest.from_dict(params)
+        except (TypeError, ValueError) as exc:
+            logger.warning("durable delivery rejected: malformed request material: %s", exc)
+            return
+        if not delivered_req.request_id or delivered_req.node_id != self._config.node_id:
+            return
+
+        registry = getattr(self, "_durable_logical_executions", None)
+        if registry is None:
+            registry = {}
+            self._durable_logical_executions = registry
+        existing = registry.get(delivered_req.request_id)
+        if existing is not None:
+            if existing.get("identity") != self._durable_request_identity(delivered_req):
+                logger.error(
+                    "durable logical execution identity mismatch: %s",
+                    delivered_req.request_id,
+                )
+                return
+            if delivered_req.lifecycle_state == "CANCEL_REQUESTED":
+                current = self._durable_store.put_request(delivered_req)
+                current.lifecycle_state = "CANCEL_REQUESTED"
+                current.cancellation_requested_at = delivered_req.cancellation_requested_at
+                current.cancellation_deadline_at = delivered_req.cancellation_deadline_at
+                self._durable_store.update_request(current, "CANCEL_REQUESTED")
+                existing["cancel_requested"] = True
+            task = existing.get("task")
+            if isinstance(task, asyncio.Task) and not task.done():
+                return
+            if existing.get("state") in {"STARTED", "OUTCOME_UNKNOWN"}:
+                return
+
+        entry: dict[str, Any] = {
+            "identity": self._durable_request_identity(delivered_req),
+            "state": "NOT_STARTED",
+            "task": None,
+            "operation_future": None,
+            "created_at": time.monotonic(),
+        }
+        registry[delivered_req.request_id] = entry
+
+        async def _run() -> None:
+            token = _connection_generation_context.set(None)
+            try:
+                await self._safe_handle_durable_command(msg)
+            finally:
+                _connection_generation_context.reset(token)
+
+        task = asyncio.create_task(_run(), context=contextvars.Context())
+        entry["task"] = task
+
+        def _completed(done: asyncio.Task[None]) -> None:
+            current_entry = registry.get(delivered_req.request_id)
+            if current_entry is not entry:
+                return
+            try:
+                failure = done.exception()
+            except asyncio.CancelledError as exc:
+                failure = exc
+            result = self._durable_store.result_for(delivered_req.request_id)
+            if result is not None:
+                entry["state"] = "TERMINAL_PERSISTED"
+                registry.pop(delivered_req.request_id, None)
+                return
+            current = self._durable_store.get_request(delivered_req.request_id)
+            if entry.get("state") in {"STARTED", "OUTCOME_UNKNOWN"} or (
+                current is not None and current.lifecycle_state in {"RUNNING", "CANCEL_REQUESTED"}
+            ):
+                reason = "logical execution observer ended before actual outcome was persisted"
+                if failure is not None:
+                    reason += f": {type(failure).__name__}: {failure}"
+                try:
+                    self._durable_store.mark_reconciliation_required(
+                        delivered_req.request_id,
+                        reason=reason,
+                        cleanup={
+                            "process_residue": [{"state": "execution_outcome_unresolved"}],
+                            "execution_outcome_unknown": True,
+                        },
+                    )
+                except (KeyError, ValueError):
+                    logger.exception(
+                        "failed to preserve unresolved logical execution: %s",
+                        delivered_req.request_id,
+                    )
+                entry["state"] = "OUTCOME_UNKNOWN"
+                return
+            registry.pop(delivered_req.request_id, None)
+
+        task.add_done_callback(_completed)
 
     def _durable_request_identity(self, req: DurableRemoteRequest) -> dict[str, str]:
         return {
@@ -1957,6 +2086,34 @@ class NodeClient:
         root_pid = current.process_tree.get("root_pid")
         proc = self._durable_processes.get(delivered_req.request_id)
         if current.lifecycle_state == "RUNNING" or root_pid or proc is not None:
+            logical = getattr(self, "_durable_logical_executions", {}).get(
+                delivered_req.request_id
+            )
+            operation_future = (logical or {}).get("operation_future")
+            if (logical or {}).get("state") == "STARTED" and (
+                operation_future is None or not operation_future.done()
+            ):
+                logical["state"] = "OUTCOME_UNKNOWN"
+                self._durable_store.mark_reconciliation_required(
+                    current.request_id,
+                    reason=reason,
+                    cleanup={
+                        "process_residue": [{"state": "execution_outcome_unresolved"}],
+                        "execution_outcome_unknown": True,
+                        "request_id": current.request_id,
+                        "correlation_id": current.correlation_id,
+                        "candidate_sha": current.candidate_sha,
+                        "node_id": current.node_id,
+                        "claim_id": claim_id or current.claim_id or "unclaimed",
+                    },
+                )
+                self._record_durable_request_trajectory(
+                    current.request_id,
+                    status="RECONCILIATION_PENDING",
+                    claim_id=claim_id,
+                    terminal=True,
+                )
+                return
             cleanup: dict[str, Any] = {
                 "process_residue": [],
                 "interrupted_running_failed_closed": True,
@@ -2058,6 +2215,8 @@ class NodeClient:
             raise ValueError("terminal result delivery request is not terminal evidence")
         if result.get("result_digest") != delivery.get("result_digest"):
             raise ValueError("terminal result delivery digest mismatch")
+        if delivery.get("delivery_state") == "RECONCILIATION_REQUIRED":
+            raise ValueError("terminal result delivery requires governed reconciliation")
         return {
             "request_id": request.request_id,
             "correlation_id": request.correlation_id,
@@ -2211,6 +2370,11 @@ class NodeClient:
                         ack,
                     )
                 except ValueError as exc:
+                    self._durable_store.mark_terminal_result_delivery_reconciliation_required(
+                        terminal_request_id,
+                        reason=str(exc),
+                        receipt=ack,
+                    )
                     self._durable_store.record_transport_diagnostic(
                         terminal_request_id,
                         "TERMINAL_RESULT_RECEIPT_REJECTED",
@@ -3778,17 +3942,38 @@ class NodeClient:
                 "error": "request expired before adapter start",
                 "cleanup": {"process_residue": []},
             }
+        logical = getattr(self, "_durable_logical_executions", {}).get(req.request_id)
+        if logical is not None:
+            logical["state"] = "STARTED"
+            logical["claim_id"] = claim_id
+            logical["started_at"] = time.monotonic()
+        if hasattr(adapter, "execute_async") and callable(adapter.execute_async):
+            operation = asyncio.create_task(adapter.execute_async(cap_name, cap_params))
+            if logical is not None:
+                logical["operation_future"] = operation
+            try:
+                return await asyncio.wait_for(asyncio.shield(operation), timeout=timeout)
+            except asyncio.TimeoutError:
+                self._durable_store.record_transport_diagnostic(
+                    req.request_id,
+                    "EXECUTION_TIMEOUT_OUTCOME_PENDING",
+                    {"capability": cap_name, "timeout_s": timeout},
+                )
+                return await asyncio.shield(operation)
+        loop = asyncio.get_event_loop()
+        executor = self._camera_executor if adapter_key == "camera" else None
+        operation = loop.run_in_executor(executor, adapter.execute, cap_name, cap_params)
+        if logical is not None:
+            logical["operation_future"] = operation
         try:
-            if hasattr(adapter, "execute_async") and callable(adapter.execute_async):
-                return await asyncio.wait_for(adapter.execute_async(cap_name, cap_params), timeout=timeout)
-            loop = asyncio.get_event_loop()
-            executor = self._camera_executor if adapter_key == "camera" else None
-            return await asyncio.wait_for(
-                loop.run_in_executor(executor, adapter.execute, cap_name, cap_params),
-                timeout=timeout,
-            )
+            return await asyncio.wait_for(asyncio.shield(operation), timeout=timeout)
         except asyncio.TimeoutError:
-            return {"success": False, "error": f"{cap_name} timed out after {timeout:.0f}s"}
+            self._durable_store.record_transport_diagnostic(
+                req.request_id,
+                "EXECUTION_TIMEOUT_OUTCOME_PENDING",
+                {"capability": cap_name, "timeout_s": timeout},
+            )
+            return await asyncio.shield(operation)
 
     async def _execute_shell_for_durable(
         self,
