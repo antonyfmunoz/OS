@@ -59,6 +59,7 @@ from substrate.execution.durable_remote_transport import (
     SHELL_LAUNCH_INTENT_PERSISTED,
     SHELL_LAUNCH_RUNNING,
     SHELL_PROCESS_IDENTITY_PERSISTED,
+    SUSPEND_OBSERVATION_METHODS,
     STATE_ORDER,
     TERMINAL_STATES,
     default_node_root,
@@ -149,43 +150,151 @@ _RESUME_RESULTS = frozenset(
 @dataclass(frozen=True)
 class _SuspendStateEvidence:
     state: str
+    request_id: str
+    correlation_id: str
+    node_id: str
+    candidate_sha: str
+    claim_id: str
+    logical_execution_id: str
+    launch_intent_id: str
     process_id: int
+    process_start_token: str
+    process_executable: str
+    process_observed_command_digest: str
+    command_digest: str
+    process_identity_source: str
     thread_id: int | None
     observation_method: str
     observation_success: bool
     win32_error: int | None
     observed_at: float
-    launch_intent_id: str
-    logical_execution_id: str
     previous_suspend_count: int | None = None
     resume_result: str = _RESUME_RESULT_NOT_ATTEMPTED
+    predecessor_observation_id: str = ""
 
     def __post_init__(self) -> None:
         if self.state not in _SUSPEND_STATES:
             raise ValueError(f"invalid suspend state: {self.state}")
         if self.resume_result not in _RESUME_RESULTS:
             raise ValueError(f"invalid resume result: {self.resume_result}")
+        if self.observation_method not in SUSPEND_OBSERVATION_METHODS:
+            raise ValueError(f"invalid suspend observation method: {self.observation_method}")
         if not self.observation_success and self.state != _SUSPEND_STATE_UNKNOWN:
             raise ValueError("failed observation cannot prove a suspend state")
+        if self.observation_success and self.state == _SUSPEND_STATE_UNKNOWN:
+            raise ValueError("unknown suspend state cannot claim successful observation")
         if self.process_id <= 0:
             raise ValueError("suspend evidence requires a positive process id")
-        if not self.launch_intent_id or not self.logical_execution_id:
-            raise ValueError("suspend evidence requires exact launch and execution identity")
+        if self.thread_id is not None and self.thread_id <= 0:
+            raise ValueError("suspend evidence thread id must be positive")
+        if self.state in {
+            _SUSPEND_STATE_PROVEN_SUSPENDED,
+            _SUSPEND_STATE_PROVEN_RESUMED,
+        } and self.thread_id is None:
+            raise ValueError("positive thread-state evidence requires thread identity")
+        for key in (
+            "request_id",
+            "correlation_id",
+            "node_id",
+            "candidate_sha",
+            "claim_id",
+            "logical_execution_id",
+            "launch_intent_id",
+            "process_start_token",
+            "process_executable",
+            "process_observed_command_digest",
+            "command_digest",
+            "process_identity_source",
+            "observation_method",
+        ):
+            if not str(getattr(self, key) or "").strip():
+                raise ValueError(f"suspend evidence requires {key}")
+        if self.observed_at <= 0:
+            raise ValueError("suspend evidence requires a positive observation timestamp")
+        if self.resume_result == _RESUME_RESULT_EXPECTED and not (
+            self.observation_method == "RESUME_THREAD_RETURN"
+            and self.previous_suspend_count == 1
+            and self.state == _SUSPEND_STATE_PROVEN_RESUMED
+            and self.observation_success
+        ):
+            raise ValueError("expected resume evidence must bind ResumeThread return 1")
+        if self.resume_result == _RESUME_RESULT_UNEXPECTED:
+            if self.observation_method != "RESUME_THREAD_RETURN" or not isinstance(
+                self.previous_suspend_count, int
+            ):
+                raise ValueError("unexpected resume evidence requires raw ResumeThread count")
+            if self.previous_suspend_count == 0 and not (
+                self.state == _SUSPEND_STATE_UNKNOWN and not self.observation_success
+            ):
+                raise ValueError("ResumeThread zero cannot establish resumed state")
+            if self.previous_suspend_count > 1 and not (
+                self.state == _SUSPEND_STATE_PROVEN_SUSPENDED and self.observation_success
+            ):
+                raise ValueError("ResumeThread count above one must remain suspended")
+            if self.previous_suspend_count < 0 or self.previous_suspend_count == 1:
+                raise ValueError("invalid unexpected ResumeThread count")
+        if self.resume_result == _RESUME_RESULT_FAILURE and not (
+            self.observation_method == "RESUME_THREAD_RETURN"
+            and self.previous_suspend_count is None
+            and self.state == _SUSPEND_STATE_UNKNOWN
+            and not self.observation_success
+        ):
+            raise ValueError("ResumeThread failure cannot prove launch state")
+        if self.resume_result == _RESUME_RESULT_NOT_ATTEMPTED and (
+            self.previous_suspend_count is not None
+            or self.observation_method == "RESUME_THREAD_RETURN"
+        ):
+            raise ValueError("non-resume observation cannot carry a ResumeThread count")
+        if (
+            self.resume_result == _RESUME_RESULT_NOT_ATTEMPTED
+            and self.state == _SUSPEND_STATE_PROVEN_SUSPENDED
+        ):
+            raise ValueError("suspended proof requires a qualified thread observation")
+        if (
+            self.resume_result == _RESUME_RESULT_NOT_ATTEMPTED
+            and self.state in {_SUSPEND_STATE_PROVEN_RESUMED, _SUSPEND_STATE_PROVEN_EXITED}
+            and (
+                self.observation_method != "PROCESS_STATE_QUERY"
+                or not self.predecessor_observation_id
+            )
+        ):
+            raise ValueError("independent outcome proof requires causal predecessor")
 
-    def to_dict(self) -> dict[str, Any]:
+    def _material(self) -> dict[str, Any]:
         return {
+            "schema_version": 1,
             "state": self.state,
+            "request_id": self.request_id,
+            "correlation_id": self.correlation_id,
+            "node_id": self.node_id,
+            "candidate_sha": self.candidate_sha,
+            "claim_id": self.claim_id,
+            "logical_execution_id": self.logical_execution_id,
+            "launch_intent_id": self.launch_intent_id,
             "process_id": self.process_id,
+            "process_start_token": self.process_start_token,
+            "process_executable": self.process_executable,
+            "process_observed_command_digest": self.process_observed_command_digest,
+            "command_digest": self.command_digest,
+            "process_identity_source": self.process_identity_source,
             "thread_id": self.thread_id,
             "observation_method": self.observation_method,
             "observation_success": self.observation_success,
             "win32_error": self.win32_error,
             "observed_at": self.observed_at,
-            "launch_intent_id": self.launch_intent_id,
-            "logical_execution_id": self.logical_execution_id,
             "previous_suspend_count": self.previous_suspend_count,
             "resume_result": self.resume_result,
+            "predecessor_observation_id": self.predecessor_observation_id,
         }
+
+    @property
+    def observation_id(self) -> str:
+        return sha256_json(self._material())
+
+    def to_dict(self) -> dict[str, Any]:
+        material = self._material()
+        material["observation_id"] = self.observation_id
+        return material
 
 
 class _DurableResumeStateUncertain(RuntimeError):
@@ -686,7 +795,8 @@ class _WindowsDurableJob:
         proc: subprocess.Popen[str],
         *,
         launch_intent_id: str,
-        logical_execution_id: str,
+        execution_identity: dict[str, Any],
+        process_identity: dict[str, Any],
         state: str,
         method: str,
         success: bool,
@@ -697,14 +807,26 @@ class _WindowsDurableJob:
     ) -> _SuspendStateEvidence:
         return _SuspendStateEvidence(
             state=state,
+            request_id=str(execution_identity.get("request_id", "")),
+            correlation_id=str(execution_identity.get("correlation_id", "")),
+            node_id=str(execution_identity.get("node_id", "")),
+            candidate_sha=str(execution_identity.get("candidate_sha", "")),
+            claim_id=str(execution_identity.get("claim_id", "")),
+            logical_execution_id=str(execution_identity.get("logical_execution_id", "")),
+            launch_intent_id=launch_intent_id,
             process_id=int(proc.pid),
+            process_start_token=str(process_identity.get("start_token", "")),
+            process_executable=str(process_identity.get("executable", "")),
+            process_observed_command_digest=str(
+                process_identity.get("observed_command_digest", "")
+            ),
+            command_digest=str(process_identity.get("command_digest", "")),
+            process_identity_source=str(process_identity.get("identity_source", "")),
             thread_id=thread_id,
             observation_method=method,
             observation_success=success,
             win32_error=win32_error,
             observed_at=time.time(),
-            launch_intent_id=launch_intent_id,
-            logical_execution_id=logical_execution_id,
             previous_suspend_count=previous_suspend_count,
             resume_result=resume_result,
         )
@@ -714,7 +836,9 @@ class _WindowsDurableJob:
         proc: subprocess.Popen[str],
         *,
         launch_intent_id: str,
-        logical_execution_id: str,
+        execution_identity: dict[str, Any],
+        process_identity: dict[str, Any],
+        persist_thread_identity: Callable[[int], None],
     ) -> _SuspendStateEvidence:
         snapshot = self._kernel32.CreateToolhelp32Snapshot(0x00000004, 0)
         invalid_handle = self._ctypes.c_void_p(-1).value
@@ -725,9 +849,10 @@ class _WindowsDurableJob:
                 evidence=self._suspend_evidence(
                     proc,
                     launch_intent_id=launch_intent_id,
-                    logical_execution_id=logical_execution_id,
+                    execution_identity=execution_identity,
+                    process_identity=process_identity,
                     state=_SUSPEND_STATE_UNKNOWN,
-                    method="CreateToolhelp32Snapshot",
+                    method="CREATE_TOOLHELP32_SNAPSHOT",
                     success=False,
                     win32_error=error,
                 ),
@@ -738,6 +863,8 @@ class _WindowsDurableJob:
             found = bool(self._kernel32.Thread32First(snapshot, self._ctypes.byref(entry)))
             while found:
                 if int(entry.th32OwnerProcessID) == int(proc.pid):
+                    thread_id = int(entry.th32ThreadID)
+                    persist_thread_identity(thread_id)
                     thread = self._kernel32.OpenThread(0x0002, False, entry.th32ThreadID)
                     if not thread:
                         error = self._ctypes.get_last_error()
@@ -746,11 +873,12 @@ class _WindowsDurableJob:
                             evidence=self._suspend_evidence(
                                 proc,
                                 launch_intent_id=launch_intent_id,
-                                logical_execution_id=logical_execution_id,
+                                execution_identity=execution_identity,
+                                process_identity=process_identity,
                                 state=_SUSPEND_STATE_UNKNOWN,
-                                method="OpenThread",
+                                method="OPEN_THREAD",
                                 success=False,
-                                thread_id=int(entry.th32ThreadID),
+                                thread_id=thread_id,
                                 win32_error=error,
                             ),
                         )
@@ -763,11 +891,12 @@ class _WindowsDurableJob:
                                 evidence=self._suspend_evidence(
                                     proc,
                                     launch_intent_id=launch_intent_id,
-                                    logical_execution_id=logical_execution_id,
+                                    execution_identity=execution_identity,
+                                    process_identity=process_identity,
                                     state=_SUSPEND_STATE_UNKNOWN,
-                                    method="ResumeThread",
+                                    method="RESUME_THREAD_RETURN",
                                     success=False,
-                                    thread_id=int(entry.th32ThreadID),
+                                    thread_id=thread_id,
                                     win32_error=error,
                                     resume_result=_RESUME_RESULT_FAILURE,
                                 ),
@@ -784,11 +913,12 @@ class _WindowsDurableJob:
                                 evidence=self._suspend_evidence(
                                     proc,
                                     launch_intent_id=launch_intent_id,
-                                    logical_execution_id=logical_execution_id,
+                                    execution_identity=execution_identity,
+                                    process_identity=process_identity,
                                     state=state,
-                                    method="ResumeThread",
+                                    method="RESUME_THREAD_RETURN",
                                     success=previous_count > 1,
-                                    thread_id=int(entry.th32ThreadID),
+                                    thread_id=thread_id,
                                     previous_suspend_count=int(previous_count),
                                     resume_result=_RESUME_RESULT_UNEXPECTED,
                                 ),
@@ -796,11 +926,12 @@ class _WindowsDurableJob:
                         return self._suspend_evidence(
                             proc,
                             launch_intent_id=launch_intent_id,
-                            logical_execution_id=logical_execution_id,
+                            execution_identity=execution_identity,
+                            process_identity=process_identity,
                             state=_SUSPEND_STATE_PROVEN_RESUMED,
-                            method="ResumeThread",
+                            method="RESUME_THREAD_RETURN",
                             success=True,
-                            thread_id=int(entry.th32ThreadID),
+                            thread_id=thread_id,
                             previous_suspend_count=1,
                             resume_result=_RESUME_RESULT_EXPECTED,
                         )
@@ -814,9 +945,10 @@ class _WindowsDurableJob:
             evidence=self._suspend_evidence(
                 proc,
                 launch_intent_id=launch_intent_id,
-                logical_execution_id=logical_execution_id,
+                execution_identity=execution_identity,
+                process_identity=process_identity,
                 state=_SUSPEND_STATE_UNKNOWN,
-                method="thread_snapshot_enumeration",
+                method="THREAD_SNAPSHOT_ENUMERATION",
                 success=False,
             ),
         )
@@ -843,16 +975,25 @@ def _durable_observe_process_after_unexpected_resume(
     except Exception:
         return _SuspendStateEvidence(
             state=_SUSPEND_STATE_UNKNOWN,
+            request_id=evidence.request_id,
+            correlation_id=evidence.correlation_id,
+            node_id=evidence.node_id,
+            candidate_sha=evidence.candidate_sha,
+            claim_id=evidence.claim_id,
+            logical_execution_id=evidence.logical_execution_id,
+            launch_intent_id=evidence.launch_intent_id,
             process_id=evidence.process_id,
+            process_start_token=evidence.process_start_token,
+            process_executable=evidence.process_executable,
+            process_observed_command_digest=evidence.process_observed_command_digest,
+            command_digest=evidence.command_digest,
+            process_identity_source=evidence.process_identity_source,
             thread_id=evidence.thread_id,
-            observation_method="process_handle_poll",
+            observation_method="PROCESS_STATE_QUERY",
             observation_success=False,
             win32_error=None,
             observed_at=time.time(),
-            launch_intent_id=evidence.launch_intent_id,
-            logical_execution_id=evidence.logical_execution_id,
-            previous_suspend_count=evidence.previous_suspend_count,
-            resume_result=evidence.resume_result,
+            predecessor_observation_id=evidence.observation_id,
         )
     if returncode is not None:
         state = _SUSPEND_STATE_PROVEN_EXITED
@@ -867,16 +1008,25 @@ def _durable_observe_process_after_unexpected_resume(
         state = _SUSPEND_STATE_UNKNOWN
     return _SuspendStateEvidence(
         state=state,
+        request_id=evidence.request_id,
+        correlation_id=evidence.correlation_id,
+        node_id=evidence.node_id,
+        candidate_sha=evidence.candidate_sha,
+        claim_id=evidence.claim_id,
+        logical_execution_id=evidence.logical_execution_id,
+        launch_intent_id=evidence.launch_intent_id,
         process_id=evidence.process_id,
+        process_start_token=evidence.process_start_token,
+        process_executable=evidence.process_executable,
+        process_observed_command_digest=evidence.process_observed_command_digest,
+        command_digest=evidence.command_digest,
+        process_identity_source=evidence.process_identity_source,
         thread_id=evidence.thread_id,
-        observation_method="process_handle_poll_after_unexpected_resume",
+        observation_method="PROCESS_STATE_QUERY",
         observation_success=state != _SUSPEND_STATE_UNKNOWN,
         win32_error=None,
         observed_at=time.time(),
-        launch_intent_id=evidence.launch_intent_id,
-        logical_execution_id=evidence.logical_execution_id,
-        previous_suspend_count=evidence.previous_suspend_count,
-        resume_result=evidence.resume_result,
+        predecessor_observation_id=evidence.observation_id,
     )
 
 
@@ -5447,25 +5597,87 @@ class NodeClient:
                 }
             if containment is not None:
                 resume_state = _SUSPEND_STATE_UNKNOWN
+                def _persist_launch_thread_identity(thread_id: int) -> None:
+                    nonlocal process_tree
+                    persisted = self._durable_store.persist_shell_launch_thread_identity(
+                        req.request_id,
+                        claim_id=claim_id,
+                        thread_id=thread_id,
+                    )
+                    if persisted.lifecycle_state != "CLAIMED":
+                        raise RuntimeError(
+                            "launch thread identity persistence entered "
+                            f"{persisted.lifecycle_state}"
+                        )
+                    process_tree = dict(persisted.process_tree)
+
                 try:
                     resume_evidence = containment.resume_suspended_process(
                         proc,
                         launch_intent_id=launch_intent_id,
-                        logical_execution_id=execution_identity["logical_execution_id"],
+                        execution_identity=execution_identity,
+                        process_identity=process_identity,
+                        persist_thread_identity=_persist_launch_thread_identity,
                     )
                 except _DurableResumeStateUncertain as exc:
+                    raw_observation = exc.evidence.to_dict()
+                    persisted = self._durable_store.record_shell_suspend_observation(
+                        req.request_id,
+                        claim_id=claim_id,
+                        evidence=raw_observation,
+                    )
+                    process_tree = dict(persisted.process_tree)
+                    if persisted.lifecycle_state != "CLAIMED":
+                        cleanup = await self._terminate_durable_process_tree(
+                            proc,
+                            graceful_timeout=5.0,
+                        )
+                        cleanup.update(
+                            {
+                                "suspend_state_evidence": raw_observation,
+                                "resume_state_uncertain": True,
+                                "execution_outcome_unknown": True,
+                                "duplicate_resume_fenced": True,
+                                "duplicate_launch_fenced": True,
+                            }
+                        )
+                        return {
+                            "success": False,
+                            "error": "invalid suspend observation entered reconciliation",
+                            "cleanup": cleanup,
+                            "execution_outcome_unresolved": True,
+                        }
                     resume_evidence = _durable_observe_process_after_unexpected_resume(
                         proc,
                         evidence=exc.evidence,
                     )
                     resume_state = resume_evidence.state
-                    process_tree["suspend_state_evidence"] = resume_evidence.to_dict()
-                    self._durable_store.mark_shell_launch_state(
+                    persisted = self._durable_store.record_shell_suspend_observation(
                         req.request_id,
                         claim_id=claim_id,
-                        launch_state=SHELL_PROCESS_IDENTITY_PERSISTED,
-                        launch_material=process_tree,
+                        evidence=resume_evidence.to_dict(),
                     )
+                    process_tree = dict(persisted.process_tree)
+                    if persisted.lifecycle_state != "CLAIMED":
+                        cleanup = await self._terminate_durable_process_tree(
+                            proc,
+                            graceful_timeout=5.0,
+                        )
+                        cleanup.update(
+                            {
+                                "suspend_state_evidence": resume_evidence.to_dict(),
+                                "resume_state_uncertain": True,
+                                "execution_outcome_unknown": True,
+                                "duplicate_resume_fenced": True,
+                                "duplicate_launch_fenced": True,
+                            }
+                        )
+                        return {
+                            "success": False,
+                            "error": "suspend evidence conflict entered reconciliation",
+                            "cleanup": cleanup,
+                            "execution_outcome_unresolved": True,
+                        }
                     if resume_state in {
                         _SUSPEND_STATE_PROVEN_RESUMED,
                         _SUSPEND_STATE_PROVEN_EXITED,
@@ -5532,14 +5744,30 @@ class NodeClient:
                 else:
                     resume_state = resume_evidence.state
                     resume_observation = resume_evidence.to_dict()
-                process_tree["resume_observation"] = dict(resume_observation)
-                process_tree["suspend_state_evidence"] = dict(resume_observation)
-                self._durable_store.mark_shell_launch_state(
-                    req.request_id,
-                    claim_id=claim_id,
-                    launch_state=SHELL_PROCESS_IDENTITY_PERSISTED,
-                    launch_material=process_tree,
-                )
+                    persisted = self._durable_store.record_shell_suspend_observation(
+                        req.request_id,
+                        claim_id=claim_id,
+                        evidence=resume_observation,
+                    )
+                    process_tree = dict(persisted.process_tree)
+                    if persisted.lifecycle_state != "CLAIMED":
+                        cleanup = await self._terminate_durable_process_tree(
+                            proc,
+                            graceful_timeout=5.0,
+                        )
+                        cleanup.update(
+                            {
+                                "suspend_state_evidence": resume_observation,
+                                "resume_state_uncertain": True,
+                                "execution_outcome_unknown": True,
+                            }
+                        )
+                        return {
+                            "success": False,
+                            "error": "suspend evidence rejected into reconciliation",
+                            "cleanup": cleanup,
+                            "execution_outcome_unresolved": True,
+                        }
             if containment is None or resume_state != _SUSPEND_STATE_PROVEN_EXITED:
                 running_ack = await self._announce_durable_running(
                     req,

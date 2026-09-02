@@ -139,6 +139,17 @@ class SimState:
     suspend_state: str = "UNKNOWN"
     suspend_observation_success: bool = False
     resume_result: str = "NOT_ATTEMPTED"
+    suspend_current_identity: dict[str, str] = field(
+        default_factory=lambda: {
+            "execution": "E1",
+            "launch": "L1",
+            "process": "P1:start-1",
+            "thread": "T1",
+        }
+    )
+    suspend_evidence_identity: dict[str, str] = field(default_factory=dict)
+    suspend_evidence_history: list[tuple[str, str]] = field(default_factory=list)
+    suspend_evidence_rejected: bool = False
     ack_exchange_id: int = 1
     incoming_ack_exchange_id: int = 1
     stale_ack_rejected: bool = False
@@ -182,6 +193,13 @@ class SimState:
         if self.suspend_state == "UNKNOWN" and self.resume_result != "NOT_ATTEMPTED":
             assert self.lifecycle != "FAILED", self.log
             assert self.lifecycle != "CANCELLED", self.log
+        if self.suspend_evidence_identity:
+            exact = self.suspend_evidence_identity == self.suspend_current_identity
+            if not exact:
+                assert self.suspend_evidence_rejected, self.log
+                assert self.lifecycle == "RECONCILIATION_REQUIRED", self.log
+            if self.suspend_state in {"PROVEN_SUSPENDED", "PROVEN_RESUMED"}:
+                assert self.suspend_evidence_identity.get("thread"), self.log
         assert not (self.connection_a_active and self.connection_b_active), self.log
         assert not (self.pump_a_active and self.pump_b_active), self.log
         if self.cancelled and not self.running_announced:
@@ -2517,6 +2535,80 @@ def _unexpected_resume_never_relaunches(state: SimState) -> None:
     state.record("unexpected_resume_duplicate_launch_fenced")
 
 
+def _reject_foreign_suspend_identity(state: SimState, field: str, value: str) -> None:
+    state.suspend_evidence_identity = dict(state.suspend_current_identity)
+    state.suspend_evidence_identity[field] = value
+    state.suspend_evidence_rejected = True
+    state.suspend_state = "UNKNOWN"
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record(f"suspend_evidence_rejected:{field}")
+
+
+def _suspend_wrong_execution_evidence(state: SimState) -> None:
+    _reject_foreign_suspend_identity(state, "execution", "E2")
+
+
+def _suspend_wrong_launch_intent_evidence(state: SimState) -> None:
+    _reject_foreign_suspend_identity(state, "launch", "L2")
+
+
+def _suspend_pid_reuse_evidence(state: SimState) -> None:
+    _reject_foreign_suspend_identity(state, "process", "P1:start-reused")
+
+
+def _suspend_wrong_process_start_token(state: SimState) -> None:
+    _reject_foreign_suspend_identity(state, "process", "P1:start-foreign")
+
+
+def _suspend_wrong_thread_evidence(state: SimState) -> None:
+    _reject_foreign_suspend_identity(state, "thread", "T2")
+
+
+def _suspend_missing_thread_evidence(state: SimState) -> None:
+    _reject_foreign_suspend_identity(state, "thread", "")
+
+
+def _suspend_malformed_resume_combination(state: SimState) -> None:
+    state.suspend_evidence_identity = dict(state.suspend_current_identity)
+    state.suspend_evidence_rejected = True
+    state.resume_result = "EXPECTED"
+    state.suspend_state = "UNKNOWN"
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("suspend_evidence_rejected:resume_coherence")
+
+
+def _suspend_previous_launch_evidence_replay(state: SimState) -> None:
+    _reject_foreign_suspend_identity(state, "launch", "L0")
+
+
+def _suspend_previous_execution_evidence_replay(state: SimState) -> None:
+    _reject_foreign_suspend_identity(state, "execution", "E0")
+
+
+def _suspend_unexpected_resume_followup(state: SimState) -> None:
+    state.suspend_evidence_identity = dict(state.suspend_current_identity)
+    state.suspend_evidence_history = [("O1", "UNKNOWN"), ("O2", "PROVEN_RESUMED")]
+    state.resume_result = "NOT_ATTEMPTED"
+    state.suspend_state = "PROVEN_RESUMED"
+    state.suspend_observation_success = True
+    state.shell_launch_attempted = True
+    state.shell_process_created = True
+    state.lifecycle = "RUNNING"
+    state.record("unexpected_resume_raw_and_followup_preserved")
+
+
+def _suspend_contradictory_exact_evidence(state: SimState) -> None:
+    state.suspend_evidence_identity = dict(state.suspend_current_identity)
+    state.suspend_evidence_history = [
+        ("O1", "PROVEN_RESUMED"),
+        ("O2", "PROVEN_SUSPENDED"),
+    ]
+    state.suspend_evidence_rejected = True
+    state.suspend_state = "UNKNOWN"
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("contradictory_exact_suspend_evidence_reconciled")
+
+
 def _ack_old_exchange_cannot_prove_new_exchange(state: SimState) -> None:
     state.ack_exchange_id = 2
     state.incoming_ack_exchange_id = 1
@@ -2573,6 +2665,21 @@ SCENARIOS: dict[str, Scenario] = {
     ),
     "shell_unknown_resume_state_reconciles": _unknown_resume_state_reconciles,
     "shell_unexpected_resume_never_relaunches": _unexpected_resume_never_relaunches,
+    "shell_suspend_wrong_execution_evidence": _suspend_wrong_execution_evidence,
+    "shell_suspend_wrong_launch_intent_evidence": _suspend_wrong_launch_intent_evidence,
+    "shell_suspend_pid_reuse_evidence": _suspend_pid_reuse_evidence,
+    "shell_suspend_wrong_process_start_token": _suspend_wrong_process_start_token,
+    "shell_suspend_wrong_thread_evidence": _suspend_wrong_thread_evidence,
+    "shell_suspend_missing_thread_evidence": _suspend_missing_thread_evidence,
+    "shell_suspend_malformed_resume_combination": _suspend_malformed_resume_combination,
+    "shell_suspend_previous_launch_evidence_replay": (
+        _suspend_previous_launch_evidence_replay
+    ),
+    "shell_suspend_previous_execution_evidence_replay": (
+        _suspend_previous_execution_evidence_replay
+    ),
+    "shell_suspend_unexpected_resume_followup": _suspend_unexpected_resume_followup,
+    "shell_suspend_contradictory_exact_evidence": _suspend_contradictory_exact_evidence,
     "authority_ack_old_exchange_cannot_prove_new": (
         _ack_old_exchange_cannot_prove_new_exchange
     ),

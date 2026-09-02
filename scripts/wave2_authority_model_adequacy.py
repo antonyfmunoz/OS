@@ -35,6 +35,17 @@ WITNESSES = (
     "ResumeFailure",
     "UnexpectedResumeExistingRunning",
     "UnknownResumeReconciliation",
+    "ExactIdentityEvidenceAccepted",
+    "WrongExecutionEvidence",
+    "WrongLaunchIntentEvidence",
+    "WrongProcessEvidence",
+    "WrongThreadEvidence",
+    "MissingThreadIdentity",
+    "FailedSuspendObservation",
+    "ResumeZeroEvidence",
+    "ResumeMultipleEvidence",
+    "UnexpectedResumeFollowup",
+    "ContradictoryExactEvidence",
 )
 
 CONSTANTS = """\
@@ -57,6 +68,10 @@ EnforceOpenThreadObservationTruth = TRUE
 EnforceResumeResultContract = TRUE
 EnforceUnexpectedResumeNoRelaunch = TRUE
 EnforceUnknownSuspendTerminalGuard = TRUE
+EnforceSuspendExecutionBinding = TRUE
+EnforceSuspendLaunchBinding = TRUE
+EnforceSuspendProcessBinding = TRUE
+EnforceSuspendThreadBinding = TRUE
 """
 
 
@@ -174,6 +189,26 @@ def main() -> int:
             "EnforceUnknownSuspendTerminalGuard",
             "UnknownLaunchStateCannotTerminalizeFailed",
             "unknown suspend state terminal guard",
+        ),
+        (
+            "EnforceSuspendExecutionBinding",
+            "SuspendEvidenceCannotMutateForeignExecution",
+            "suspend execution identity binding",
+        ),
+        (
+            "EnforceSuspendLaunchBinding",
+            "EvidenceForOldLaunchIntentCannotAuthorizeCurrentLaunch",
+            "suspend launch-intent binding",
+        ),
+        (
+            "EnforceSuspendProcessBinding",
+            "EvidenceForWrongProcessCannotProveCurrentProcessState",
+            "suspend process identity binding",
+        ),
+        (
+            "EnforceSuspendThreadBinding",
+            "EvidenceForWrongThreadCannotProveCurrentThreadState",
+            "suspend thread identity binding",
         ),
     ):
         mutant = CONSTANTS.replace(f"{constant} = TRUE", f"{constant} = FALSE")

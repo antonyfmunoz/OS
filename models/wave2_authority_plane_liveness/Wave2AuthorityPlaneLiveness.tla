@@ -44,7 +44,11 @@ CONSTANT
     EnforceOpenThreadObservationTruth,
     EnforceResumeResultContract,
     EnforceUnexpectedResumeNoRelaunch,
-    EnforceUnknownSuspendTerminalGuard
+    EnforceUnknownSuspendTerminalGuard,
+    EnforceSuspendExecutionBinding,
+    EnforceSuspendLaunchBinding,
+    EnforceSuspendProcessBinding,
+    EnforceSuspendThreadBinding
 
 NoSend == "NONE"
 AuthoritySend == "AUTHORITY"
@@ -275,6 +279,20 @@ TypeOK ==
         suspendState: SuspendStates,
         resumeResult: ResumeResults,
         suspendObservation: SuspendObservations,
+        currentExecutionId: 1..2,
+        currentLaunchIntentId: 1..2,
+        currentProcessId: 1..2,
+        currentThreadId: 1..2,
+        suspendEvidencePresent: BOOLEAN,
+        evidenceExecutionId: 0..2,
+        evidenceLaunchIntentId: 0..2,
+        evidenceProcessId: 0..2,
+        evidenceThreadId: 0..2,
+        evidenceObservationSucceeded: BOOLEAN,
+        followupEvidencePresent: BOOLEAN,
+        followupSuspendState: SuspendStates,
+        contradictoryEvidence: BOOLEAN,
+        suspendEvidenceRejected: BOOLEAN,
         shellRunning: BOOLEAN,
         launchReconciliation: BOOLEAN,
         duplicateLaunchRejected: BOOLEAN,
@@ -393,6 +411,20 @@ Init ==
         suspendState |-> UnknownSuspendState,
         resumeResult |-> NoResumeResult,
         suspendObservation |-> NoSuspendObservation,
+        currentExecutionId |-> 1,
+        currentLaunchIntentId |-> 1,
+        currentProcessId |-> 1,
+        currentThreadId |-> 1,
+        suspendEvidencePresent |-> FALSE,
+        evidenceExecutionId |-> 0,
+        evidenceLaunchIntentId |-> 0,
+        evidenceProcessId |-> 0,
+        evidenceThreadId |-> 0,
+        evidenceObservationSucceeded |-> FALSE,
+        followupEvidencePresent |-> FALSE,
+        followupSuspendState |-> UnknownSuspendState,
+        contradictoryEvidence |-> FALSE,
+        suspendEvidenceRejected |-> FALSE,
         shellRunning |-> FALSE,
         launchReconciliation |-> FALSE,
         duplicateLaunchRejected |-> FALSE,
@@ -895,9 +927,9 @@ ObserveClaimAck ==
     /\ claim' = [claim EXCEPT
         !.proven = TRUE,
         !.proofSource = AckProof,
-        !.proofGeneration = claim.sentGeneration,
+        !.proofGeneration = claim.incomingAckGeneration,
         !.proofLogicalAuthorityId = claim.logicalAuthorityId,
-        !.proofExchangeId = claim.ackExchangeId,
+        !.proofExchangeId = claim.incomingAckExchangeId,
         !.proofRequestId = claim.incomingAckRequestId,
         !.proofClaimId = claim.incomingAckClaimId,
         !.proofExecutionId = claim.incomingAckExecutionId,
@@ -1066,17 +1098,154 @@ PersistShellProcessIdentity ==
         reconciliationChecks, reconciliationReminderEvents
         >>
 
-ResumeShellProcess ==
+SuspendEvidenceIdentityValid ==
+    /\ (~EnforceSuspendExecutionBinding \/
+        result.evidenceExecutionId = result.currentExecutionId)
+    /\ (~EnforceSuspendLaunchBinding \/
+        result.evidenceLaunchIntentId = result.currentLaunchIntentId)
+    /\ (~EnforceSuspendProcessBinding \/
+        result.evidenceProcessId = result.currentProcessId)
+    /\ (~EnforceSuspendThreadBinding \/
+        result.evidenceThreadId = result.currentThreadId)
+
+PresentExactResumeEvidence ==
     /\ result.processIdentityPersisted
-    /\ ~result.processResumed
-    /\ result.resumeResult = NoResumeResult
+    /\ ~result.suspendEvidencePresent
     /\ ~result.launchReconciliation
-    /\ ~cancelled
     /\ result' = [result EXCEPT
-        !.processResumed = TRUE,
+        !.suspendEvidencePresent = TRUE,
+        !.evidenceExecutionId = result.currentExecutionId,
+        !.evidenceLaunchIntentId = result.currentLaunchIntentId,
+        !.evidenceProcessId = result.currentProcessId,
+        !.evidenceThreadId = result.currentThreadId,
+        !.evidenceObservationSucceeded = TRUE,
         !.suspendState = ResumedState,
         !.resumeResult = ExpectedResumeResult,
         !.suspendObservation = ExpectedResumeObservation
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+PresentForeignSuspendExecutionEvidence ==
+    /\ result.processIdentityPersisted
+    /\ ~result.suspendEvidencePresent
+    /\ result' = [result EXCEPT
+        !.suspendEvidencePresent = TRUE,
+        !.evidenceExecutionId = 2,
+        !.evidenceLaunchIntentId = result.currentLaunchIntentId,
+        !.evidenceProcessId = result.currentProcessId,
+        !.evidenceThreadId = result.currentThreadId,
+        !.evidenceObservationSucceeded = TRUE,
+        !.suspendState = ResumedState,
+        !.resumeResult = ExpectedResumeResult,
+        !.suspendObservation = ExpectedResumeObservation
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+PresentForeignSuspendLaunchEvidence ==
+    /\ result.processIdentityPersisted
+    /\ ~result.suspendEvidencePresent
+    /\ result' = [result EXCEPT
+        !.suspendEvidencePresent = TRUE,
+        !.evidenceExecutionId = result.currentExecutionId,
+        !.evidenceLaunchIntentId = 2,
+        !.evidenceProcessId = result.currentProcessId,
+        !.evidenceThreadId = result.currentThreadId,
+        !.evidenceObservationSucceeded = TRUE,
+        !.suspendState = ResumedState,
+        !.resumeResult = ExpectedResumeResult,
+        !.suspendObservation = ExpectedResumeObservation
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+PresentForeignSuspendProcessEvidence ==
+    /\ result.processIdentityPersisted
+    /\ ~result.suspendEvidencePresent
+    /\ result' = [result EXCEPT
+        !.suspendEvidencePresent = TRUE,
+        !.evidenceExecutionId = result.currentExecutionId,
+        !.evidenceLaunchIntentId = result.currentLaunchIntentId,
+        !.evidenceProcessId = 2,
+        !.evidenceThreadId = result.currentThreadId,
+        !.evidenceObservationSucceeded = TRUE,
+        !.suspendState = ResumedState,
+        !.resumeResult = ExpectedResumeResult,
+        !.suspendObservation = ExpectedResumeObservation
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+PresentForeignSuspendThreadEvidence ==
+    /\ result.processIdentityPersisted
+    /\ ~result.suspendEvidencePresent
+    /\ result' = [result EXCEPT
+        !.suspendEvidencePresent = TRUE,
+        !.evidenceExecutionId = result.currentExecutionId,
+        !.evidenceLaunchIntentId = result.currentLaunchIntentId,
+        !.evidenceProcessId = result.currentProcessId,
+        !.evidenceThreadId = 2,
+        !.evidenceObservationSucceeded = TRUE,
+        !.suspendState = ResumedState,
+        !.resumeResult = ExpectedResumeResult,
+        !.suspendObservation = ExpectedResumeObservation
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+PresentMissingSuspendThreadEvidence ==
+    /\ result.processIdentityPersisted
+    /\ ~result.suspendEvidencePresent
+    /\ result' = [result EXCEPT
+        !.suspendEvidencePresent = TRUE,
+        !.evidenceExecutionId = result.currentExecutionId,
+        !.evidenceLaunchIntentId = result.currentLaunchIntentId,
+        !.evidenceProcessId = result.currentProcessId,
+        !.evidenceThreadId = 0,
+        !.evidenceObservationSucceeded = TRUE,
+        !.suspendState = ResumedState,
+        !.resumeResult = ExpectedResumeResult,
+        !.suspendObservation = ExpectedResumeObservation
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+ResumeShellProcess ==
+    /\ result.processIdentityPersisted
+    /\ ~result.processResumed
+    /\ result.suspendEvidencePresent
+    /\ result.resumeResult = ExpectedResumeResult
+    /\ result.evidenceObservationSucceeded
+    /\ SuspendEvidenceIdentityValid
+    /\ ~result.launchReconciliation
+    /\ ~cancelled
+    /\ result' = [result EXCEPT
+        !.processResumed = TRUE
         ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
@@ -1090,6 +1259,12 @@ ObserveSnapshotFailure ==
     /\ result.resumeResult = NoResumeResult
     /\ ~result.launchReconciliation
     /\ result' = [result EXCEPT
+        !.suspendEvidencePresent = TRUE,
+        !.evidenceExecutionId = result.currentExecutionId,
+        !.evidenceLaunchIntentId = result.currentLaunchIntentId,
+        !.evidenceProcessId = result.currentProcessId,
+        !.evidenceThreadId = 0,
+        !.evidenceObservationSucceeded = FALSE,
         !.suspendState =
             IF EnforceSnapshotObservationTruth THEN UnknownSuspendState ELSE SuspendedState,
         !.resumeResult = FailedResumeResult,
@@ -1110,6 +1285,12 @@ ObserveOpenThreadFailure ==
     /\ result.resumeResult = NoResumeResult
     /\ ~result.launchReconciliation
     /\ result' = [result EXCEPT
+        !.suspendEvidencePresent = TRUE,
+        !.evidenceExecutionId = result.currentExecutionId,
+        !.evidenceLaunchIntentId = result.currentLaunchIntentId,
+        !.evidenceProcessId = result.currentProcessId,
+        !.evidenceThreadId = result.currentThreadId,
+        !.evidenceObservationSucceeded = FALSE,
         !.suspendState =
             IF EnforceOpenThreadObservationTruth THEN UnknownSuspendState ELSE SuspendedState,
         !.resumeResult = FailedResumeResult,
@@ -1130,6 +1311,12 @@ ObserveUnexpectedResumeZero ==
     /\ result.resumeResult = NoResumeResult
     /\ ~result.launchReconciliation
     /\ result' = [result EXCEPT
+        !.suspendEvidencePresent = TRUE,
+        !.evidenceExecutionId = result.currentExecutionId,
+        !.evidenceLaunchIntentId = result.currentLaunchIntentId,
+        !.evidenceProcessId = result.currentProcessId,
+        !.evidenceThreadId = result.currentThreadId,
+        !.evidenceObservationSucceeded = FALSE,
         !.suspendState =
             IF EnforceResumeResultContract THEN UnknownSuspendState ELSE ResumedState,
         !.resumeResult = UnexpectedResumeResult,
@@ -1148,6 +1335,12 @@ ObserveUnexpectedResumeMultiple ==
     /\ result.resumeResult = NoResumeResult
     /\ ~result.launchReconciliation
     /\ result' = [result EXCEPT
+        !.suspendEvidencePresent = TRUE,
+        !.evidenceExecutionId = result.currentExecutionId,
+        !.evidenceLaunchIntentId = result.currentLaunchIntentId,
+        !.evidenceProcessId = result.currentProcessId,
+        !.evidenceThreadId = result.currentThreadId,
+        !.evidenceObservationSucceeded = TRUE,
         !.suspendState = SuspendedState,
         !.resumeResult = UnexpectedResumeResult,
         !.suspendObservation = UnexpectedMultipleObservation
@@ -1164,6 +1357,12 @@ ObserveResumeFailure ==
     /\ result.resumeResult = NoResumeResult
     /\ ~result.launchReconciliation
     /\ result' = [result EXCEPT
+        !.suspendEvidencePresent = TRUE,
+        !.evidenceExecutionId = result.currentExecutionId,
+        !.evidenceLaunchIntentId = result.currentLaunchIntentId,
+        !.evidenceProcessId = result.currentProcessId,
+        !.evidenceThreadId = result.currentThreadId,
+        !.evidenceObservationSucceeded = FALSE,
         !.suspendState = UnknownSuspendState,
         !.resumeResult = FailedResumeResult,
         !.suspendObservation = ResumeFailureObservation,
@@ -1185,9 +1384,51 @@ ObserveExistingRunningAfterUnexpectedResume ==
     /\ ~result.processResumed
     /\ ~result.launchReconciliation
     /\ result' = [result EXCEPT
+        !.followupEvidencePresent = TRUE,
+        !.followupSuspendState = ResumedState,
         !.suspendState = ResumedState,
         !.suspendObservation = ExistingRunningObservation,
         !.processResumed = TRUE
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+RejectForeignSuspendEvidence ==
+    /\ result.suspendEvidencePresent
+    /\ ~SuspendEvidenceIdentityValid
+    /\ ~result.suspendEvidenceRejected
+    /\ result' = [result EXCEPT
+        !.suspendEvidenceRejected = TRUE,
+        !.launchReconciliation = TRUE,
+        !.outcome = ReconciliationOutcome
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+PresentContradictoryExactSuspendEvidence ==
+    /\ result.suspendEvidencePresent
+    /\ ~result.processResumed
+    /\ ~result.shellRunning
+    /\ result.evidenceExecutionId = result.currentExecutionId
+    /\ result.evidenceLaunchIntentId = result.currentLaunchIntentId
+    /\ result.evidenceProcessId = result.currentProcessId
+    /\ result.evidenceThreadId = result.currentThreadId
+    /\ result.suspendState = ResumedState
+    /\ ~result.contradictoryEvidence
+    /\ result' = [result EXCEPT
+        !.followupEvidencePresent = TRUE,
+        !.followupSuspendState = SuspendedState,
+        !.contradictoryEvidence = TRUE,
+        !.launchReconciliation = TRUE,
+        !.outcome = ReconciliationOutcome
         ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
@@ -1340,6 +1581,7 @@ ObserveCompleteCleanup ==
 
 CanTerminalize ==
     (result.cleanupComplete \/ result.noExecutionProof)
+    /\ (result.noExecutionProof \/ result.observerPresent)
     /\ (~EnforceLaunchUncertaintyTerminalGuard \/ ~result.launchReconciliation)
     /\ ~result.terminalAdmissibilityRejected
 
@@ -1658,10 +1900,17 @@ GenerationLifecycle ==
 ShellLaunchProgress ==
     PersistShellLaunchIntent \/ AttemptShellLaunch \/ CreateShellProcess
     \/ AssignShellJob \/ VerifyShellJobMembership
-    \/ PersistShellProcessIdentity \/ ResumeShellProcess
+    \/ PersistShellProcessIdentity \/ PresentExactResumeEvidence
+    \/ PresentForeignSuspendExecutionEvidence
+    \/ PresentForeignSuspendLaunchEvidence
+    \/ PresentForeignSuspendProcessEvidence
+    \/ PresentForeignSuspendThreadEvidence
+    \/ PresentMissingSuspendThreadEvidence
+    \/ ResumeShellProcess \/ RejectForeignSuspendEvidence
     \/ ObserveSnapshotFailure \/ ObserveOpenThreadFailure
     \/ ObserveUnexpectedResumeZero \/ ObserveUnexpectedResumeMultiple
     \/ ObserveResumeFailure \/ ObserveExistingRunningAfterUnexpectedResume
+    \/ PresentContradictoryExactSuspendEvidence
     \/ ReconcileUnknownResume \/ AttemptUnexpectedResumeRelaunch
     \/ TerminalizeUnknownResume \/ ObserveAmbiguousResume
     \/ AdmitShellRunning
@@ -1792,7 +2041,8 @@ OldGenerationCannotSendOnNewGeneration ==
 StaleAckCannotSatisfyNewGeneration ==
     (claim.proven /\ claim.proofSource = AckProof) =>
         /\ claim.proofLogicalAuthorityId = claim.logicalAuthorityId
-        /\ claim.proofGeneration = transport.generation
+        /\ claim.proofGeneration \in Generations
+        /\ claim.proofGeneration <= transport.generation
         /\ claim.proofExchangeId = claim.ackExchangeId
         /\ claim.proofRequestId = claim.requestIdentityId
         /\ claim.proofClaimId = claim.claimIdentityId
@@ -1801,12 +2051,17 @@ StaleAckCannotSatisfyNewGeneration ==
 
 StaleAckForNewExchangeCannotProveAuthority ==
     (claim.incomingAckExchangeId # claim.ackExchangeId \/
-     claim.incomingAckGeneration # transport.generation \/
      claim.incomingAckRequestId # claim.requestIdentityId \/
      claim.incomingAckClaimId # claim.claimIdentityId \/
      claim.incomingAckExecutionId # claim.executionIdentityId \/
      claim.incomingAckMessageId # claim.ackMessageId) =>
-        (~claim.proven \/ claim.proofSource # AckProof)
+        (~claim.proven \/ claim.proofSource # AckProof \/
+         ~(claim.proofExchangeId = claim.incomingAckExchangeId /\
+           claim.proofGeneration = claim.incomingAckGeneration /\
+           claim.proofRequestId = claim.incomingAckRequestId /\
+           claim.proofClaimId = claim.incomingAckClaimId /\
+           claim.proofExecutionId = claim.incomingAckExecutionId /\
+           claim.proofMessageId = claim.incomingAckMessageId))
 
 OrdinaryTerminalRequiresAdmissibility ==
     result.retained => (result.cleanupComplete \/ result.noExecutionProof)
@@ -1855,7 +2110,8 @@ KnownOutcomeCannotBecomeUnknown ==
     result.outcomeKnown => result.outcome # UnknownOutcome
 
 ObserverLossCannotFabricateTerminalState ==
-    /\ result.executionRunning => result.outcome = RunningOutcome
+    /\ result.executionRunning =>
+        result.outcome \in {RunningOutcome, ReconciliationOutcome}
     /\ ~result.observerPresent => result.outcome = ReconciliationOutcome
 
 ShellRunningRequiresPersistedProcessIdentity ==
@@ -1867,8 +2123,9 @@ ShellRunningRequiresPersistedProcessIdentity ==
 
 UncertainShellLaunchCannotExecuteOrRelaunch ==
     result.launchReconciliation =>
-        /\ ~result.shellRunning
-        /\ executionCount = 0
+        /\ (~result.executionRunning =>
+            (~result.shellRunning /\ executionCount = 0))
+        /\ result.processCreationCount <= 1
 
 ObservationFailureCannotProveSuspended ==
     result.suspendObservation \in {
@@ -1892,9 +2149,34 @@ UnknownLaunchStateCannotTerminalizeCancelled ==
         ~(result.retained /\ result.outcome = CancelledOutcome)
 
 ExpectedResumeAfterProvenSuspendedMayProgress ==
-    result.resumeResult = ExpectedResumeResult =>
+    result.processResumed =>
         /\ result.suspendState = ResumedState
-        /\ result.processResumed
+        /\ (result.resumeResult = ExpectedResumeResult \/
+            result.suspendObservation = ExistingRunningObservation)
+
+SuspendEvidenceCannotMutateForeignExecution ==
+    (result.processResumed /\ result.suspendEvidencePresent) =>
+        result.evidenceExecutionId = result.currentExecutionId
+
+EvidenceForOldLaunchIntentCannotAuthorizeCurrentLaunch ==
+    (result.processResumed /\ result.suspendEvidencePresent) =>
+        result.evidenceLaunchIntentId = result.currentLaunchIntentId
+
+EvidenceForWrongProcessCannotProveCurrentProcessState ==
+    (result.processResumed /\ result.suspendEvidencePresent) =>
+        result.evidenceProcessId = result.currentProcessId
+
+EvidenceForWrongThreadCannotProveCurrentThreadState ==
+    (result.processResumed /\ result.suspendEvidencePresent) =>
+        result.evidenceThreadId = result.currentThreadId
+
+MissingThreadCannotProvePositiveThreadState ==
+    (result.processResumed /\ result.suspendEvidencePresent) =>
+        result.evidenceThreadId # 0
+
+ContradictoryExactSuspendEvidenceReconciles ==
+    result.contradictoryEvidence =>
+        (result.launchReconciliation /\ ~result.shellRunning)
 
 UnexpectedResumeCannotCauseRelaunch ==
     result.resumeResult = UnexpectedResumeResult => result.processCreationCount = 1

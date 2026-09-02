@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
@@ -18,6 +19,8 @@ from substrate.execution.durable_remote_transport import (
     SHELL_LAUNCH_RUNNING,
     SHELL_PROCESS_IDENTITY_PERSISTED,
     durable_execution_identity,
+    sha256_json,
+    suspend_state_evidence_rejection_reason,
 )
 from tests.test_mesh_dispatch_governed import (
     _durable_mesh_server,
@@ -33,7 +36,7 @@ def _isolate_controller_store(tmp_path, monkeypatch):
 
 
 def _launch_material(client, req, claim_id: str) -> dict:
-    execution_identity = client._durable_execution_identity(req, claim_id=claim_id)
+    execution_identity = durable_execution_identity(req, claim_id=claim_id)
     return {
         "command_digest": req.payload_digest,
         "root_pid": None,
@@ -60,6 +63,80 @@ def _persist_launch(client, req, claim_id: str, *, attempted: bool = False) -> d
             launch_material=material,
         )
     return material
+
+
+def _persist_exact_windows_launch(client, req, claim_id: str):
+    material = _persist_launch(client, req, claim_id, attempted=True)
+    process_identity = {
+        "pid": 4242,
+        "start_token": "start-4242",
+        "parent_pid": 111,
+        "executable": r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+        "observed_command_digest": "d" * 64,
+        "command_digest": req.payload_digest,
+        "identity_source": "psutil_process_identity",
+        "logical_execution_id": material["execution_identity"]["logical_execution_id"],
+        "launch_intent_id": material["launch_intent_id"],
+    }
+    process_tree = {
+        **material,
+        "root_pid": 4242,
+        "process_identity": process_identity,
+        "process_containment": {
+            "kind": "windows_job_object",
+            "containment_id": material["launch_intent_id"],
+            "complete_tree_boundary": True,
+        },
+    }
+    current = client._durable_store.mark_shell_launch_state(
+        req.request_id,
+        claim_id=claim_id,
+        launch_state=SHELL_PROCESS_IDENTITY_PERSISTED,
+        launch_material=process_tree,
+    )
+    assert current.lifecycle_state == "CLAIMED"
+    current = client._durable_store.persist_shell_launch_thread_identity(
+        req.request_id,
+        claim_id=claim_id,
+        thread_id=77,
+    )
+    assert current.lifecycle_state == "CLAIMED"
+    return current.process_tree, process_identity, material["execution_identity"]
+
+
+def _exact_suspend_evidence(req, claim_id: str, process_tree: dict) -> dict:
+    execution = process_tree["execution_identity"]
+    process = process_tree["process_identity"]
+    return client_mod._SuspendStateEvidence(
+        state=client_mod._SUSPEND_STATE_PROVEN_RESUMED,
+        request_id=req.request_id,
+        correlation_id=req.correlation_id,
+        node_id=req.node_id,
+        candidate_sha=req.candidate_sha,
+        claim_id=claim_id,
+        logical_execution_id=execution["logical_execution_id"],
+        launch_intent_id=process_tree["launch_intent_id"],
+        process_id=process_tree["root_pid"],
+        process_start_token=process["start_token"],
+        process_executable=process["executable"],
+        process_observed_command_digest=process["observed_command_digest"],
+        command_digest=process["command_digest"],
+        process_identity_source=process["identity_source"],
+        thread_id=process_tree["launch_thread_identity"]["thread_id"],
+        observation_method="RESUME_THREAD_RETURN",
+        observation_success=True,
+        win32_error=None,
+        observed_at=100.0,
+        previous_suspend_count=1,
+        resume_result=client_mod._RESUME_RESULT_EXPECTED,
+    ).to_dict()
+
+
+def _resign_suspend_evidence(evidence: dict, **changes) -> dict:
+    updated = {**evidence, **changes}
+    updated.pop("observation_id", None)
+    updated["observation_id"] = sha256_json(updated)
+    return updated
 
 
 def test_crash_after_intent_before_launch_is_definite_no_launch(tmp_path, monkeypatch):
@@ -408,10 +485,28 @@ def _resume_test_job(*, resume_result=1, snapshot=1, open_thread=2, win32_error=
 
 
 def _resume(job, proc=None):
+    execution_identity = {
+        "request_id": "drc-test",
+        "correlation_id": "corr-test",
+        "node_id": "windows-desktop",
+        "candidate_sha": "a" * 40,
+        "claim_id": "claim-test",
+        "logical_execution_id": "execution-42",
+    }
+    process_identity = {
+        "pid": 42,
+        "start_token": "start-42",
+        "executable": "powershell.exe",
+        "observed_command_digest": "b" * 64,
+        "command_digest": "c" * 64,
+        "identity_source": "psutil_process_identity",
+    }
     return job.resume_suspended_process(
         proc or SimpleNamespace(pid=42),
         launch_intent_id="launch-42",
-        logical_execution_id="execution-42",
+        execution_identity=execution_identity,
+        process_identity=process_identity,
+        persist_thread_identity=lambda _thread_id: None,
     )
 
 
@@ -441,7 +536,9 @@ def test_resume_thread_zero_is_unexpected_and_requires_independent_observation()
         evidence=evidence,
     )
     assert observed.state == client_mod._SUSPEND_STATE_PROVEN_RESUMED
-    assert observed.observation_method == "process_handle_poll_after_unexpected_resume"
+    assert observed.observation_method == "PROCESS_STATE_QUERY"
+    assert observed.predecessor_observation_id == evidence.observation_id
+    assert observed.resume_result == client_mod._RESUME_RESULT_NOT_ATTEMPTED
 
 
 def test_resume_thread_zero_with_unknown_process_observation_reconciles():
@@ -507,7 +604,7 @@ def test_resume_thread_failure_sentinel_preserves_ambiguous_launch_truth():
 
 @pytest.mark.parametrize(
     ("snapshot", "open_thread", "method"),
-    ((0, 2, "CreateToolhelp32Snapshot"), (1, 0, "OpenThread")),
+    ((0, 2, "CREATE_TOOLHELP32_SNAPSHOT"), (1, 0, "OPEN_THREAD")),
 )
 def test_failed_windows_observation_is_unknown(snapshot, open_thread, method):
     with pytest.raises(client_mod._DurableResumeStateUncertain) as caught:
@@ -522,15 +619,262 @@ def test_failed_observation_cannot_construct_positive_suspend_evidence():
     with pytest.raises(ValueError, match="failed observation"):
         client_mod._SuspendStateEvidence(
             state=client_mod._SUSPEND_STATE_PROVEN_SUSPENDED,
+            request_id="drc-test",
+            correlation_id="corr-test",
+            node_id="windows-desktop",
+            candidate_sha="a" * 40,
+            claim_id="claim-test",
+            logical_execution_id="execution-42",
+            launch_intent_id="launch-42",
             process_id=42,
+            process_start_token="start-42",
+            process_executable="powershell.exe",
+            process_observed_command_digest="b" * 64,
+            command_digest="c" * 64,
+            process_identity_source="psutil_process_identity",
             thread_id=7,
-            observation_method="OpenThread",
+            observation_method="OPEN_THREAD",
             observation_success=False,
             win32_error=5,
             observed_at=1.0,
-            launch_intent_id="launch-42",
-            logical_execution_id="execution-42",
         )
+
+
+def test_typed_suspend_evidence_rejects_unknown_observation_method():
+    evidence = _resume(_resume_test_job(resume_result=1))
+
+    with pytest.raises(ValueError, match="invalid suspend observation method"):
+        replace(evidence, observation_method="UNTRUSTED_OBSERVER")
+
+
+@pytest.mark.parametrize(
+    ("case", "changes", "reason_fragment"),
+    (
+        ("N1", {"request_id": "drc-foreign"}, "request_id_mismatch"),
+        ("N2", {"correlation_id": "corr-foreign"}, "correlation_id_mismatch"),
+        ("N3", {"node_id": "foreign-node"}, "node_id_mismatch"),
+        ("N4", {"candidate_sha": "f" * 40}, "candidate_sha_mismatch"),
+        ("N5", {"claim_id": "claim-foreign"}, "claim_id_mismatch"),
+        ("N6", {"logical_execution_id": "execution-foreign"}, "logical_execution_id"),
+        ("N7", {"launch_intent_id": "launch-foreign"}, "launch_intent_id_mismatch"),
+        ("N8", {"process_start_token": "start-reused"}, "process_start_token_mismatch"),
+        ("N9", {"process_executable": "foreign.exe"}, "process_executable_mismatch"),
+        ("N10", {"command_digest": "a" * 64}, "command_digest_mismatch"),
+        ("N11", {"thread_id": None}, "missing_thread_id"),
+        ("N12", {"thread_id": 88}, "thread_id_mismatch"),
+        (
+            "N13",
+            {"observation_success": False, "state": "PROVEN_SUSPENDED"},
+            "positive_state_without_success",
+        ),
+        (
+            "N14",
+            {"observation_success": False, "state": "PROVEN_RESUMED"},
+            "positive_state_without_success",
+        ),
+        (
+            "N15",
+            {"previous_suspend_count": 0, "resume_result": "EXPECTED"},
+            "incoherent_expected_resume",
+        ),
+        (
+            "N16",
+            {"previous_suspend_count": 2, "resume_result": "UNEXPECTED"},
+            "resume_multiple_misclassified",
+        ),
+        (
+            "N17",
+            {"previous_suspend_count": None, "resume_result": "FAILURE"},
+            "incoherent_resume_failure",
+        ),
+        ("N18", {"launch_intent_id": "previous-launch"}, "launch_intent_id_mismatch"),
+        (
+            "N19",
+            {"logical_execution_id": "previous-execution"},
+            "logical_execution_id_mismatch",
+        ),
+    ),
+)
+def test_suspend_evidence_negative_identity_and_coherence_matrix(
+    tmp_path,
+    case,
+    changes,
+    reason_fragment,
+):
+    client = _durable_node_client(tmp_path)
+    req = client._durable_store.put_request(_durable_request())
+    claim_id = "claim-evidence-matrix"
+    client._durable_store.mark_claimed(req.request_id, claim_id=claim_id)
+    process_tree, _, _ = _persist_exact_windows_launch(client, req, claim_id)
+    evidence = _resign_suspend_evidence(
+        _exact_suspend_evidence(req, claim_id, process_tree),
+        **changes,
+    )
+
+    reason = suspend_state_evidence_rejection_reason(
+        req,
+        claim_id=claim_id,
+        process_tree=process_tree,
+        evidence=evidence,
+    )
+
+    assert reason_fragment in reason, case
+
+
+def test_exact_suspend_evidence_is_accepted_and_persisted_immutably(tmp_path):
+    client = _durable_node_client(tmp_path)
+    req = client._durable_store.put_request(_durable_request())
+    claim_id = "claim-evidence-exact"
+    client._durable_store.mark_claimed(req.request_id, claim_id=claim_id)
+    process_tree, _, _ = _persist_exact_windows_launch(client, req, claim_id)
+    evidence = _exact_suspend_evidence(req, claim_id, process_tree)
+
+    assert not suspend_state_evidence_rejection_reason(
+        req,
+        claim_id=claim_id,
+        process_tree=process_tree,
+        evidence=evidence,
+    )
+    current = client._durable_store.record_shell_suspend_observation(
+        req.request_id,
+        claim_id=claim_id,
+        evidence=evidence,
+    )
+
+    assert current.lifecycle_state == "CLAIMED"
+    assert current.process_tree["suspend_state_evidence"] == evidence
+    assert current.process_tree["suspend_state_evidence_history"] == [evidence]
+
+
+def test_unknown_observation_refines_without_mutating_raw_resume_evidence(tmp_path):
+    client = _durable_node_client(tmp_path)
+    req = client._durable_store.put_request(_durable_request())
+    claim_id = "claim-evidence-refine"
+    client._durable_store.mark_claimed(req.request_id, claim_id=claim_id)
+    process_tree, process_identity, execution_identity = _persist_exact_windows_launch(
+        client, req, claim_id
+    )
+    raw = client_mod._SuspendStateEvidence(
+        state=client_mod._SUSPEND_STATE_UNKNOWN,
+        request_id=req.request_id,
+        correlation_id=req.correlation_id,
+        node_id=req.node_id,
+        candidate_sha=req.candidate_sha,
+        claim_id=claim_id,
+        logical_execution_id=execution_identity["logical_execution_id"],
+        launch_intent_id=process_tree["launch_intent_id"],
+        process_id=4242,
+        process_start_token=process_identity["start_token"],
+        process_executable=process_identity["executable"],
+        process_observed_command_digest=process_identity["observed_command_digest"],
+        command_digest=process_identity["command_digest"],
+        process_identity_source=process_identity["identity_source"],
+        thread_id=77,
+        observation_method="RESUME_THREAD_RETURN",
+        observation_success=False,
+        win32_error=None,
+        observed_at=101.0,
+        previous_suspend_count=0,
+        resume_result=client_mod._RESUME_RESULT_UNEXPECTED,
+    )
+    client._durable_store.record_shell_suspend_observation(
+        req.request_id,
+        claim_id=claim_id,
+        evidence=raw.to_dict(),
+    )
+    followup = client_mod._durable_observe_process_after_unexpected_resume(
+        SimpleNamespace(pid=4242, poll=lambda: None),
+        evidence=raw,
+    )
+    current = client._durable_store.record_shell_suspend_observation(
+        req.request_id,
+        claim_id=claim_id,
+        evidence=followup.to_dict(),
+    )
+
+    history = current.process_tree["suspend_state_evidence_history"]
+    assert [item["state"] for item in history] == ["UNKNOWN", "PROVEN_RESUMED"]
+    assert history[0]["observation_id"] == raw.observation_id
+    assert history[1]["predecessor_observation_id"] == raw.observation_id
+    assert current.process_tree["suspend_state_evidence"] == followup.to_dict()
+
+
+def test_contradictory_exact_suspend_observation_enters_reconciliation(tmp_path):
+    client = _durable_node_client(tmp_path)
+    req = client._durable_store.put_request(_durable_request())
+    claim_id = "claim-evidence-conflict"
+    client._durable_store.mark_claimed(req.request_id, claim_id=claim_id)
+    process_tree, _, _ = _persist_exact_windows_launch(client, req, claim_id)
+    resumed = _exact_suspend_evidence(req, claim_id, process_tree)
+    client._durable_store.record_shell_suspend_observation(
+        req.request_id,
+        claim_id=claim_id,
+        evidence=resumed,
+    )
+    suspended = _resign_suspend_evidence(
+        resumed,
+        state="PROVEN_SUSPENDED",
+        previous_suspend_count=2,
+        resume_result="UNEXPECTED",
+        observed_at=102.0,
+    )
+
+    current = client._durable_store.record_shell_suspend_observation(
+        req.request_id,
+        claim_id=claim_id,
+        evidence=suspended,
+    )
+
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert current.process_tree["suspend_state_evidence"] == resumed
+    assert current.process_tree["suspend_state_evidence_history"] == [resumed, suspended]
+    conflict = current.diagnostics["suspend_state_evidence_conflicts"][-1]
+    assert conflict["evidence"] == suspended
+
+
+def test_terminalization_rejects_re_signed_foreign_suspend_evidence(tmp_path):
+    server = _durable_mesh_server(tmp_path)
+    req = server._durable_store.put_request(_durable_request())
+    claim_id = "claim-terminal-evidence"
+    server._durable_store.mark_claimed(req.request_id, claim_id=claim_id)
+    process_tree, _, _ = _persist_exact_windows_launch(server, req, claim_id)
+    evidence = _exact_suspend_evidence(req, claim_id, process_tree)
+    server._durable_store.record_shell_suspend_observation(
+        req.request_id,
+        claim_id=claim_id,
+        evidence=evidence,
+    )
+    current = server._durable_store.get_request(req.request_id)
+    assert current is not None
+    server._durable_store.mark_running(
+        req.request_id,
+        claim_id=claim_id,
+        process_tree=current.process_tree,
+    )
+    foreign = _resign_suspend_evidence(evidence, thread_id=88)
+
+    terminal = server._durable_store.publish_result(
+        req.request_id,
+        claim_id=claim_id,
+        state="FAILED",
+        result={"success": False, "error": "test"},
+        cleanup={
+            "cleanup_verified": True,
+            "enumeration_performed": True,
+            "enumeration_complete": True,
+            "ownership_validated": True,
+            "post_termination_enumeration_complete": True,
+            "residue_count": 0,
+            "process_residue": [],
+            "suspend_state_evidence": foreign,
+        },
+    )
+
+    assert terminal.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert server._durable_store.result_for(req.request_id) is None
+    assert "thread_id_mismatch" in terminal.diagnostics[
+        "terminal_admissibility_rejected"
+    ][-1]["reason"]
 
 
 def test_delivered_cancel_preserves_local_launch_uncertainty_and_reconciles(tmp_path):
@@ -591,16 +935,31 @@ def test_windows_process_is_contained_and_identified_before_resume(tmp_path, mon
 
         def resume_suspended_process(self, _proc, **_identity):
             events.append("resume")
+            _identity["persist_thread_identity"](7)
+            execution_identity = _identity["execution_identity"]
+            process_identity = _identity["process_identity"]
             return client_mod._SuspendStateEvidence(
                 state=client_mod._SUSPEND_STATE_PROVEN_RESUMED,
+                request_id=execution_identity["request_id"],
+                correlation_id=execution_identity["correlation_id"],
+                node_id=execution_identity["node_id"],
+                candidate_sha=execution_identity["candidate_sha"],
+                claim_id=execution_identity["claim_id"],
+                logical_execution_id=execution_identity["logical_execution_id"],
+                launch_intent_id=_identity["launch_intent_id"],
                 process_id=4242,
+                process_start_token=process_identity["start_token"],
+                process_executable=process_identity["executable"],
+                process_observed_command_digest=process_identity[
+                    "observed_command_digest"
+                ],
+                command_digest=process_identity["command_digest"],
+                process_identity_source=process_identity["identity_source"],
                 thread_id=7,
-                observation_method="ResumeThread",
+                observation_method="RESUME_THREAD_RETURN",
                 observation_success=True,
                 win32_error=None,
                 observed_at=1.0,
-                launch_intent_id=_identity["launch_intent_id"],
-                logical_execution_id=_identity["logical_execution_id"],
                 previous_suspend_count=1,
                 resume_result=client_mod._RESUME_RESULT_EXPECTED,
             )
@@ -648,7 +1007,9 @@ def test_windows_process_is_contained_and_identified_before_resume(tmp_path, mon
             "pid": pid,
             "start_token": "start-4242",
             "executable": "powershell.exe",
+            "observed_command_digest": "d" * 64,
             "command_digest": req.payload_digest,
+            "identity_source": "psutil_process_identity",
         },
     )
     monkeypatch.setattr(client._durable_store, "mark_shell_launch_state", _mark)
@@ -706,18 +1067,33 @@ def test_ambiguous_resume_from_shell_executor_fences_duplicate_resume_and_launch
             return [4343]
 
         def resume_suspended_process(self, _proc, **_identity):
+            _identity["persist_thread_identity"](7)
+            execution_identity = _identity["execution_identity"]
+            process_identity = _identity["process_identity"]
             raise client_mod._DurableResumeStateUncertain(
                 "ambiguous ResumeThread API failure",
                 evidence=client_mod._SuspendStateEvidence(
                     state=client_mod._SUSPEND_STATE_UNKNOWN,
+                    request_id=execution_identity["request_id"],
+                    correlation_id=execution_identity["correlation_id"],
+                    node_id=execution_identity["node_id"],
+                    candidate_sha=execution_identity["candidate_sha"],
+                    claim_id=execution_identity["claim_id"],
+                    logical_execution_id=execution_identity["logical_execution_id"],
+                    launch_intent_id=_identity["launch_intent_id"],
                     process_id=4343,
+                    process_start_token=process_identity["start_token"],
+                    process_executable=process_identity["executable"],
+                    process_observed_command_digest=process_identity[
+                        "observed_command_digest"
+                    ],
+                    command_digest=process_identity["command_digest"],
+                    process_identity_source=process_identity["identity_source"],
                     thread_id=7,
-                    observation_method="ResumeThread",
+                    observation_method="RESUME_THREAD_RETURN",
                     observation_success=False,
                     win32_error=5,
                     observed_at=1.0,
-                    launch_intent_id=_identity["launch_intent_id"],
-                    logical_execution_id=_identity["logical_execution_id"],
                     resume_result=client_mod._RESUME_RESULT_FAILURE,
                 ),
             )
@@ -744,7 +1120,9 @@ def test_ambiguous_resume_from_shell_executor_fences_duplicate_resume_and_launch
             "pid": pid,
             "start_token": "start-4343",
             "executable": "powershell.exe",
+            "observed_command_digest": "e" * 64,
             "command_digest": req.payload_digest,
+            "identity_source": "psutil_process_identity",
         },
     )
 

@@ -53,6 +53,38 @@ WitnessUnexpectedResumeExistingRunning ==
 WitnessUnknownResumeReconciliation ==
     result.suspendState = UnknownSuspendState /\ result.launchReconciliation /\
     result.outcome = ReconciliationOutcome
+WitnessExactIdentityEvidenceAccepted ==
+    result.shellRunning /\ result.suspendEvidencePresent /\
+    result.evidenceExecutionId = result.currentExecutionId /\
+    result.evidenceLaunchIntentId = result.currentLaunchIntentId /\
+    result.evidenceProcessId = result.currentProcessId /\
+    result.evidenceThreadId = result.currentThreadId
+WitnessWrongExecutionEvidence ==
+    result.suspendEvidencePresent /\
+    result.evidenceExecutionId # result.currentExecutionId
+WitnessWrongLaunchIntentEvidence ==
+    result.suspendEvidencePresent /\
+    result.evidenceLaunchIntentId # result.currentLaunchIntentId
+WitnessWrongProcessEvidence ==
+    result.suspendEvidencePresent /\
+    result.evidenceProcessId # result.currentProcessId
+WitnessWrongThreadEvidence ==
+    result.suspendEvidencePresent /\
+    result.evidenceThreadId # 0 /\
+    result.evidenceThreadId # result.currentThreadId
+WitnessMissingThreadIdentity ==
+    result.suspendEvidencePresent /\ result.evidenceThreadId = 0
+WitnessFailedSuspendObservation ==
+    result.suspendEvidencePresent /\ ~result.evidenceObservationSucceeded
+WitnessResumeZeroEvidence ==
+    result.suspendObservation = UnexpectedZeroObservation
+WitnessResumeMultipleEvidence ==
+    result.suspendObservation = UnexpectedMultipleObservation
+WitnessUnexpectedResumeFollowup ==
+    result.followupEvidencePresent /\
+    result.followupSuspendState = ResumedState /\ result.processResumed
+WitnessContradictoryExactEvidence ==
+    result.contradictoryEvidence /\ result.launchReconciliation
 
 NotWitnessPreLaunchCancel == ~WitnessPreLaunchCancel
 NotWitnessCancelDuringLaunch == ~WitnessCancelDuringLaunch
@@ -80,5 +112,16 @@ NotWitnessResumeUnexpectedMultiple == ~WitnessResumeUnexpectedMultiple
 NotWitnessResumeFailure == ~WitnessResumeFailure
 NotWitnessUnexpectedResumeExistingRunning == ~WitnessUnexpectedResumeExistingRunning
 NotWitnessUnknownResumeReconciliation == ~WitnessUnknownResumeReconciliation
+NotWitnessExactIdentityEvidenceAccepted == ~WitnessExactIdentityEvidenceAccepted
+NotWitnessWrongExecutionEvidence == ~WitnessWrongExecutionEvidence
+NotWitnessWrongLaunchIntentEvidence == ~WitnessWrongLaunchIntentEvidence
+NotWitnessWrongProcessEvidence == ~WitnessWrongProcessEvidence
+NotWitnessWrongThreadEvidence == ~WitnessWrongThreadEvidence
+NotWitnessMissingThreadIdentity == ~WitnessMissingThreadIdentity
+NotWitnessFailedSuspendObservation == ~WitnessFailedSuspendObservation
+NotWitnessResumeZeroEvidence == ~WitnessResumeZeroEvidence
+NotWitnessResumeMultipleEvidence == ~WitnessResumeMultipleEvidence
+NotWitnessUnexpectedResumeFollowup == ~WitnessUnexpectedResumeFollowup
+NotWitnessContradictoryExactEvidence == ~WitnessContradictoryExactEvidence
 
 ====

@@ -128,8 +128,15 @@ def test_model_binds_ack_to_logical_authority_without_rejecting_reconnect() -> N
         "StaleAckForNewExchangeCannotProveAuthority",
     )
     assert "proofLogicalAuthorityId = claim.logicalAuthorityId" in stale_ack
-    assert "proofGeneration = transport.generation" in stale_ack
+    assert "proofGeneration <= transport.generation" in stale_ack
     assert "proofExchangeId = claim.ackExchangeId" in stale_ack
+    stale_exchange = _action(
+        source,
+        "StaleAckForNewExchangeCannotProveAuthority",
+        "OrdinaryTerminalRequiresAdmissibility",
+    )
+    assert "incomingAckExchangeId # claim.ackExchangeId" in stale_exchange
+    assert "proofGeneration = claim.incomingAckGeneration" in stale_exchange
 
 
 def test_model_requires_exact_cancel_identity_and_monotonic_outcome() -> None:
@@ -334,6 +341,17 @@ def test_model_adequacy_manifest_is_executable_and_complete() -> None:
         "NewExchangePending",
         "ResumeAmbiguous",
         "CleanupIncomplete",
+        "ExactIdentityEvidenceAccepted",
+        "WrongExecutionEvidence",
+        "WrongLaunchIntentEvidence",
+        "WrongProcessEvidence",
+        "WrongThreadEvidence",
+        "MissingThreadIdentity",
+        "FailedSuspendObservation",
+        "ResumeZeroEvidence",
+        "ResumeMultipleEvidence",
+        "UnexpectedResumeFollowup",
+        "ContradictoryExactEvidence",
     ):
         assert f"Witness{witness} ==" in adequacy
         assert f'"{witness}"' in runner
@@ -345,6 +363,10 @@ def test_model_adequacy_manifest_is_executable_and_complete() -> None:
         "EnforcePreLaunchCancellation",
         "EnforceTerminalCleanup",
         "EnforceLaunchUncertaintyTerminalGuard",
+        "EnforceSuspendExecutionBinding",
+        "EnforceSuspendLaunchBinding",
+        "EnforceSuspendProcessBinding",
+        "EnforceSuspendThreadBinding",
     ):
         assert f'"{constant}"' in runner
     assert 'f"{constant} = FALSE"' in runner

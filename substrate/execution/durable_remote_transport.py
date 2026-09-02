@@ -63,6 +63,245 @@ _SHELL_LAUNCH_STATE_ORDER = {
     SHELL_LAUNCH_RUNNING: 3,
 }
 
+SUSPEND_STATE_UNKNOWN = "UNKNOWN"
+SUSPEND_STATE_PROVEN_SUSPENDED = "PROVEN_SUSPENDED"
+SUSPEND_STATE_PROVEN_RESUMED = "PROVEN_RESUMED"
+SUSPEND_STATE_PROVEN_EXITED = "PROVEN_EXITED"
+SUSPEND_POSITIVE_STATES = frozenset(
+    {
+        SUSPEND_STATE_PROVEN_SUSPENDED,
+        SUSPEND_STATE_PROVEN_RESUMED,
+        SUSPEND_STATE_PROVEN_EXITED,
+    }
+)
+SUSPEND_RESUME_NOT_ATTEMPTED = "NOT_ATTEMPTED"
+SUSPEND_RESUME_EXPECTED = "EXPECTED"
+SUSPEND_RESUME_UNEXPECTED = "UNEXPECTED"
+SUSPEND_RESUME_FAILURE = "FAILURE"
+SUSPEND_OBSERVATION_METHODS = frozenset(
+    {
+        "CREATE_PROCESS_INITIAL_STATE",
+        "CREATE_TOOLHELP32_SNAPSHOT",
+        "OPEN_THREAD",
+        "RESUME_THREAD_RETURN",
+        "THREAD_SNAPSHOT_ENUMERATION",
+        "PROCESS_STATE_QUERY",
+        "RECOVERY_OBSERVATION",
+    }
+)
+
+
+def _suspend_evidence_schema_rejection_reason(evidence: dict[str, Any]) -> str:
+    """Validate one immutable Windows launch-state observation in isolation."""
+
+    if evidence.get("schema_version") != 1:
+        return "suspend_evidence_schema_version_mismatch"
+    required_strings = (
+        "observation_id",
+        "request_id",
+        "correlation_id",
+        "node_id",
+        "candidate_sha",
+        "claim_id",
+        "logical_execution_id",
+        "launch_intent_id",
+        "process_start_token",
+        "process_executable",
+        "process_observed_command_digest",
+        "command_digest",
+        "process_identity_source",
+        "observation_method",
+        "state",
+        "resume_result",
+    )
+    for key in required_strings:
+        if not str(evidence.get(key, "") or "").strip():
+            return f"suspend_evidence_missing_{key}"
+    try:
+        process_id = int(evidence.get("process_id", 0) or 0)
+        thread_id = evidence.get("thread_id")
+        thread_id = None if thread_id is None else int(thread_id)
+        observed_at = float(evidence.get("observed_at", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        return "suspend_evidence_invalid_numeric_field"
+    if process_id <= 0 or observed_at <= 0:
+        return "suspend_evidence_invalid_process_or_time"
+    if thread_id is not None and thread_id <= 0:
+        return "suspend_evidence_invalid_thread_id"
+
+    state = str(evidence.get("state", "") or "")
+    success = evidence.get("observation_success")
+    method = str(evidence.get("observation_method", "") or "")
+    resume_result = str(evidence.get("resume_result", "") or "")
+    previous_count = evidence.get("previous_suspend_count")
+    if state not in SUSPEND_POSITIVE_STATES | {SUSPEND_STATE_UNKNOWN}:
+        return "suspend_evidence_invalid_state"
+    if method not in SUSPEND_OBSERVATION_METHODS:
+        return "suspend_evidence_invalid_observation_method"
+    if success not in {True, False}:
+        return "suspend_evidence_invalid_observation_success"
+    if state in SUSPEND_POSITIVE_STATES and success is not True:
+        return "suspend_evidence_positive_state_without_success"
+    if state == SUSPEND_STATE_UNKNOWN and success is not False:
+        return "suspend_evidence_unknown_state_claims_success"
+    if state in {SUSPEND_STATE_PROVEN_SUSPENDED, SUSPEND_STATE_PROVEN_RESUMED} and (
+        thread_id is None
+    ):
+        return "suspend_evidence_positive_thread_state_missing_thread_id"
+
+    if resume_result == SUSPEND_RESUME_EXPECTED:
+        if not (
+            method == "RESUME_THREAD_RETURN"
+            and previous_count == 1
+            and state == SUSPEND_STATE_PROVEN_RESUMED
+            and success is True
+        ):
+            return "suspend_evidence_incoherent_expected_resume"
+    elif resume_result == SUSPEND_RESUME_UNEXPECTED:
+        if method != "RESUME_THREAD_RETURN" or not isinstance(previous_count, int):
+            return "suspend_evidence_incoherent_unexpected_resume"
+        if previous_count == 0 and not (
+            state == SUSPEND_STATE_UNKNOWN and success is False
+        ):
+            return "suspend_evidence_resume_zero_misclassified"
+        if previous_count > 1 and not (
+            state == SUSPEND_STATE_PROVEN_SUSPENDED and success is True
+        ):
+            return "suspend_evidence_resume_multiple_misclassified"
+        if previous_count < 0 or previous_count == 1:
+            return "suspend_evidence_invalid_unexpected_resume_count"
+    elif resume_result == SUSPEND_RESUME_FAILURE:
+        if not (
+            method == "RESUME_THREAD_RETURN"
+            and previous_count is None
+            and state == SUSPEND_STATE_UNKNOWN
+            and success is False
+        ):
+            return "suspend_evidence_incoherent_resume_failure"
+    elif resume_result == SUSPEND_RESUME_NOT_ATTEMPTED:
+        if previous_count is not None or method == "RESUME_THREAD_RETURN":
+            return "suspend_evidence_incoherent_non_resume_observation"
+        if state == SUSPEND_STATE_PROVEN_SUSPENDED:
+            return "suspend_evidence_suspended_state_lacks_qualified_observation"
+        if state in {SUSPEND_STATE_PROVEN_RESUMED, SUSPEND_STATE_PROVEN_EXITED} and (
+            method != "PROCESS_STATE_QUERY"
+            or not str(evidence.get("predecessor_observation_id", "") or "").strip()
+        ):
+            return "suspend_evidence_followup_provenance_missing"
+    else:
+        return "suspend_evidence_invalid_resume_result"
+
+    material = dict(evidence)
+    observation_id = str(material.pop("observation_id", "") or "")
+    if sha256_json(material) != observation_id:
+        return "suspend_evidence_observation_id_mismatch"
+    return ""
+
+
+def suspend_state_evidence_rejection_reason(
+    request: "DurableRemoteRequest",
+    *,
+    claim_id: str,
+    process_tree: dict[str, Any],
+    evidence: dict[str, Any],
+) -> str:
+    """Bind a coherent observation to one canonical launch trajectory."""
+
+    reason = _suspend_evidence_schema_rejection_reason(evidence)
+    if reason:
+        return reason
+    expected_execution = durable_execution_identity(request, claim_id=claim_id)
+    expected_request = {
+        "request_id": request.request_id,
+        "correlation_id": request.correlation_id,
+        "node_id": request.node_id,
+        "candidate_sha": request.candidate_sha,
+        "claim_id": claim_id,
+        "logical_execution_id": expected_execution["logical_execution_id"],
+    }
+    for key, expected in expected_request.items():
+        if evidence.get(key) != expected:
+            return f"suspend_evidence_{key}_mismatch"
+    if dict(process_tree.get("execution_identity") or {}) != expected_execution:
+        return "suspend_evidence_persisted_execution_identity_mismatch"
+    if evidence.get("launch_intent_id") != process_tree.get("launch_intent_id"):
+        return "suspend_evidence_launch_intent_id_mismatch"
+
+    root_pid = process_tree.get("root_pid")
+    process_identity = dict(process_tree.get("process_identity") or {})
+    if evidence.get("process_id") != root_pid or process_identity.get("pid") != root_pid:
+        return "suspend_evidence_process_id_mismatch"
+    process_fields = {
+        "process_start_token": "start_token",
+        "process_executable": "executable",
+        "process_observed_command_digest": "observed_command_digest",
+        "command_digest": "command_digest",
+        "process_identity_source": "identity_source",
+    }
+    for evidence_key, process_key in process_fields.items():
+        if evidence.get(evidence_key) != process_identity.get(process_key):
+            return f"suspend_evidence_{evidence_key}_mismatch"
+    if evidence.get("command_digest") != request.payload_digest:
+        return "suspend_evidence_payload_digest_mismatch"
+
+    thread_identity = dict(process_tree.get("launch_thread_identity") or {})
+    state = evidence.get("state")
+    if state in {SUSPEND_STATE_PROVEN_SUSPENDED, SUSPEND_STATE_PROVEN_RESUMED}:
+        if not thread_identity:
+            return "suspend_evidence_persisted_thread_identity_missing"
+        if evidence.get("thread_id") != thread_identity.get("thread_id"):
+            return "suspend_evidence_thread_id_mismatch"
+        for key in (
+            "request_id",
+            "correlation_id",
+            "node_id",
+            "candidate_sha",
+            "claim_id",
+            "logical_execution_id",
+            "launch_intent_id",
+            "process_id",
+            "process_start_token",
+        ):
+            if thread_identity.get(key) != evidence.get(key):
+                return f"suspend_evidence_thread_{key}_mismatch"
+    elif evidence.get("thread_id") is not None and thread_identity:
+        if evidence.get("thread_id") != thread_identity.get("thread_id"):
+            return "suspend_evidence_thread_id_mismatch"
+    history = process_tree.get("suspend_state_evidence_history")
+    if history is not None:
+        if not isinstance(history, list) or not history:
+            return "suspend_evidence_history_invalid"
+        historyless_tree = dict(process_tree)
+        historyless_tree.pop("suspend_state_evidence_history", None)
+        positive_states: set[str] = set()
+        observation_ids: set[str] = set()
+        for item in history:
+            if not isinstance(item, dict):
+                return "suspend_evidence_history_item_invalid"
+            item_reason = suspend_state_evidence_rejection_reason(
+                request,
+                claim_id=claim_id,
+                process_tree=historyless_tree,
+                evidence=item,
+            )
+            if item_reason:
+                return f"suspend_evidence_history_item_invalid:{item_reason}"
+            predecessor = str(item.get("predecessor_observation_id", "") or "")
+            if predecessor and predecessor not in observation_ids:
+                return "suspend_evidence_history_predecessor_missing_or_out_of_order"
+            observation_ids.add(str(item.get("observation_id", "") or ""))
+            if item.get("state") in SUSPEND_POSITIVE_STATES:
+                positive_states.add(str(item["state"]))
+        if len(positive_states) > 1:
+            return "suspend_evidence_history_contradictory_positive_states"
+        if evidence.get("observation_id") not in observation_ids:
+            return "suspend_evidence_current_observation_not_in_history"
+        if positive_states and evidence.get("state") not in positive_states:
+            return "suspend_evidence_current_truth_regresses_positive_state"
+        if not positive_states and evidence != history[-1]:
+            return "suspend_evidence_current_unknown_not_latest"
+    return ""
+
 
 def _request_budget(
     req: "DurableRemoteRequest",
@@ -596,6 +835,21 @@ def shell_running_identity_error(
         return "shell RUNNING immutable execution identity mismatch"
     if not str(process_tree.get("launch_intent_id", "") or "").strip():
         return "shell RUNNING requires launch_intent_id"
+    containment = dict(process_tree.get("process_containment") or {})
+    if containment.get("kind") == "windows_job_object":
+        evidence = dict(process_tree.get("suspend_state_evidence") or {})
+        if not evidence:
+            return "shell RUNNING requires Windows suspend-state evidence"
+        reason = suspend_state_evidence_rejection_reason(
+            request,
+            claim_id=claim_id,
+            process_tree=process_tree,
+            evidence=evidence,
+        )
+        if reason:
+            return f"shell RUNNING invalid suspend-state evidence: {reason}"
+        if evidence.get("state") != SUSPEND_STATE_PROVEN_RESUMED:
+            return "shell RUNNING requires proven resumed launch state"
     return ""
 
 
@@ -2512,6 +2766,145 @@ class DurableRemoteStore:
             self._update_request_locked(req, launch_state)
             return req
 
+    def persist_shell_launch_thread_identity(
+        self,
+        request_id: str,
+        *,
+        claim_id: str,
+        thread_id: int,
+    ) -> DurableRemoteRequest:
+        """Persist the exact launch thread before any ResumeThread attempt."""
+
+        with self._request_lock(request_id):
+            req = self._get_request_raw(request_id)
+            if req is None:
+                raise KeyError(request_id)
+            if req.lifecycle_state != "CLAIMED" or req.claim_id != claim_id:
+                return self._enter_reconciliation(
+                    req,
+                    reason="launch thread identity requires exact claimed authority",
+                )
+            if req.process_tree.get("launch_state") != SHELL_PROCESS_IDENTITY_PERSISTED:
+                return self._enter_reconciliation(
+                    req,
+                    reason="launch thread identity requires persisted process identity",
+                )
+            expected_execution = durable_execution_identity(req, claim_id=claim_id)
+            if dict(req.process_tree.get("execution_identity") or {}) != expected_execution:
+                return self._enter_reconciliation(
+                    req,
+                    reason="launch thread immutable execution identity mismatch",
+                )
+            process_identity = dict(req.process_tree.get("process_identity") or {})
+            root_pid = req.process_tree.get("root_pid")
+            if not isinstance(thread_id, int) or thread_id <= 0:
+                return self._enter_reconciliation(req, reason="invalid launch thread identity")
+            if process_identity.get("pid") != root_pid or not isinstance(root_pid, int):
+                return self._enter_reconciliation(
+                    req,
+                    reason="launch thread process identity mismatch",
+                )
+            identity = {
+                "request_id": req.request_id,
+                "correlation_id": req.correlation_id,
+                "node_id": req.node_id,
+                "candidate_sha": req.candidate_sha,
+                "claim_id": claim_id,
+                "logical_execution_id": expected_execution["logical_execution_id"],
+                "launch_intent_id": req.process_tree.get("launch_intent_id"),
+                "process_id": root_pid,
+                "process_start_token": process_identity.get("start_token"),
+                "thread_id": thread_id,
+            }
+            if not all(str(value or "").strip() for value in identity.values()):
+                return self._enter_reconciliation(
+                    req,
+                    reason="incomplete launch thread identity",
+                )
+            existing = dict(req.process_tree.get("launch_thread_identity") or {})
+            if existing and existing != identity:
+                return self._enter_reconciliation(
+                    req,
+                    reason="conflicting launch thread identity",
+                )
+            req.process_tree["launch_thread_identity"] = identity
+            self._update_request_locked(req, "SHELL_LAUNCH_THREAD_IDENTITY_PERSISTED")
+            return req
+
+    def record_shell_suspend_observation(
+        self,
+        request_id: str,
+        *,
+        claim_id: str,
+        evidence: dict[str, Any],
+    ) -> DurableRemoteRequest:
+        """Append one immutable identity-bound suspend observation."""
+
+        with self._request_lock(request_id):
+            req = self._get_request_raw(request_id)
+            if req is None:
+                raise KeyError(request_id)
+            if req.lifecycle_state != "CLAIMED" or req.claim_id != claim_id:
+                return self._enter_reconciliation(
+                    req,
+                    reason="suspend observation requires exact claimed authority",
+                )
+            validation_tree = dict(req.process_tree)
+            validation_tree.pop("suspend_state_evidence_history", None)
+            validation_tree.pop("suspend_state_evidence", None)
+            reason = suspend_state_evidence_rejection_reason(
+                req,
+                claim_id=claim_id,
+                process_tree=validation_tree,
+                evidence=evidence,
+            )
+            if reason:
+                req.diagnostics.setdefault("rejected_suspend_state_evidence", []).append(
+                    {
+                        "observation_id": evidence.get("observation_id"),
+                        "evidence": dict(evidence),
+                        "reason": reason,
+                        "observed_at": now_s(),
+                    }
+                )
+                return self._enter_reconciliation(
+                    req,
+                    reason=f"invalid suspend-state evidence: {reason}",
+                )
+            history = list(req.process_tree.get("suspend_state_evidence_history") or [])
+            observation_id = evidence["observation_id"]
+            if any(item.get("observation_id") == observation_id for item in history):
+                return req
+            positive_states = {
+                item.get("state")
+                for item in history
+                if item.get("state") in SUSPEND_POSITIVE_STATES
+            }
+            incoming_state = evidence.get("state")
+            if positive_states and incoming_state in SUSPEND_POSITIVE_STATES:
+                if incoming_state not in positive_states:
+                    history.append(dict(evidence))
+                    req.process_tree["suspend_state_evidence_history"] = history
+                    req.diagnostics.setdefault("suspend_state_evidence_conflicts", []).append(
+                        {
+                            "existing_states": sorted(positive_states),
+                            "incoming_state": incoming_state,
+                            "observation_id": observation_id,
+                            "evidence": dict(evidence),
+                            "observed_at": now_s(),
+                        }
+                    )
+                    return self._enter_reconciliation(
+                        req,
+                        reason="contradictory exact suspend-state evidence",
+                    )
+            history.append(dict(evidence))
+            req.process_tree["suspend_state_evidence_history"] = history
+            if incoming_state in SUSPEND_POSITIVE_STATES or not positive_states:
+                req.process_tree["suspend_state_evidence"] = dict(evidence)
+            self._update_request_locked(req, "SHELL_SUSPEND_STATE_OBSERVED")
+            return req
+
     def mark_running(
         self, request_id: str, *, claim_id: str, process_tree: dict[str, Any] | None = None
     ) -> DurableRemoteRequest:
@@ -2866,11 +3259,23 @@ class DurableRemoteStore:
             or req.process_tree.get("suspend_state_evidence")
             or {}
         )
-        if suspend_evidence and (
-            suspend_evidence.get("state") == "UNKNOWN"
-            or suspend_evidence.get("observation_success") is not True
-        ):
-            return "suspend_state_not_positively_proven"
+        windows_launch = (
+            dict(req.process_tree.get("process_containment") or {}).get("kind")
+            == "windows_job_object"
+        )
+        if suspend_evidence:
+            suspend_reason = suspend_state_evidence_rejection_reason(
+                req,
+                claim_id=claim_id,
+                process_tree=req.process_tree,
+                evidence=suspend_evidence,
+            )
+            if suspend_reason:
+                return f"invalid_suspend_state_evidence:{suspend_reason}"
+            if suspend_evidence.get("state") == SUSPEND_STATE_UNKNOWN:
+                return "suspend_state_not_positively_proven"
+        elif windows_launch and not no_execution:
+            return "windows_launch_suspend_state_evidence_missing"
         if any(uncertainty_markers):
             return "execution_or_launch_outcome_unknown"
 
