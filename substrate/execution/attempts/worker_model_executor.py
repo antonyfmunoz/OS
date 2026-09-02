@@ -1,0 +1,630 @@
+"""Provider-neutral governed worktree worker.
+
+This is the Wave 2 production worker entry point. It owns the substrate-side
+lease preparation, prompt projection, hard write-scope barrier, credential
+boundary, artifact extraction, and terminal result normalization. Provider
+specifics live behind :mod:`model_executor_contract`.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import logging
+import os
+import signal
+import subprocess
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from substrate.execution.attempts.field_task_scope import (
+    ScopeResolutionError,
+    prepare_attempt_git_capability,
+    readonly_binds_for_scope,
+)
+from substrate.execution.attempts.field_task_scope import (
+    paths_outside as _paths_outside,
+)
+from substrate.execution.attempts.host_isolation import (
+    IsolationProfile,
+    IsolationUnavailable,
+    build_isolated_command,
+    scrub_worker_env,
+)
+from substrate.execution.attempts.model_executor_contract import ModelWorkPacketInput
+from substrate.execution.attempts.model_executor_selection import build_model_executor
+from substrate.execution.attempts.model_executors.codex import (
+    validate_codex_executable_attestation,
+)
+from substrate.execution.attempts.scope_contract import (
+    TRUSTED_PROJECTION_PATHS,
+    sealed_writable_scope,
+)
+
+# Reuse the audited Wave 2 substrate mechanics. These helpers are not Claude
+# semantics; they are package rendering, trusted projection, git anchoring, and
+# artifact extraction. Keeping the compatibility module intact preserves the old
+# exact-SHA evidence while this module becomes the provider-neutral entry point.
+from substrate.execution.attempts.worker_claude_cli import (  # noqa: E402
+    LeaseGitError,
+    _capture_git,
+    _close_home_or_fail,
+    _is_zero_write,
+    _mark_projection_execution_context,
+    make_lease_selfcontained,
+    project_task_local_objective,
+    render_prompt,
+)
+from substrate.execution.attempts.worker_credential_boundary import (
+    CredentialBoundaryError,
+    close_attempt_credential_home,
+    open_attempt_credential_home,
+)
+
+logger = logging.getLogger(__name__)
+
+_DEFAULT_TIMEOUT = 600.0
+_DEFAULT_MAX_TURNS = 30
+_GOVERNED_CODEX_MODEL = "gpt-5.6-sol"
+_SOURCE_MUTATION_DENIAL_TOOLS = frozenset({"Edit", "Write", "MultiEdit", "NotebookEdit", "Bash"})
+
+
+def _run_isolated_with_tree_timeout(
+    cmd: list[str],
+    *,
+    caller: str,
+    timeout: float,
+    cwd: str,
+    env: dict[str, str],
+    input_text: str,
+    inherited_fds: tuple[int, ...] = (),
+) -> subprocess.CompletedProcess[str] | None:
+    """Run the isolated worker command with owned process-tree cancellation."""
+
+    from substrate.execution.cpu_gate import gated_popen
+
+    proc = gated_popen(
+        cmd,
+        caller=caller,
+        cwd=cwd,
+        env=env,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+        pass_fds=inherited_fds,
+    )
+    if proc is None:
+        return None
+    try:
+        stdout, stderr = proc.communicate(input=input_text, timeout=timeout)
+        return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            pass
+        try:
+            stdout, stderr = proc.communicate(timeout=5)
+        except subprocess.TimeoutExpired:
+            try:
+                os.killpg(proc.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            stdout, stderr = proc.communicate()
+        raise subprocess.TimeoutExpired(cmd=cmd, timeout=timeout, output=stdout, stderr=stderr)
+
+
+@dataclass
+class WorkerResult:
+    ok: bool = False
+    status: str = "failed"
+    summary: str = ""
+    stdout: str = ""
+    files_changed: list[str] = field(default_factory=list)
+    commits: list[str] = field(default_factory=list)
+    diff: str = ""
+    exit_code: int | None = None
+    error: str = ""
+    duration_seconds: float = 0.0
+    isolated: bool = False
+    cost_usd: float | None = None
+    cost_status: str = "unknown"
+    trusted_base: str = ""
+    executor: dict[str, Any] = field(default_factory=dict)
+    usage: dict[str, Any] = field(default_factory=dict)
+    retry_class: str = "unknown"
+    proof_binding: dict[str, Any] = field(default_factory=dict)
+    capability_policy: dict[str, Any] = field(default_factory=dict)
+    execution_identity: dict[str, Any] = field(default_factory=dict)
+
+    def to_dict(self) -> dict[str, Any]:
+        d = dict(self.__dict__)
+        d["stdout"] = self.stdout[-4000:]
+        d["diff"] = self.diff[-8000:]
+        return d
+
+
+def _persist_prelaunch_attestation(
+    *,
+    worker_home: str,
+    packet: ModelWorkPacketInput,
+    invocation_identity: dict[str, Any],
+) -> tuple[str, str]:
+    evidence = {
+        **invocation_identity,
+        "attempt_id": packet.attempt_id,
+        "package_hash": packet.package_hash,
+        "operation_identity_digest": hashlib.sha256(
+            json.dumps(
+                packet.operation_identity,
+                sort_keys=True,
+                separators=(",", ":"),
+                default=str,
+            ).encode("utf-8")
+        ).hexdigest(),
+    }
+    blob = json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    evidence_dir = Path(worker_home) / ".umh"
+    evidence_dir.mkdir(mode=0o700, exist_ok=True)
+    path = evidence_dir / "codex-prelaunch-attestation.json"
+    temporary = path.with_suffix(".tmp")
+    temporary.write_bytes(blob)
+    os.chmod(temporary, 0o600)
+    temporary.replace(path)
+    return str(path), hashlib.sha256(blob).hexdigest()
+
+
+def _proof_binding(package: Any, base_commit: str, provider: str) -> dict[str, Any]:
+    identity = dict(getattr(package, "operation_identity", None) or {})
+    return {
+        "attempt_id": identity.get("attempt_id", ""),
+        "task_id": identity.get("task_id", ""),
+        "package_hash": getattr(package, "package_hash", ""),
+        "authorized_base": base_commit,
+        "executor_provider": provider,
+    }
+
+
+def _governed_codex_attestation_error(
+    terminal: Any,
+    *,
+    packet: ModelWorkPacketInput,
+) -> str:
+    evidence = dict(getattr(terminal, "execution_identity", None) or {})
+    required = {
+        "provider_requested": "codex",
+        "model_requested": _GOVERNED_CODEX_MODEL,
+        "trusted_model_resolved": _GOVERNED_CODEX_MODEL,
+        "attempt_id": packet.attempt_id,
+        "package_hash": packet.package_hash,
+    }
+    mismatches = [
+        f"{key}={evidence.get(key)!r} expected {expected!r}"
+        for key, expected in required.items()
+        if evidence.get(key) != expected
+    ]
+    required_true = (
+        "explicit_model_argument_present",
+        "user_config_ignored",
+        "invocation_accepted",
+        "model_resolution_observable",
+        "output_content_present",
+        "usage_present",
+        "credential_isolation_verified",
+        "workspace_integrity_verified",
+        "codex_executable_approved",
+        "prelaunch_attestation_persisted",
+        "post_execution_executable_binding_verified",
+    )
+    mismatches.extend(
+        f"{key} is not true" for key in required_true if evidence.get(key) is not True
+    )
+    if evidence.get("trusted_model_resolution_source") != "turn.completed.model":
+        mismatches.append("trusted_model_resolution_source is not trusted terminal metadata")
+    for key in (
+        "codex_executable_path",
+        "codex_executable_sha256",
+        "codex_executable_version",
+        "codex_executable_policy",
+        "codex_executable_policy_identity",
+        "codex_executed_object_sha256",
+        "codex_executable_object_identity",
+        "codex_executable_binding",
+        "codex_governed_launch_path",
+        "prelaunch_attestation_identity",
+        "prelaunch_attestation_sha256",
+        "post_execution_executable_sha256",
+    ):
+        if not str(evidence.get(key, "") or "").strip():
+            mismatches.append(f"{key} is missing")
+    executable_error = validate_codex_executable_attestation(evidence)
+    if executable_error:
+        mismatches.append(executable_error)
+    return "; ".join(mismatches)
+
+
+def _close_invocation_fds(invocation: object | None) -> None:
+    for fd in getattr(invocation, "inherited_fds", ()):
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+
+
+def _credential_env_key(provider: str) -> str:
+    if provider == "codex":
+        return "CODEX_ACCESS_TOKEN"
+    return "MODEL_EXECUTOR_TOKEN"
+
+
+def capability_policy_for_disallowed_tools(
+    *,
+    provider: str,
+    disallowed_tools: list[str] | None,
+    operation_identity: dict[str, Any],
+) -> tuple[dict[str, Any], str]:
+    """Translate run-bound tool revocations into enforceable capabilities.
+
+    The field-injection vocabulary is historical and CLI-shaped, but the
+    enforcement must be provider-neutral. Today the only supported non-empty
+    policy is "deny source mutation": it maps to a read-only worktree mount,
+    below model behavior and below provider tool naming.
+    """
+
+    requested = tuple(str(t) for t in (disallowed_tools or ()) if str(t))
+    base = {
+        "schema_version": 1,
+        "provider": provider,
+        "requested_disallowed_tools": list(requested),
+        "run_id": str(operation_identity.get("run_id", "") or ""),
+        "task_id": str(operation_identity.get("task_id", "") or ""),
+        "attempt_id": str(operation_identity.get("attempt_id", "") or ""),
+        "grant_ref": str(operation_identity.get("execution_authorization_ref", "") or ""),
+        "mode": "normal",
+        "enforced": False,
+        "enforcement": "",
+    }
+    if not requested:
+        return base, ""
+    requested_set = frozenset(requested)
+    if requested_set == _SOURCE_MUTATION_DENIAL_TOOLS:
+        base.update(
+            {
+                "mode": "source_mutation_denied",
+                "enforced": True,
+                "enforcement": "worktree_readonly_mount",
+            }
+        )
+        return base, ""
+    return (
+        base,
+        "unsupported execution capability restriction: "
+        f"requested={sorted(requested_set)!r}; supported={sorted(_SOURCE_MUTATION_DENIAL_TOOLS)!r}",
+    )
+
+
+def run_worker_in_lease(
+    *,
+    package: Any,
+    lease: Any,
+    timeout: float = _DEFAULT_TIMEOUT,
+    max_turns: int = _DEFAULT_MAX_TURNS,
+    disallowed_tools: list[str] | None = None,
+    oauth_token: str | None = None,
+    attempt_id: str = "",
+    run_root: str = "",
+    provider: str | None = None,
+) -> WorkerResult:
+    """Run the configured model executor in one isolated lease worktree."""
+
+    import time as _time
+
+    worktree_path = getattr(lease, "worktree_path", "")
+    base_commit = str(getattr(lease, "snapshot_ref", "") or "").strip()
+    if not worktree_path or not os.path.isdir(worktree_path):
+        return WorkerResult(error=f"lease worktree missing: {worktree_path}")
+    if not base_commit:
+        return WorkerResult(
+            error="lease has no snapshot_ref (authorized base commit) — refusing to "
+            "run: artifacts could not be attributed to this attempt"
+        )
+
+    try:
+        executor = build_model_executor(provider)
+    except ValueError as exc:
+        return WorkerResult(error=str(exc), retry_class="configuration")
+    executor_identity = executor.identity
+    if executor_identity.provider == "codex" and executor_identity.model != _GOVERNED_CODEX_MODEL:
+        return WorkerResult(
+            error=(
+                "governed Codex attempts require exact model "
+                f"{_GOVERNED_CODEX_MODEL!r}; resolved configuration selected "
+                f"{executor_identity.model!r}"
+            ),
+            executor=executor_identity.proof_metadata(),
+            retry_class="configuration",
+        )
+
+    try:
+        make_lease_selfcontained(worktree_path)
+    except LeaseGitError as exc:
+        return WorkerResult(error=f"lease git could not be made self-contained: {exc}")
+
+    if not attempt_id:
+        return WorkerResult(error="attempt_id is required to bind a credential home")
+    if not run_root:
+        return WorkerResult(error="run_root is required to place a credential home")
+    try:
+        attempt_home = open_attempt_credential_home(
+            attempt_id=attempt_id,
+            run_root=run_root,
+            provider=executor_identity.provider,
+        )
+    except CredentialBoundaryError as exc:
+        return WorkerResult(error=f"credential boundary unavailable: {exc}")
+
+    extra_allow: dict[str, str] = {}
+    if oauth_token:
+        extra_allow[_credential_env_key(executor_identity.provider)] = oauth_token
+    env = scrub_worker_env(dict(os.environ), extra_allow=extra_allow)
+    env.update(attempt_home.env_overrides())
+
+    readiness = executor.readiness(env=env)
+    if not readiness.ok:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error=f"model executor not ready: {readiness.reason}",
+            executor=readiness.identity.proof_metadata(),
+            retry_class="owner_auth_or_provider",
+            trusted_base=base_commit,
+        )
+
+    projection = project_task_local_objective(package, worktree_path)
+    if not projection.get("ok"):
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error=f"task-local objective projection failed: {projection.get('error', 'unknown')}"
+        )
+    try:
+        _mark_projection_execution_context(worktree_path, projection)
+    except LeaseGitError as exc:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(error=f"projection could not be made execution-context: {exc}")
+
+    try:
+        attempt_ref_dir = prepare_attempt_git_capability(worktree_path, attempt_id)
+    except ScopeResolutionError as exc:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(error=f"attempt git capability unavailable: {exc}")
+
+    try:
+        declared_scope = sealed_writable_scope(package)
+    except ScopeResolutionError as exc:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(error=f"write-scope enforcement unavailable: {exc}")
+    if declared_scope is None:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error="sealed package declares no writable_path_scope — refusing to run "
+            "a worker whose write authority cannot be enforced"
+        )
+
+    from substrate.execution.attempts.field_task_scope import (
+        normalize_allowed_paths as _normalize_allowed_paths,
+    )
+
+    try:
+        normalized_scope = _normalize_allowed_paths(declared_scope, lease_root=worktree_path)
+    except ScopeResolutionError as exc:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error=f"sealed writable_path_scope could not be normalized for the "
+            f"system-owned-path check: {exc}"
+        )
+    contradicted = [
+        p for p in TRUSTED_PROJECTION_PATHS if not _paths_outside([p], normalized_scope)
+    ]
+    if contradicted:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error=(
+                f"sealed writable_path_scope grants worker authority over system "
+                f"projection path(s) {contradicted!r} — refusing a scope that lets a "
+                f"worker version control-plane execution context"
+            )
+        )
+    try:
+        readonly_subpaths = readonly_binds_for_scope(declared_scope, lease_root=worktree_path)
+    except ScopeResolutionError as exc:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(error=f"write-scope enforcement could not be built: {exc}")
+
+    prompt = render_prompt(package)
+    if _is_zero_write(package):
+        prompt += (
+            "\n\nVerifier mode: do not write files; return an independent verification report."
+        )
+    profile = IsolationProfile(
+        worktree_path=worktree_path,
+        worker_home=attempt_home.home_path,
+        tmp_path=attempt_home.tmp_path,
+        env_overrides=attempt_home.env_overrides(),
+        readonly_subpaths=readonly_subpaths,
+        writable_subpaths=[attempt_ref_dir],
+        scope_enforced=True,
+    )
+
+    binding = _proof_binding(package, base_commit, readiness.identity.provider)
+    packet = ModelWorkPacketInput(
+        prompt=prompt,
+        worktree_path=worktree_path,
+        timeout_seconds=float(timeout),
+        max_turns=int(max_turns),
+        disallowed_tools=tuple(disallowed_tools or ()),
+        attempt_id=attempt_id,
+        package_hash=str(getattr(package, "package_hash", "") or ""),
+        operation_identity=dict(getattr(package, "operation_identity", None) or {}),
+        proof_binding=binding,
+    )
+    policy, policy_error = capability_policy_for_disallowed_tools(
+        provider=readiness.identity.provider,
+        disallowed_tools=list(disallowed_tools or []),
+        operation_identity=packet.operation_identity,
+    )
+    if policy_error:
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error=policy_error,
+            executor=readiness.identity.proof_metadata(),
+            retry_class="configuration",
+            trusted_base=base_commit,
+            proof_binding=binding,
+            capability_policy=policy,
+        )
+    try:
+        invocation = executor.build_invocation(packet)
+        if not invocation.argv:
+            _close_home_or_fail(attempt_home)
+            return WorkerResult(
+                error="model executor did not provide a runnable invocation",
+                executor=readiness.identity.proof_metadata(),
+                retry_class="owner_auth_or_provider",
+                trusted_base=base_commit,
+                proof_binding=binding,
+                capability_policy=policy,
+            )
+        if policy.get("mode") == "source_mutation_denied":
+            profile.worktree_readonly = True
+            profile.readonly_subpaths = []
+            profile.writable_subpaths = []
+        prelaunch_path = ""
+        prelaunch_digest = ""
+        if invocation.execution_identity:
+            prelaunch_path, prelaunch_digest = _persist_prelaunch_attestation(
+                worker_home=attempt_home.home_path,
+                packet=packet,
+                invocation_identity=invocation.execution_identity,
+            )
+        if invocation.readonly_fd_mounts:
+            cmd = build_isolated_command(
+                invocation.argv,
+                profile,
+                readonly_fd_mounts=invocation.readonly_fd_mounts,
+            )
+        else:
+            cmd = build_isolated_command(invocation.argv, profile)
+        isolated = True
+    except IsolationUnavailable as exc:
+        _close_invocation_fds(locals().get("invocation"))
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(error=f"host isolation unavailable: {exc}")
+    except OSError as exc:
+        _close_invocation_fds(locals().get("invocation"))
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(error=f"pre-launch executable attestation unavailable: {exc}")
+    except AttributeError:
+        _close_invocation_fds(locals().get("invocation"))
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(
+            error="model executor does not implement isolated invocation contract",
+            executor=readiness.identity.proof_metadata(),
+            retry_class="adapter_or_worker",
+            trusted_base=base_commit,
+        )
+
+    start = _time.monotonic()
+    try:
+        from subprocess import TimeoutExpired
+
+        timed_out = False
+        try:
+            completed = _run_isolated_with_tree_timeout(
+                cmd,
+                caller=f"wave2_model_executor_{readiness.identity.provider}",
+                timeout=float(timeout),
+                cwd=invocation.cwd or worktree_path,
+                env=env,
+                input_text=invocation.stdin,
+                inherited_fds=invocation.inherited_fds,
+            )
+        except TimeoutExpired:
+            completed = None
+            timed_out = True
+        duration = _time.monotonic() - start
+        if timed_out:
+            terminal = executor.collect_result(packet, None, duration_seconds=duration)
+            terminal.timed_out = True
+            terminal.retry_class = "external_transient"
+        else:
+            terminal = executor.collect_result(packet, completed, duration_seconds=duration)
+        terminal_execution_identity = dict(terminal.execution_identity or {})
+        terminal_execution_identity.update(invocation.execution_identity)
+        if prelaunch_path:
+            terminal_execution_identity.update(
+                {
+                    "prelaunch_attestation_persisted": True,
+                    "prelaunch_attestation_path": prelaunch_path,
+                    "prelaunch_attestation_sha256": prelaunch_digest,
+                }
+            )
+        finalize = getattr(executor, "finalize_invocation_attestation", None)
+        if callable(finalize):
+            terminal_execution_identity.update(finalize(invocation, packet))
+        terminal_execution_identity["credential_isolation_verified"] = bool(
+            attempt_home.env_overrides().get("CODEX_HOME")
+            and env.get("CODEX_HOME") == attempt_home.env_overrides().get("CODEX_HOME")
+        )
+        terminal_execution_identity["workspace_integrity_verified"] = bool(
+            profile.scope_enforced and profile.worktree_path == worktree_path
+        )
+        terminal.execution_identity = terminal_execution_identity
+        attestation_error = ""
+        if readiness.identity.provider == "codex":
+            attestation_error = _governed_codex_attestation_error(
+                terminal,
+                packet=packet,
+            )
+        files, commits, diff = _capture_git(worktree_path, base_commit)
+        produced = bool(commits) and bool(files)
+        ok = (
+            terminal.ok
+            and not attestation_error
+            and terminal.has_real_content
+            and (produced or _is_zero_write(package))
+        )
+        return WorkerResult(
+            ok=ok,
+            status="succeeded" if ok else "failed",
+            summary=(terminal.summary or terminal.stdout)[-500:],
+            stdout=terminal.stdout,
+            files_changed=files,
+            commits=commits,
+            diff=diff,
+            exit_code=terminal.exit_code,
+            error=(attestation_error or terminal.stderr)[-500:] if not ok else "",
+            duration_seconds=duration,
+            isolated=isolated,
+            cost_usd=terminal.cost.get("amount_usd"),
+            cost_status=str(terminal.cost.get("status", "unknown")),
+            trusted_base=base_commit,
+            executor=(terminal.identity or readiness.identity).proof_metadata(),
+            usage=dict(terminal.usage),
+            retry_class=terminal.retry_class,
+            proof_binding=dict(terminal.proof_binding or binding),
+            capability_policy=policy,
+            execution_identity=terminal_execution_identity,
+        )
+    finally:
+        _close_invocation_fds(locals().get("invocation"))
+        close_attempt_credential_home(attempt_home)
+
+
+__all__ = [
+    "WorkerResult",
+    "capability_policy_for_disallowed_tools",
+    "run_worker_in_lease",
+    "render_prompt",
+]

@@ -114,6 +114,7 @@ class GovernedExecutionSpine:
         learning_loop: OutcomeLearningLoop | None = None,
         compounding_engine: Any | None = None,
         template_extractor: Any | None = None,
+        authorization_lookup: Any | None = None,
     ) -> None:
         self._event_spine = event_spine
         self._mode = execution_mode
@@ -125,6 +126,11 @@ class GovernedExecutionSpine:
         self._compounding = compounding_engine
         self._template_extractor = template_extractor
         self._proof_store: Any = None
+        # Wave 2 clause 5: resolves an execution authorization_ref to its grant
+        # (decision_ref → object with authorized_scope_hash / task_frontier /
+        # expires_at / status). Injected to keep the spine substrate-composed. A
+        # None lookup with a present authorization_ref fails closed.
+        self._authorization_lookup = authorization_lookup
         self._lock = threading.Lock()
 
         self._pending: deque[ActionEnvelope] = deque(maxlen=_MAX_QUEUE)
@@ -343,6 +349,15 @@ class GovernedExecutionSpine:
         if mutation_name and not self._registry.is_registered(mutation_name):
             return f"unregistered mutation: {mutation_name}"
 
+        # Wave 2 authorization consumption (Amendment v1 clause 5). If the
+        # envelope carries an execution authorization_ref, the action MUST be a
+        # subset of the authorized scope. This runs BEFORE the fast-path/approval
+        # branch, so no reliability fast path or require_approval=False can bypass
+        # it. An out-of-scope or expired authority is rejected (fail closed).
+        auth_rejection = self._check_authorization_scope(envelope)
+        if auth_rejection:
+            return auth_rejection
+
         spec = self._registry.lookup(mutation_name) if mutation_name else None
 
         if spec is not None:
@@ -371,6 +386,77 @@ class GovernedExecutionSpine:
             "governed_spine",
             {"mode": self._mode.current_mode.value, "mutation_name": mutation_name},
         )
+        return ""
+
+    def _check_authorization_scope(self, envelope: ActionEnvelope) -> str:
+        """Wave 2 clause 5: consume explicit HUD execution authority. Returns a
+        rejection reason if the action is not a subset of the authorized scope,
+        or empty string if the envelope carries no authorization_ref (non-Wave-2
+        actions are unaffected)."""
+        auth_ref = getattr(envelope, "authorization_ref", "")
+        if not auth_ref:
+            return ""  # not an authorization-bound action
+
+        if self._authorization_lookup is None:
+            return f"authorization {auth_ref} cannot be validated (no lookup) — fail closed"
+        try:
+            grant = self._authorization_lookup(auth_ref)
+        except Exception as exc:
+            return f"authorization {auth_ref} lookup failed: {exc}"
+        if grant is None:
+            return f"authorization {auth_ref} not found — fail closed"
+
+        # Must be an ACTIVE grant.
+        if getattr(grant, "status", "") != "active":
+            return f"authorization {auth_ref} is {getattr(grant, 'status', '')!r}, not active"
+
+        # Not expired.
+        expires_at = float(getattr(grant, "expires_at", 0.0) or 0.0)
+        if expires_at and time.time() >= expires_at:
+            return f"authorization {auth_ref} expired"
+
+        # An authorization-bound action must PROVE the exact authority it
+        # consumes. Both checks below used to read `if env_hash and grant_hash
+        # and env_hash != grant_hash` — so an envelope that simply OMITTED its
+        # scope hash (or its subject ids) short-circuited past the comparison
+        # and was admitted having proven nothing. A mismatch refused, but an
+        # omission passed: the guard only fired when the caller volunteered the
+        # evidence against itself. Presence of the evidence is now REQUIRED, and
+        # the comparison is unconditional.
+        grant_hash = getattr(grant, "authorized_scope_hash", "")
+        if not grant_hash:
+            return (
+                f"authorization {auth_ref} carries no authorized_scope_hash — "
+                f"cannot prove scope, fail closed"
+            )
+        env_hash = getattr(envelope, "authorized_scope_hash", "")
+        if not env_hash:
+            return (
+                f"authorization {auth_ref}: action declares no authorized_scope_hash — "
+                f"an authorization-bound action must prove its exact authority"
+            )
+        if env_hash != grant_hash:
+            return f"authorization {auth_ref} scope hash mismatch (out of scope)"
+
+        # Authorized subjects must be a NONEMPTY subset of the grant's frontier.
+        # An empty declared subject set is not "no subjects to check" — it is a
+        # missing proof of WHICH Tasks this action acts on.
+        grant_frontier = set(getattr(grant, "task_frontier", []) or [])
+        if not grant_frontier:
+            return (
+                f"authorization {auth_ref} has an empty task frontier — "
+                f"authorizes nothing, fail closed"
+            )
+        env_subjects = set(getattr(envelope, "authorized_subject_ids", []) or [])
+        if not env_subjects:
+            return (
+                f"authorization {auth_ref}: action declares no authorized_subject_ids — "
+                f"an authorization-bound action must name the Tasks it acts on"
+            )
+        if not env_subjects.issubset(grant_frontier):
+            out_of_scope = sorted(env_subjects - grant_frontier)
+            return f"authorization {auth_ref}: subjects {out_of_scope} not in authorized frontier"
+
         return ""
 
     def _execute(

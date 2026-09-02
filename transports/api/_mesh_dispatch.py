@@ -7,7 +7,6 @@ After execution, assembles a proof package for operator review.
 
 from __future__ import annotations
 
-import json
 import logging
 import os
 import time
@@ -17,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 _MESH_RELAY_HOST = os.environ.get("UMH_MESH_RELAY_HOST", "localhost")
 _MESH_RELAY_URL = f"http://{_MESH_RELAY_HOST}:8095/dispatch"
-_MESH_RELAY_SECRET = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+_MESH_RELAY_SECRET = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
 
 _ALLOWED_NODE_IDS = frozenset({"windows-desktop"})
 _ALLOWED_CWD_ROOTS = (
@@ -87,118 +86,29 @@ async def dispatch_plan_to_node(
         description = task.description if hasattr(task, "description") else str(task)
         task_id = task.task_id if hasattr(task, "task_id") else ""
 
-        prompt = _build_claude_prompt(description, plan)
-        argv = ["claude", "-p", prompt, "--output-format", "json"]
+        _build_claude_prompt(description, plan)
 
         try:
-            from substrate.execution.mesh_verdict import get_verdict_secret, sign_verdict
-            from uuid import uuid4
-
-            req_headers = {}
-            if _MESH_RELAY_SECRET:
-                req_headers["Authorization"] = f"Bearer {_MESH_RELAY_SECRET}"
             logger.info(
-                "dispatch task %s sending to %s (timeout=%d)",
+                "dispatch task %s refused for sync mesh write path %s (timeout=%d)",
                 task_id,
                 _MESH_RELAY_URL,
                 timeout_per_task,
             )
-            timeouts = httpx.Timeout(timeout_per_task + 10, connect=10.0)
-
-            # Shell is write-class — mint a signed verdict bound to node+capability
-            # so the relay and node can validate before executing (fail-closed).
-            if not get_verdict_secret():
-                failed += 1
-                logger.error(
-                    "dispatch task %s aborted: no mesh verdict secret (fail-closed)", task_id
-                )
-                results.append(
-                    {
-                        "task_id": task_id,
-                        "description": description[:120],
-                        "status": "error",
-                        "error": "no mesh verdict secret configured (fail-closed)",
-                    }
-                )
-                continue
-            verdict_token = sign_verdict(
-                verdict_id=uuid4().hex,
-                node_id=node_id,
-                capability="shell",
-                risk_class="reversible_write",
-                ttl_seconds=timeout_per_task + 30,
-            )
-            payload = {
-                "node_id": node_id,
-                "capability": "shell",
-                "params": {"argv": argv, "cwd": cwd},
-                "risk_class": "reversible_write",
-                "verdict_token": verdict_token,
-                "timeout": timeout_per_task,
-            }
-            data = None
-            for attempt in range(3):
-                try:
-                    if attempt > 0:
-                        import asyncio
-
-                        await asyncio.sleep(1)
-                        try:
-                            async with httpx.AsyncClient(timeout=10) as warmup:
-                                health_url = _MESH_RELAY_URL.rsplit("/", 1)[0] + "/health"
-                                await warmup.get(health_url, headers=_health_headers)
-                                logger.info("dispatch task %s retry warmup ok", task_id)
-                        except Exception:
-                            pass
-                    async with httpx.AsyncClient(timeout=timeouts) as client:
-                        resp = await client.post(_MESH_RELAY_URL, headers=req_headers, json=payload)
-                        logger.info(
-                            "dispatch task %s got HTTP %d, %d bytes",
-                            task_id,
-                            resp.status_code,
-                            len(resp.content),
-                        )
-                        data = resp.json()
-                    break
-                except httpx.ReadError as read_err:
-                    if attempt < 2:
-                        logger.warning(
-                            "dispatch task %s ReadError on attempt %d, retrying: %r",
-                            task_id,
-                            attempt + 1,
-                            read_err,
-                        )
-                        continue
-                    raise
-
-            logger.info(
-                "dispatch task %s response: ok=%s latency=%s",
+            failed += 1
+            logger.error(
+                "dispatch task %s rejected: consequential shell execution must use DurableRemote",
                 task_id,
-                data.get("ok"),
-                data.get("latency_ms"),
             )
-            if data.get("ok"):
-                dispatched += 1
-                results.append(
-                    {
-                        "task_id": task_id,
-                        "description": description[:120],
-                        "status": "executed",
-                        "result": data.get("result_data", {}),
-                        "latency_ms": data.get("latency_ms"),
-                    }
-                )
-            else:
-                failed += 1
-                logger.warning("dispatch task %s not ok: %s", task_id, json.dumps(data)[:500])
-                results.append(
-                    {
-                        "task_id": task_id,
-                        "description": description[:120],
-                        "status": "failed",
-                        "error": data.get("error", "unknown"),
-                    }
-                )
+            results.append(
+                {
+                    "task_id": task_id,
+                    "description": description[:120],
+                    "status": "error",
+                    "error": "consequential writes must use DurableRemote, not sync mesh",
+                }
+            )
+            continue
 
         except Exception as exc:
             failed += 1

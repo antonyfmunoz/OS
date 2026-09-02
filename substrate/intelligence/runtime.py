@@ -27,6 +27,12 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+def _default_intelligence_path(filename: str) -> Path:
+    from substrate.state.runtime_paths import runtime_state_path
+
+    return runtime_state_path("intelligence", filename)
+
+
 @dataclass
 class LearnedPattern:
     """A pattern the system has learned from its operational history."""
@@ -61,7 +67,7 @@ class LearnedPattern:
 
 
 @dataclass
-class DecisionRecord:
+class IntelligenceDecisionRecord:
     """A recorded decision and its outcome."""
 
     decision_id: str
@@ -90,8 +96,10 @@ class Prediction:
 class PatternIntelligence:
     """Learns recurring patterns from operational history."""
 
-    def __init__(self, store_path: str = "data/umh/intelligence/patterns.json") -> None:
-        self._store_path = Path(store_path)
+    def __init__(self, store_path: str | Path | None = None) -> None:
+        self._store_path = Path(store_path) if store_path is not None else _default_intelligence_path(
+            "patterns.json"
+        )
         self._store_path.parent.mkdir(parents=True, exist_ok=True)
         self._patterns: dict[str, LearnedPattern] = {}
         self._load()
@@ -180,10 +188,12 @@ class PatternIntelligence:
 class DecisionIntelligence:
     """Learns from decision outcomes to improve future decisions."""
 
-    def __init__(self, store_path: str = "data/umh/intelligence/decisions.jsonl") -> None:
-        self._store_path = Path(store_path)
+    def __init__(self, store_path: str | Path | None = None) -> None:
+        self._store_path = Path(store_path) if store_path is not None else _default_intelligence_path(
+            "decisions.jsonl"
+        )
         self._store_path.parent.mkdir(parents=True, exist_ok=True)
-        self._records: list[DecisionRecord] = []
+        self._records: list[IntelligenceDecisionRecord] = []
         self._outcome_counts: dict[str, Counter] = defaultdict(Counter)
         self._load()
 
@@ -196,11 +206,11 @@ class DecisionIntelligence:
                     line = line.strip()
                     if line:
                         data = json.loads(line)
-                        record = DecisionRecord(
+                        record = IntelligenceDecisionRecord(
                             **{
                                 k: v
                                 for k, v in data.items()
-                                if k in DecisionRecord.__dataclass_fields__
+                                if k in IntelligenceDecisionRecord.__dataclass_fields__
                             }
                         )
                         self._records.append(record)
@@ -220,7 +230,7 @@ class DecisionIntelligence:
         factors: list[str] | None = None,
     ) -> None:
         """Record a decision and its outcome."""
-        record = DecisionRecord(
+        record = IntelligenceDecisionRecord(
             decision_id=decision_id,
             context_summary=context[:300],
             action_taken=action,

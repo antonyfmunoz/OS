@@ -5,15 +5,13 @@ from __future__ import annotations
 import json
 import logging
 import threading
-import time
 from typing import Any
-from uuid import uuid4
 
 from substrate.governance.risk_classes import RiskClass
-from transports.node_mesh.integration.types import ConnectedNode, NodeCapability
-from substrate.types import CapabilityCategory
 from substrate.sockets.envelopes import CapabilityRequest, CapabilityResponse
 from substrate.sockets.protocols import CapabilityDescriptor, CapabilityHealth
+from substrate.types import CapabilityCategory
+from transports.node_mesh.integration.types import ConnectedNode, NodeCapability
 
 logger = logging.getLogger(__name__)
 
@@ -56,18 +54,36 @@ class NodeCapabilityHandler:
     def handle_capability(self, request: CapabilityRequest) -> CapabilityResponse:
         """Send capability request to node and block until response arrives.
 
-        For write-class capabilities the bare verdict UUID is upgraded to a
-        signed verdict token bound to this node + capability, so the node can
-        validate it independently before executing. Read-only capabilities pass
-        the verdict id through unchanged (the node does not require a verdict).
+        Legacy synchronous mesh may only carry exact-operation-bound read-only
+        requests. Consequential writes must enter DurableRemote; this handler
+        fails closed rather than creating a parallel write protocol.
         """
+        from substrate.execution.mesh_verdict import (
+            READ_ONLY_EFFECT,
+            canonical_payload_digest,
+            canonical_sync_effect_policy,
+        )
+
         req_id = request.request_id.hex
+        declared_effect = READ_ONLY_EFFECT
+        policy = canonical_sync_effect_policy(
+            request.capability_name,
+            declared_effect_class=declared_effect,
+        )
+        if not policy.sync_allowed:
+            return CapabilityResponse(
+                request_id=request.request_id,
+                success=False,
+                error=f"consequential or unknown capability requires DurableRemote: {policy.reason}",
+            )
+
+        payload_digest = canonical_payload_digest(request.params)
+        correlation_id = str(request.trace_id)
+        idempotency_key = req_id
 
         event = threading.Event()
         holder: list[CapabilityResponse] = []
         self._pending[req_id] = (event, holder)
-
-        verdict_field = self._verdict_field_for(request)
 
         rpc_msg = json.dumps(
             {
@@ -75,9 +91,16 @@ class NodeCapabilityHandler:
                 "method": "capability.execute",
                 "params": {
                     "request_id": req_id,
+                    "correlation_id": correlation_id,
+                    "candidate_sha": str(request.metadata.get("candidate_sha", "")).strip(),
+                    "effect_class": declared_effect,
+                    "authoritative_effect_class": policy.authoritative_effect_class,
+                    "effect_policy": policy.policy_id,
+                    "idempotency_key": idempotency_key,
+                    "payload_digest": payload_digest,
                     "capability_name": request.capability_name,
                     "params": request.params,
-                    "governance_verdict_id": verdict_field,
+                    "governance_verdict_id": "",
                     "risk_class": self._risk_class_for(request.capability_name),
                     "trace_id": str(request.trace_id),
                     "timeout_seconds": request.timeout_seconds,
@@ -126,6 +149,8 @@ class NodeCapabilityHandler:
     def _verdict_field_for(self, request: CapabilityRequest) -> str:
         """Return the verdict field to send to the node.
 
+        Retained for compatibility with older tests/imports. Legacy sync writes
+        are rejected in handle_capability() before this can authorize anything.
         Write-class capabilities get a signed verdict token bound to node +
         capability. Read-only capabilities pass the raw verdict id through.
         Fail-closed: if the token cannot be signed (no secret), send the raw id

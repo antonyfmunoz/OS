@@ -37,6 +37,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import re
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from typing import Any
@@ -333,6 +335,27 @@ class WorkRequirements:
     proof_contract: dict[str, Any] = field(default_factory=dict)
     resource_constraints: dict[str, Any] = field(default_factory=dict)
     human_attention_boundary: str = ""
+    # ── writable-path authority (first-class, NEVER evidence-derived) ────────
+    # The workspace-relative paths this Task is AUTHORIZED to modify. This is a
+    # MUTATION AUTHORITY: verification compares the actual diff against exactly
+    # this persisted contract, and a change outside it fails the attempt before
+    # any Proof is minted.
+    #
+    # It is a typed first-class field, never read from ``source_evidence``.
+    # Evidence is provenance (see ``EvidenceRef``): it may record WHERE a scope
+    # came from, but editing a descriptive evidence entry must never widen what
+    # a worker may write. Keeping this on the requirements envelope means the
+    # authority is persisted with the Task contract and travels with it.
+    #
+    # ``scope_declared`` distinguishes the two states a plain empty list cannot:
+    #   * declared + empty  → ZERO paths authorized (a verifier's zero-diff
+    #     contract) — a real, enforceable policy;
+    #   * NOT declared      → no authority resolved → execution BLOCKS.
+    # Without this flag, "nothing declared" and "nothing permitted" are the same
+    # value, and a Task with no contract would silently inherit the strictest or
+    # the loosest reading depending on the caller.
+    writable_path_scope: list[str] = field(default_factory=list)
+    scope_declared: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -340,6 +363,64 @@ class WorkRequirements:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> WorkRequirements:
         return _from_dict(cls, d)
+
+    def declare_writable_paths(self, paths: list[str]) -> WorkRequirements:
+        """Set the authoritative writable-path scope (fluent).
+
+        An explicitly empty list is a legal declaration meaning "no path may
+        change" — which is why it also sets ``scope_declared``.
+        """
+        self.writable_path_scope = [str(p) for p in paths]
+        self.scope_declared = True
+        return self
+
+    def validate_writable_path_scope(self) -> list[str]:
+        """Structural errors in the declared scope (empty list = valid).
+
+        Rejects policies that are not scopes at all. These are refused HERE, at
+        the contract, so an unsafe scope can never be persisted onto a Task and
+        later discovered only at verification time.
+        """
+        errors: list[str] = []
+        if not self.scope_declared:
+            return errors
+        for raw in self.writable_path_scope:
+            path = str(raw or "").strip()
+            if not path:
+                errors.append("empty writable path is not a scope")
+                continue
+            if path.startswith("/"):
+                errors.append(f"absolute writable path {path!r} — must be workspace-relative")
+            # Home-relative EXPANSION only ('~' or '~user' followed by a
+            # separator, or bare '~'). A file legitimately named '~notes.md' is
+            # not home-relative and must stay allowed. KNOWN LIMITATION: a
+            # directory whose name genuinely starts with '~' (e.g. '~tmp~/f.py')
+            # is indistinguishable from '~user/' here and is refused. That is
+            # the fail-closed side of a rare case; declare such a path under a
+            # non-'~' parent.
+            if path == "~" or re.match(r"^~[^/]*/", path):
+                errors.append(f"home-relative writable path {path!r} — must be workspace-relative")
+            # A Windows drive path survives the normalization below (the
+            # backslash swap turns 'C:\\Windows' into a benign-looking relative
+            # 'C:/Windows'), so refuse it explicitly — but only a real drive
+            # prefix (single letter + ':' + separator, or a bare 'C:'), never a
+            # filename that merely contains a colon such as 'a:b.txt'.
+            if re.match(r"^[A-Za-z]:([/\\]|$)", path):
+                errors.append(f"drive-qualified writable path {path!r} — must be workspace-relative")
+            # Normalize with os.path.normpath, not a bare string strip: 'app/..'
+            # and 'app//..' both COLLAPSE to '.' (whole workspace) yet passed the
+            # string-only check, so an unsafe authority could be persisted and was
+            # only refused later at verification. The contract's promise — refused
+            # HERE so it can never be persisted — must actually hold.
+            normalized = os.path.normpath(path.replace("\\", "/")).strip("/")
+            if normalized in (".", ""):
+                errors.append(
+                    "whole-workspace scope ('.') is not a scope — the sandbox mount is a "
+                    "containment boundary, not a mutation authority"
+                )
+            if normalized == ".." or normalized.startswith("../") or "/../" in normalized:
+                errors.append(f"writable path {path!r} escapes the workspace")
+        return errors
 
     def skill_refs(self) -> list[SkillRequirementRef]:
         return [SkillRequirementRef.from_dict(r) for r in self.required_skill_refs]

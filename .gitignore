@@ -198,3 +198,4 @@ graphify-out/
 # Wave-1 field-qualification heavy artifacts: screenshots/DOM/jsonl stay out
 # of git (bounded manifest + matrix report carry the evidence by sha256).
 data/audits/proof/*_wave1_field/raw/
+.pytest_cache/

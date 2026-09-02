@@ -1,0 +1,3180 @@
+from __future__ import annotations
+
+import json
+import os
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from uuid import uuid4
+
+import pytest
+
+from substrate.execution.durable_remote_transport import (
+    DurableRemoteRequest,
+    DurableRemoteStore,
+    make_request,
+    sha256_json,
+)
+
+
+def _request(**overrides: object) -> DurableRemoteRequest:
+    data = {
+        "correlation_id": "w2-rehearsal",
+        "candidate_sha": "abc123",
+        "node_id": "windows-desktop",
+        "operation_type": "codex_probe",
+        "capability": "shell",
+        "params": {"command": "echo ok", "timeout": 5},
+        "ttl_seconds": 60,
+        "idempotency_key": f"test-idem-{uuid4().hex}",
+    }
+    data.update(overrides)
+    return make_request(**data)  # type: ignore[arg-type]
+
+
+def _positive_cleanup(**evidence: object) -> dict[str, object]:
+    return {
+        "enumeration_performed": True,
+        "enumeration_complete": True,
+        "ownership_validated": True,
+        "matched_processes": [],
+        "termination_attempted": False,
+        "post_termination_enumeration_complete": True,
+        "residue_count": 0,
+        "cleanup_verified": True,
+        "process_residue": [],
+        **evidence,
+    }
+
+
+def _positive_no_execution_cleanup(**evidence: object) -> dict[str, object]:
+    return {
+        "launch_not_attempted": True,
+        "process_created": False,
+        "process_side_effect_possible": False,
+        "process_residue": [],
+        **evidence,
+    }
+
+
+def test_request_is_persisted_before_delivery_and_claimed_idempotently(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+
+    assert [item.request_id for item in store.deliverable_for_node("windows-desktop")] == [
+        req.request_id
+    ]
+    delivered = store.mark_delivered(req.request_id)
+    assert delivered.delivery_attempts == 1
+    assert store.deliverable_for_node("windows-desktop", redelivery_after_s=60) == []
+    claimed = store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"pid": 10})
+    assert claimed.lifecycle_state == "CLAIMED"
+    assert claimed.claim_id == "claim-1"
+    assert store.deliverable_for_node("windows-desktop", redelivery_after_s=0) == []
+
+    again = store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"pid": 10})
+    assert again.lifecycle_state == "CLAIMED"
+    assert again.claim_id == "claim-1"
+
+
+def test_store_rejects_unknown_capability_before_queue_persistence(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = _request(capability="unknown.execute")
+
+    with pytest.raises(ValueError, match="canonical consequential policy"):
+        store.put_request(req)
+
+    assert store.get_request(req.request_id) is None
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
+def test_recovered_unknown_capability_cannot_bypass_admission_policy(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="recovered-unknown-capability",
+        capability="unknown.execute",
+    )
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    current = store.get_request(recovered.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert current.claim_id == ""
+    assert current.process_tree == {}
+    assert current.diagnostics["canonical_material_rejected"]["reason"] == (
+        "durable request capability has no canonical consequential policy"
+    )
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+    claimed = store.mark_claimed(recovered.request_id, claim_id="claim-1")
+    running = store.mark_running(recovered.request_id, claim_id="claim-1")
+
+    assert claimed.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert running.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert running.claim_id == ""
+    assert running.process_tree == {}
+    assert store.result_for(recovered.request_id) is None
+
+
+@pytest.mark.parametrize(
+    ("field_name", "value", "reason"),
+    [
+        ("candidate_sha", "", "durable request requires candidate_sha"),
+        ("candidate_sha", "   ", "durable request requires candidate_sha"),
+        ("node_id", "", "durable request requires node_id"),
+        ("node_id", "   ", "durable request requires node_id"),
+        ("operation_type", "", "durable request requires operation_type"),
+        ("operation_type", "   ", "durable request requires operation_type"),
+    ],
+)
+def test_incomplete_recovered_material_fails_closed(
+    tmp_path,
+    field_name: str,
+    value: str,
+    reason: str,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(idempotency_key=f"incomplete-{field_name}")
+    setattr(recovered, field_name, value)
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    current = store.get_request(recovered.request_id)
+
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert current.claim_id == ""
+    assert current.process_tree == {}
+    assert current.diagnostics["canonical_material_rejected"]["reason"] == reason
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+
+def _write_existing_result(
+    root: Path,
+    req: DurableRemoteRequest,
+    *,
+    state: str,
+    claim_id: str,
+) -> None:
+    result = {"success": state == "SUCCEEDED"}
+    cleanup: dict[str, object] = {"process_residue": []}
+    result_digest = sha256_json(
+        {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup}
+    )
+    payload = {
+        "request_id": req.request_id,
+        "correlation_id": req.correlation_id,
+        "node_id": req.node_id,
+        "candidate_sha": req.candidate_sha,
+        "claim_id": claim_id,
+        "state": state,
+        "result": result,
+        "result_digest": result_digest,
+        "cleanup_digest": sha256_json(cleanup),
+        "cleanup": cleanup,
+        "published_at": 123.0,
+    }
+    (root / "results" / f"{req.request_id}.json").write_text(
+        json.dumps(payload, sort_keys=True),
+        encoding="utf-8",
+    )
+
+
+@pytest.mark.parametrize("state", ["SUCCEEDED", "FAILED", "CANCELLED"])
+def test_existing_result_cannot_legitimize_incomplete_recovered_material(
+    tmp_path,
+    state: str,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(idempotency_key=f"incomplete-with-result-{state}")
+    recovered.candidate_sha = ""
+    recovered.lifecycle_state = "RUNNING"
+    recovered.claim_id = "claim-1"
+    recovered.process_tree = {"root_pid": 4242}
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    _write_existing_result(tmp_path, recovered, state=state, claim_id="claim-1")
+
+    updated = store.reconcile_due_requests()
+    current = store.get_request(recovered.request_id)
+
+    assert [item.request_id for item in updated] == [recovered.request_id]
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert current.claim_id == ""
+    assert current.process_tree == {}
+    assert current.diagnostics["canonical_material_rejected"]["reason"] == (
+        "durable request requires candidate_sha"
+    )
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+
+def test_late_result_cannot_legitimize_invalid_recovered_material(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="invalid-recovered-result",
+        capability="unknown.execute",
+    )
+    recovered.lifecycle_state = "RUNNING"
+    recovered.claim_id = "claim-1"
+    recovered.process_tree = {"root_pid": 4242}
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    rejected = store.publish_result(
+        recovered.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"ok": True},
+        cleanup=_positive_cleanup(),
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+    assert rejected.process_tree == {}
+    assert store.result_for(recovered.request_id) is None
+
+
+def test_corrupt_request_record_isolated_while_valid_request_progresses(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    valid = store.put_request(_request(idempotency_key="valid-beside-corrupt-request"))
+    (tmp_path / "requests" / "corrupt-request.json").write_text(
+        '{"request_id":',
+        encoding="utf-8",
+    )
+
+    out = store.deliverable_for_node("windows-desktop")
+
+    assert [item.request_id for item in out] == [valid.request_id]
+    corruption = list((tmp_path / "corrupt").glob("requests-*.json"))
+    assert len(corruption) == 1
+    evidence = json.loads(corruption[0].read_text(encoding="utf-8"))
+    assert evidence["record_kind"] == "requests"
+    assert evidence["disposition"] == "corrupt_record_isolated_fail_closed"
+    assert store.get_request("corrupt-request") is None
+
+
+def test_semantically_malformed_request_record_isolated_while_valid_request_progresses(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    valid = store.put_request(_request(idempotency_key="valid-beside-semantic-corrupt"))
+    malformed = _request(idempotency_key="semantic-corrupt-request")
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        json.dumps(data, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    out = store.deliverable_for_node("windows-desktop")
+
+    assert [item.request_id for item in out] == [valid.request_id]
+    corruption = list((tmp_path / "corrupt").glob("requests-*.json"))
+    assert len(corruption) == 1
+    evidence = json.loads(corruption[0].read_text(encoding="utf-8"))
+    assert evidence["record_kind"] == "requests"
+    assert "materialization failed" in evidence["reason"]
+    assert store.get_request(malformed.request_id) is None
+
+
+def test_corrupt_same_key_request_fences_fresh_admission(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-same-key-fresh-admission"
+    malformed = _request(idempotency_key=key)
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        json.dumps(data, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    fresh = _request(idempotency_key=key)
+    with pytest.raises(ValueError, match="request corruption fenced"):
+        store.put_request(fresh)
+
+    assert not (tmp_path / "requests" / f"{fresh.request_id}.json").exists()
+    assert store.deliverable_for_node("windows-desktop", redelivery_after_s=0) == []
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_escaped_idempotency_value_fences_decoded_same_key(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "escaped-key-1"
+    malformed = _request(idempotency_key=key)
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    raw = json.dumps(data, sort_keys=True).replace(key, "escaped-key-\\u0031")
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        raw,
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="request corruption fenced"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert not list((tmp_path / "requests").glob(f"*{key}*.json"))
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_escaped_idempotency_field_name_fences_decoded_same_key(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "escaped-field-key"
+    malformed = _request(idempotency_key=key)
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    raw = json.dumps(data, sort_keys=True).replace(
+        '"idempotency_key"',
+        '"idempotency_\\u006bey"',
+    )
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        raw,
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="request corruption fenced"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_duplicate_idempotency_fields_are_ambiguous_and_fence_fresh_authority(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    request_id = "duplicate-idempotency-field"
+    raw = (
+        '{"request_id":"duplicate-idempotency-field",'
+        '"correlation_id":"c",'
+        '"candidate_sha":"abc123",'
+        '"node_id":"windows-desktop",'
+        '"operation_type":"codex_probe",'
+        '"capability":"shell",'
+        '"params":{"command":"echo ok"},'
+        '"risk_class":"reversible_write",'
+        '"authority_id":"",'
+        '"idempotency_key":"dup-a",'
+        '"idempotency_\\u006bey":"dup-b",'
+        '"lifecycle_state":"QUEUED"}'
+    )
+    (tmp_path / "requests" / f"{request_id}.json").write_text(raw, encoding="utf-8")
+
+    fresh = _request(idempotency_key="dup-a")
+    with pytest.raises(ValueError, match="unknown-scope corrupt request material"):
+        store.put_request(fresh)
+
+    assert not (tmp_path / "requests" / f"{fresh.request_id}.json").exists()
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_nested_idempotency_decoy_does_not_establish_request_scope(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    (tmp_path / "requests" / "nested-decoy.json").write_text(
+        json.dumps(
+            {
+                "request_id": "nested-decoy",
+                "correlation_id": "c",
+                "candidate_sha": "abc123",
+                "node_id": "windows-desktop",
+                "operation_type": "codex_probe",
+                "capability": "shell",
+                "params": {"metadata": {"idempotency_key": "decoy-key"}},
+                "risk_class": "reversible_write",
+                "authority_id": "",
+                "lifecycle_state": "QUEUED",
+            },
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown-scope corrupt request material"):
+        store.put_request(_request(idempotency_key="decoy-key"))
+
+
+def test_malformed_raw_idempotency_token_does_not_narrow_corruption_scope(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    (tmp_path / "requests" / "raw-decoy.json").write_text(
+        '{"payload":"\\"idempotency_key\\":\\"raw-decoy-key\\""',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown-scope corrupt request material"):
+        store.put_request(_request(idempotency_key="raw-decoy-key"))
+
+
+def test_escaped_request_path_identity_compares_decoded_canonical_value(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = _request(idempotency_key="path-key-1")
+    req.request_id = "request-path-1"
+    raw = json.dumps(req.to_dict(), sort_keys=True)
+    raw = raw.replace("request-path-1", "request-path-\\u0031")
+    raw = raw.replace("path-key-1", "path-key-\\u0031")
+    (tmp_path / "requests" / "request-path-1.json").write_text(raw, encoding="utf-8")
+
+    loaded = store.get_request("request-path-1")
+
+    assert loaded is not None
+    assert loaded.request_id == "request-path-1"
+    assert loaded.idempotency_key == "path-key-1"
+    assert [item.request_id for item in store.deliverable_for_node("windows-desktop")] == [
+        "request-path-1"
+    ]
+
+
+def test_corrupt_same_key_request_fence_survives_quarantine_and_restart(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-key-survives-quarantine"
+    malformed = _request(idempotency_key=key)
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    corrupt_path = tmp_path / "requests" / f"{malformed.request_id}.json"
+    corrupt_path.write_text(json.dumps(data, sort_keys=True), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="request corruption fenced"):
+        store.put_request(_request(idempotency_key=key))
+    corrupt_path.unlink()
+
+    restarted = DurableRemoteStore(tmp_path)
+    with pytest.raises(ValueError, match="request corruption fenced"):
+        restarted.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
+
+
+def test_valid_binding_with_corrupt_same_key_preserves_canonical_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "valid-binding-plus-corrupt-key"
+    canonical = store.put_request(_request(idempotency_key=key))
+    corrupt = _request(idempotency_key=key)
+    data = corrupt.to_dict()
+    data["params"] = "not-an-object"
+    (tmp_path / "requests" / f"{corrupt.request_id}.json").write_text(
+        json.dumps(data, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    replay = store.put_request(
+        _request(
+            idempotency_key=key,
+            params=canonical.params,
+            candidate_sha=canonical.candidate_sha,
+            node_id=canonical.node_id,
+            operation_type=canonical.operation_type,
+            capability=canonical.capability,
+            risk_class=canonical.risk_class,
+        )
+    )
+
+    assert replay.request_id == canonical.request_id
+    assert not (tmp_path / "requests" / f"{corrupt.request_id}.json").read_text(
+        encoding="utf-8"
+    ).startswith("{\"params\":\"not-an-object\"")
+    assert not (tmp_path / "requests" / f"{replay.request_id}.json").read_text(
+        encoding="utf-8"
+    ).startswith("{\"params\":\"not-an-object\"")
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+    assert list((tmp_path / "corrupt").glob("requests-*.json"))
+
+
+def test_corrupt_index_plus_corrupt_same_key_request_fences_admission(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-index-and-request-key"
+    malformed = _request(idempotency_key=key)
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        json.dumps(data, sort_keys=True),
+        encoding="utf-8",
+    )
+    store._idempotency_index_path(key).write_text("{", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="idempotency index corrupt"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "requests").glob("*.json")) == [
+        tmp_path / "requests" / f"{malformed.request_id}.json"
+    ]
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_unknown_scope_corrupt_request_blocks_unproven_fresh_authority(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    (tmp_path / "requests" / "unknown-corrupt.json").write_text(
+        '{"request_id":',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="unknown-scope corrupt request material"):
+        store.put_request(_request(idempotency_key="fresh-after-unknown-corruption"))
+
+
+def test_incomplete_admission_events_do_not_prove_absence(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "incomplete-events-no-absence-proof"
+    with (tmp_path / "events.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write("{\n")
+
+    with pytest.raises(ValueError, match="admission evidence incomplete"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
+    assert list((tmp_path / "corrupt").glob("events-*.json"))
+
+
+def test_key_scoped_corrupt_request_does_not_block_unrelated_key(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    malformed = _request(idempotency_key="corrupt-key-only")
+    data = malformed.to_dict()
+    data["params"] = "not-an-object"
+    (tmp_path / "requests" / f"{malformed.request_id}.json").write_text(
+        json.dumps(data, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    unrelated = store.put_request(_request(idempotency_key="unrelated-key"))
+
+    assert unrelated.request_id
+    assert [item.request_id for item in store.deliverable_for_node("windows-desktop")] == [
+        unrelated.request_id
+    ]
+
+
+def test_request_path_content_identity_mismatch_is_corrupt_and_isolated(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    valid = store.put_request(_request(idempotency_key="valid-beside-path-mismatch"))
+    mismatch_path = tmp_path / "requests" / "path-request-a.json"
+    mismatch_path.write_text(
+        json.dumps(valid.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    out = store.deliverable_for_node("windows-desktop", limit=10)
+
+    assert [item.request_id for item in out] == [valid.request_id]
+    corruption = list((tmp_path / "corrupt").glob("requests-*.json"))
+    assert len(corruption) == 1
+    evidence = json.loads(corruption[0].read_text(encoding="utf-8"))
+    assert "path/content identity mismatch" in evidence["reason"]
+
+
+def test_corrupt_idempotency_index_rebuilds_only_from_valid_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="corrupt-index-valid-request"))
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.write_text("{", encoding="utf-8")
+
+    replay = store.put_request(
+        _request(
+            idempotency_key="corrupt-index-valid-request",
+            params=original.params,
+            candidate_sha=original.candidate_sha,
+            node_id=original.node_id,
+            operation_type=original.operation_type,
+            capability=original.capability,
+            risk_class=original.risk_class,
+        )
+    )
+
+    assert replay.request_id == original.request_id
+    corruption = list((tmp_path / "corrupt").glob("idempotency-*.json"))
+    assert len(corruption) == 1
+    rebuilt = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(rebuilt) == 1
+    index = json.loads(rebuilt[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+
+
+def test_corrupt_event_journal_fails_closed_for_idempotency_recovery(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-events-recovery"
+    original = store.put_request(_request(idempotency_key=key))
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+    with (tmp_path / "events.jsonl").open("ab") as fh:
+        fh.write(b"\xff\n")
+
+    with pytest.raises(ValueError, match="admission evidence incomplete"):
+        store.put_request(
+            _request(
+                idempotency_key=key,
+                params=original.params,
+                candidate_sha=original.candidate_sha,
+                node_id=original.node_id,
+                operation_type=original.operation_type,
+                capability=original.capability,
+                risk_class=original.risk_class,
+            )
+        )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    current = store.get_request(original.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    corruption = list((tmp_path / "corrupt").glob("events-*.json"))
+    assert len(corruption) == 1
+    evidence = json.loads(corruption[0].read_text(encoding="utf-8"))
+    assert evidence["record_kind"] == "events"
+    assert "event journal line" in evidence["reason"]
+
+
+def test_semantically_malformed_event_journal_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "bad-shaped-event"
+    original = store.put_request(_request(idempotency_key=key))
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+    with (tmp_path / "events.jsonl").open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(["not", "an", "object"]) + "\n")
+
+    with pytest.raises(ValueError, match="admission evidence incomplete"):
+        store.put_request(
+            _request(
+                idempotency_key=key,
+                params=original.params,
+                candidate_sha=original.candidate_sha,
+                node_id=original.node_id,
+                operation_type=original.operation_type,
+                capability=original.capability,
+                risk_class=original.risk_class,
+            )
+        )
+
+
+def test_corrupt_idempotency_index_without_valid_request_fences_fresh_admission(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-index-no-valid-request"
+    store._idempotency_index_path(key).write_text("{", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="idempotency index corrupt"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
+    corruption = list((tmp_path / "corrupt").glob("idempotency-*.json"))
+    fences = list((tmp_path / "corrupt").glob("fence-*.json"))
+    assert len(corruption) == 1
+    assert len(fences) == 1
+
+
+def test_corrupt_idempotency_fence_survives_index_file_quarantine(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-index-quarantined-away"
+    index_path = store._idempotency_index_path(key)
+    index_path.write_text("{", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="idempotency index corrupt"):
+        store.put_request(_request(idempotency_key=key))
+    index_path.unlink()
+
+    with pytest.raises(ValueError, match="idempotency index corrupt"):
+        store.put_request(_request(idempotency_key=key))
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
+    assert list((tmp_path / "corrupt").glob("fence-*.json"))
+
+
+def test_corrupt_idempotency_index_with_conflicting_requests_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    key = "corrupt-index-conflicting-valid-requests"
+    first = _request(idempotency_key=key)
+    second = _request(
+        idempotency_key=key,
+        params=first.params,
+        candidate_sha=first.candidate_sha,
+        node_id=first.node_id,
+        operation_type=first.operation_type,
+        capability=first.capability,
+        risk_class=first.risk_class,
+    )
+    (tmp_path / "requests" / f"{first.request_id}.json").write_text(
+        json.dumps(first.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    (tmp_path / "requests" / f"{second.request_id}.json").write_text(
+        json.dumps(second.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    store._idempotency_index_path(key).write_text("{", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="ambiguous idempotency recovery"):
+        store.put_request(
+            _request(
+                idempotency_key=key,
+                params=first.params,
+                candidate_sha=first.candidate_sha,
+                node_id=first.node_id,
+                operation_type=first.operation_type,
+                capability=first.capability,
+                risk_class=first.risk_class,
+            )
+        )
+
+    assert store.get_request(first.request_id).lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert store.get_request(second.request_id).lifecycle_state == "RECONCILIATION_REQUIRED"
+
+
+def test_corrupt_result_record_isolated_and_does_not_terminalize_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request(idempotency_key="corrupt-result-valid-request"))
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.mark_running(req.request_id, claim_id="claim-1", process_tree={"root_pid": 1})
+    (tmp_path / "results" / f"{req.request_id}.json").write_text("{", encoding="utf-8")
+
+    current = store.get_request(req.request_id)
+
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    corruption = list((tmp_path / "corrupt").glob("results-*.json"))
+    assert len(corruption) == 1
+    assert store.result_for(req.request_id) is None
+
+
+def test_corrupt_result_is_not_overwritten_by_later_publication(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request(idempotency_key="corrupt-result-overwrite"))
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.mark_running(req.request_id, claim_id="claim-1", process_tree={"root_pid": 1})
+    result_path = tmp_path / "results" / f"{req.request_id}.json"
+    result_path.write_text("{", encoding="utf-8")
+    original_bytes = result_path.read_bytes()
+
+    final = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True},
+        cleanup=_positive_cleanup(),
+    )
+
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert result_path.read_bytes() == original_bytes
+    assert store.result_for(req.request_id) is None
+    assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+
+
+def test_result_path_content_identity_mismatch_blocks_convergence(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request(idempotency_key="result-path-mismatch"))
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    running = store.mark_running(req.request_id, claim_id="claim-1", process_tree={"root_pid": 1})
+    store._write_result_record(
+        running,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True},
+        cleanup=_positive_cleanup(),
+    )
+    result_path = tmp_path / "results" / f"{req.request_id}.json"
+    data = json.loads(result_path.read_text(encoding="utf-8"))
+    data["request_id"] = "foreign-request"
+    result_path.write_text(json.dumps(data, sort_keys=True), encoding="utf-8")
+
+    current = store.get_request(req.request_id)
+
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert store.result_for(req.request_id) is None
+    corruption = list((tmp_path / "corrupt").glob("results-*.json"))
+    assert len(corruption) == 1
+
+
+def test_claim_guard_rejects_invalid_material_if_recovery_check_is_bypassed(
+    tmp_path, monkeypatch
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="claim-guard-invalid-material",
+        capability="unknown.execute",
+    )
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(store, "_reject_noncanonical_update_locked", lambda *_, **__: None)
+
+    claimed = store.mark_claimed(recovered.request_id, claim_id="claim-1")
+
+    assert claimed.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert claimed.claim_id == ""
+
+
+def test_running_guard_rejects_invalid_material_if_recovery_check_is_bypassed(
+    tmp_path, monkeypatch
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="running-guard-invalid-material",
+        capability="unknown.execute",
+    )
+    recovered.lifecycle_state = "CLAIMED"
+    recovered.claim_id = "claim-1"
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(store, "_reject_noncanonical_update_locked", lambda *_, **__: None)
+
+    running = store.mark_running(recovered.request_id, claim_id="claim-1")
+
+    assert running.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert running.claim_id == ""
+    assert running.process_tree == {}
+
+
+def test_result_guard_rejects_invalid_material_if_recovery_check_is_bypassed(
+    tmp_path, monkeypatch
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="result-guard-invalid-material",
+        capability="unknown.execute",
+    )
+    recovered.lifecycle_state = "RUNNING"
+    recovered.claim_id = "claim-1"
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(store, "_reject_noncanonical_update_locked", lambda *_, **__: None)
+
+    rejected = store.publish_result(
+        recovered.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"ok": True},
+        cleanup={"process_residue": []},
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert store.result_for(recovered.request_id) is None
+
+
+def test_recovered_read_only_capability_cannot_be_promoted_as_durable_write(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="recovered-read-only-capability",
+        capability="terminal.capture",
+        risk_class="read_only",
+    )
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    rejected = store.mark_claimed(recovered.request_id, claim_id="claim-1")
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+    assert rejected.diagnostics["canonical_material_rejected"]["reason"] == (
+        "durable request capability has no canonical consequential policy"
+    )
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+
+def test_recovered_payload_digest_mismatch_without_admission_evidence_fails_closed(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(idempotency_key="recovered-digest-mismatch")
+    recovered.payload_digest = "0" * 64
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    rejected = store.get_request(recovered.request_id)
+
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.diagnostics["canonical_material_rejected"]["reason"] == (
+        "durable request payload_digest mismatch"
+    )
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+
+def test_idempotency_index_write_rejects_invalid_recovered_material(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="index-write-invalid-material",
+        capability="unknown.execute",
+    )
+
+    with pytest.raises(ValueError, match="canonical consequential policy"):
+        store._write_idempotency_index(recovered)
+
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+
+def test_indexed_recovered_invalid_material_is_not_canonical(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="indexed-invalid-material",
+        capability="unknown.execute",
+    )
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    store._idempotency_index_path("indexed-invalid-material").write_text(
+        json.dumps(store._idempotency_binding(recovered), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert not store.is_canonical_request(recovered)
+    rejected = store.get_request(recovered.request_id)
+
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+
+
+def test_delivered_guard_rejects_invalid_material_if_recovery_check_is_bypassed(
+    tmp_path, monkeypatch
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    recovered = _request(
+        idempotency_key="delivered-guard-invalid-material",
+        capability="unknown.execute",
+    )
+    (tmp_path / "requests" / f"{recovered.request_id}.json").write_text(
+        json.dumps(recovered.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(store, "_reject_noncanonical_update_locked", lambda *_, **__: None)
+
+    delivered = store.mark_delivered(recovered.request_id)
+
+    assert delivered.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert delivered.delivery_attempts == 0
+
+
+def test_valid_recovered_request_rebuilds_missing_index_and_can_claim(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="valid-recovered-material"))
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+
+    deliverable = store.deliverable_for_node("windows-desktop")
+    claimed = store.mark_claimed(original.request_id, claim_id="claim-1")
+
+    assert [item.request_id for item in deliverable] == [original.request_id]
+    assert claimed.lifecycle_state == "CLAIMED"
+    assert claimed.claim_id == "claim-1"
+    index = json.loads(store._idempotency_index_path("valid-recovered-material").read_text())
+    assert index["canonical_request_id"] == original.request_id
+    assert index["payload_digest"] == original.payload_digest
+
+
+def test_reconciliation_required_request_is_not_deliverable(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request(idempotency_key="reconciliation-not-deliverable"))
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    reconciled = store.mark_claimed(req.request_id, claim_id="claim-2")
+
+    assert reconciled.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert store.deliverable_for_node("windows-desktop", redelivery_after_s=0) == []
+
+
+def test_same_claim_claimed_replay_does_not_regress_running_state(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"node_pid": 10})
+    running = store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"node_pid": 10, "root_pid": 11, "running_at": 2.0},
+    )
+    assert running.lifecycle_state == "RUNNING"
+
+    replay = store.mark_claimed(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"node_pid": 10, "claimed_at": 3.0},
+    )
+
+    assert replay.lifecycle_state == "RUNNING"
+    assert replay.claim_id == "claim-1"
+    assert replay.process_tree["root_pid"] == 11
+    assert replay.process_tree["running_at"] == 2.0
+
+
+def test_duplicate_request_id_with_different_payload_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = _request(idempotency_key="same-key")
+    store.put_request(req)
+    duplicate = DurableRemoteRequest.from_dict(req.to_dict())
+    duplicate.params = {"command": "echo different", "timeout": 5}
+    duplicate.payload_digest = ""
+    duplicate.__post_init__()
+
+    with pytest.raises(ValueError, match="idempotency conflict: payload_digest"):
+        store.put_request(duplicate)
+
+
+def test_different_request_id_same_idempotency_key_returns_canonical_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    first = store.put_request(_request(idempotency_key="logical-key"))
+    replay = _request(idempotency_key="logical-key")
+
+    returned = store.put_request(replay)
+
+    assert returned.request_id == first.request_id
+    assert returned.request_id != replay.request_id
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+    stored = store.get_request(first.request_id)
+    assert stored is not None
+    assert stored.diagnostics["idempotent_replays"][0]["incoming_transport_request_id"] == (
+        replay.request_id
+    )
+
+
+def test_same_idempotency_key_different_payload_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="conflict-key"))
+    conflicting = _request(
+        idempotency_key="conflict-key",
+        params={"command": "echo different", "timeout": 5},
+    )
+
+    with pytest.raises(ValueError, match="idempotency conflict: payload_digest"):
+        store.put_request(conflicting)
+
+    assert store.get_request(original.request_id).request_id == original.request_id  # type: ignore[union-attr]
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+def test_same_key_tampered_params_with_copied_digest_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="copied-digest-key"))
+    tampered = _request(idempotency_key="copied-digest-key")
+    tampered.params = {"command": "echo tampered", "timeout": 5}
+    tampered.payload_digest = original.payload_digest
+
+    with pytest.raises(ValueError, match="idempotency conflict: payload_digest"):
+        store.put_request(tampered)
+
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+@pytest.mark.parametrize(
+    ("field_name", "override"),
+    [
+        ("capability", {"capability": "terminal.create"}),
+        ("operation_type", {"operation_type": "different_operation"}),
+        ("candidate_sha", {"candidate_sha": "different-sha"}),
+        ("node_id", {"node_id": "different-node"}),
+        ("risk_class", {"risk_class": "write"}),
+        ("authority_id", {"authority_id": "different-authority"}),
+    ],
+)
+def test_same_idempotency_key_different_operation_identity_fails_closed(
+    tmp_path,
+    field_name: str,
+    override: dict[str, object],
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    store.put_request(_request(idempotency_key=f"conflict-{field_name}"))
+
+    with pytest.raises(ValueError, match=f"idempotency conflict: {field_name}"):
+        store.put_request(_request(idempotency_key=f"conflict-{field_name}", **override))
+
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+def test_same_idempotency_key_different_correlation_returns_canonical_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    first = store.put_request(_request(idempotency_key="correlation-replay", correlation_id="corr-a"))
+
+    replay = store.put_request(
+        _request(idempotency_key="correlation-replay", correlation_id="corr-b")
+    )
+
+    assert replay.request_id == first.request_id
+    stored = store.get_request(first.request_id)
+    assert stored is not None
+    assert stored.correlation_id == "corr-a"
+    assert stored.diagnostics["idempotent_replays"][0]["incoming_correlation_id"] == "corr-b"
+
+
+def test_concurrent_same_key_admission_creates_one_canonical_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+
+    def admit() -> str:
+        return store.put_request(_request(idempotency_key="concurrent-key")).request_id
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        request_ids = list(pool.map(lambda _: admit(), range(2)))
+
+    assert len(set(request_ids)) == 1
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+def test_live_idempotency_lock_is_not_stolen_by_age(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    lock_path = store._idempotency_lock_path("live-holder-key")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text(f"{os.getpid()} 1.0\n", encoding="ascii")
+    os.utime(lock_path, (1.0, 1.0))
+
+    with pytest.raises(TimeoutError, match="idempotency"):
+        with store._idempotency_lock("live-holder-key", timeout_s=0.01):
+            raise AssertionError("live idempotency lock was stolen")
+
+    assert lock_path.exists()
+
+
+def test_malformed_idempotency_lock_is_reclaimed_after_timeout(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    lock_path = store._idempotency_lock_path("malformed-holder-key")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path.write_text("", encoding="ascii")
+    os.utime(lock_path, (1.0, 1.0))
+
+    with store._idempotency_lock("malformed-holder-key", timeout_s=0.01):
+        assert lock_path.exists()
+
+    assert not lock_path.exists()
+
+
+def test_update_request_cannot_mutate_admitted_operation_identity(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="immutable-identity"))
+    mutated = DurableRemoteRequest.from_dict(original.to_dict())
+    mutated.candidate_sha = "different-sha"
+    mutated.params = {"command": "echo altered", "timeout": 5}
+    mutated.payload_digest = original.payload_digest
+    mutated.lifecycle_state = "CLAIMED"
+    mutated.claim_id = "claim-1"
+
+    store.update_request(mutated, "MUTATED_UPDATE")
+
+    stored = store.get_request(original.request_id)
+    assert stored is not None
+    assert stored.request_id == original.request_id
+    assert stored.candidate_sha == original.candidate_sha
+    assert stored.params == original.params
+    assert stored.payload_digest == original.payload_digest
+    assert stored.lifecycle_state == "QUEUED"
+    assert stored.claim_id == ""
+    rejected = stored.diagnostics["identity_mutation_rejected"][0]
+    assert set(rejected["fields"]) == {"candidate_sha", "payload_digest", "params"}
+
+
+def test_update_request_cannot_mutate_admitted_verdict_material(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = _request(
+        idempotency_key="immutable-verdict",
+        params={"command": "echo ok", "timeout": 5, "governance_verdict_id": "verdict-A"},
+    )
+    original.diagnostics["verdict_payload_digest"] = "digest-A"
+    original = store.put_request(original)
+    mutated = DurableRemoteRequest.from_dict(original.to_dict())
+    mutated.params["governance_verdict_id"] = "verdict-B"
+    mutated.diagnostics["verdict_payload_digest"] = "digest-B"
+    mutated.lifecycle_state = "CLAIMED"
+    mutated.claim_id = "claim-1"
+
+    store.update_request(mutated, "MUTATED_VERDICT_UPDATE")
+
+    stored = store.get_request(original.request_id)
+    assert stored is not None
+    assert stored.params["governance_verdict_id"] == "verdict-A"
+    assert stored.diagnostics["verdict_payload_digest"] == "digest-A"
+    assert stored.lifecycle_state == "QUEUED"
+    rejected = stored.diagnostics["identity_mutation_rejected"][0]
+    assert set(rejected["fields"]) == {"params", "diagnostics.verdict_payload_digest"}
+
+
+def test_missing_index_recovery_with_duplicate_same_key_records_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="legacy-duplicate"))
+    duplicate = _request(idempotency_key="legacy-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+
+    with pytest.raises(ValueError, match="ambiguous idempotency recovery"):
+        store.put_request(_request(idempotency_key="legacy-duplicate"))
+
+    for request_id in (original.request_id, duplicate.request_id):
+        quarantined = store.get_request(request_id)
+        assert quarantined is not None
+        assert quarantined.lifecycle_state == "RECONCILIATION_REQUIRED"
+        assert quarantined.diagnostics["ambiguous_idempotency_recovery"]["request_ids"] == sorted(
+            [original.request_id, duplicate.request_id]
+        )
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
+def test_missing_index_recovery_rejects_earlier_created_duplicate_takeover(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="created-at-takeover"))
+    duplicate = _request(idempotency_key="created-at-takeover")
+    duplicate.created_at = original.created_at - 100.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+
+    with pytest.raises(ValueError, match="ambiguous idempotency recovery"):
+        store.put_request(_request(idempotency_key="created-at-takeover"))
+
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
+def test_index_present_replay_quarantines_duplicate_same_key_records(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="indexed-legacy-duplicate"))
+    duplicate = _request(idempotency_key="indexed-legacy-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    replay = store.put_request(_request(idempotency_key="indexed-legacy-duplicate"))
+
+    assert replay.request_id == original.request_id
+    quarantined = store.get_request(duplicate.request_id)
+    assert quarantined is not None
+    assert quarantined.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert quarantined.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+    assert [req.request_id for req in store.deliverable_for_node("windows-desktop", limit=1)] == [
+        original.request_id
+    ]
+
+
+def test_delivery_scan_quarantines_index_present_duplicate_same_key_records(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original_req = _request(idempotency_key="deliverable-duplicate")
+    original_req.request_id = "drc-a-canonical"
+    original = store.put_request(original_req)
+    duplicate = _request(idempotency_key="deliverable-duplicate")
+    duplicate.request_id = "drc-z-duplicate"
+    duplicate.created_at = original.created_at + 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert [req.request_id for req in store.deliverable_for_node("windows-desktop", limit=1)] == [
+        original.request_id
+    ]
+    quarantined = store.get_request(duplicate.request_id)
+    assert quarantined is not None
+    assert quarantined.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert quarantined.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+
+
+def test_noncanonical_duplicate_cannot_mutate_lifecycle_or_index(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="stale-inbound-duplicate"))
+    duplicate = _request(idempotency_key="stale-inbound-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    diagnosed = store.record_transport_diagnostic(
+        duplicate.request_id,
+        "control_frame_received",
+    )
+    claimed = store.mark_claimed(duplicate.request_id, claim_id="stale-claim")
+    running = store.mark_running(duplicate.request_id, claim_id="stale-claim")
+
+    for observed in (diagnosed, claimed, running):
+        assert observed is not None
+        assert observed.request_id == duplicate.request_id
+        assert observed.lifecycle_state == "RECONCILIATION_REQUIRED"
+        assert observed.claim_id == ""
+        assert observed.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+            original.request_id
+        )
+
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+
+
+def test_update_request_rejects_noncanonical_duplicate_before_lifecycle_write(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="stale-update-duplicate"))
+    duplicate = _request(idempotency_key="stale-update-duplicate")
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    forged = DurableRemoteRequest.from_dict(duplicate.to_dict())
+    forged.lifecycle_state = "RUNNING"
+    forged.claim_id = "evil-claim"
+    forged.process_tree = {"root_pid": 99999}
+
+    store.update_request(forged, "FORGED_DUPLICATE_RUNNING")
+
+    rejected = store.get_request(duplicate.request_id)
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+    assert rejected.process_tree == {}
+    assert rejected.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+    assert rejected.diagnostics["noncanonical_event_rejected"][-1]["event"] == (
+        "FORGED_DUPLICATE_RUNNING"
+    )
+    stored_original = store.get_request(original.request_id)
+    assert stored_original is not None
+    assert stored_original.lifecycle_state == "QUEUED"
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+
+
+def test_update_request_missing_idempotency_key_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    request = _request(idempotency_key="")
+    request.idempotency_key = ""
+
+    with pytest.raises(ValueError, match="requires idempotency_key"):
+        store.update_request(request, "FORGED_UPDATE_WITHOUT_KEY")
+
+    assert store.get_request(request.request_id) is None
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
+def test_update_request_cannot_first_admit_with_idempotency_key(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    request = _request(idempotency_key="update-first-admission")
+
+    with pytest.raises(KeyError):
+        store.update_request(request, "FORGED_FIRST_ADMISSION")
+
+    assert store.get_request(request.request_id) is None
+    assert store.deliverable_for_node("windows-desktop") == []
+    assert list((tmp_path / "idempotency").glob("*.json")) == []
+
+
+def test_update_request_cannot_admit_duplicate_when_index_missing(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="update-missing-index"))
+    store.mark_claimed(original.request_id, claim_id="claim-1")
+    store.mark_running(original.request_id, claim_id="claim-1", process_tree={"root_pid": 111})
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+    duplicate = _request(idempotency_key="update-missing-index")
+    duplicate.lifecycle_state = "QUEUED"
+    duplicate.claim_id = "evil-claim"
+    duplicate.process_tree = {"root_pid": 99999}
+
+    store.update_request(duplicate, "FORGED_UPDATE_ADMISSION")
+
+    rejected = store.get_request(duplicate.request_id)
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+    assert rejected.process_tree == {}
+    assert rejected.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+    stored_original = store.get_request(original.request_id)
+    assert stored_original is not None
+    assert stored_original.lifecycle_state == "RUNNING"
+    assert stored_original.claim_id == "claim-1"
+    assert stored_original.process_tree["root_pid"] == 111
+    assert store.deliverable_for_node("windows-desktop") == []
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+
+
+def test_terminal_noncanonical_duplicate_quarantine_strips_authority_evidence(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="terminal-duplicate-authority"))
+    duplicate = _request(idempotency_key="terminal-duplicate-authority")
+    duplicate.lifecycle_state = "SUCCEEDED"
+    duplicate.claim_id = "stale-claim"
+    duplicate.lease_expires_at = 456.0
+    duplicate.process_tree = {"root_pid": 99999}
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    replay = store.put_request(_request(idempotency_key="terminal-duplicate-authority"))
+
+    assert replay.request_id == original.request_id
+    quarantined = store.get_request(duplicate.request_id)
+    assert quarantined is not None
+    assert quarantined.lifecycle_state == "SUCCEEDED"
+    assert quarantined.claim_id == ""
+    assert quarantined.lease_expires_at == 0.0
+    assert quarantined.process_tree == {}
+    assert quarantined.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+
+
+def test_wrong_idempotency_index_existing_duplicate_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="wrong-index-key"))
+    duplicate = _request(idempotency_key="wrong-index-key")
+    duplicate.created_at = original.created_at - 1.0
+    duplicate.lifecycle_state = "SUCCEEDED"
+    duplicate.claim_id = "forged-terminal-claim"
+    duplicate.lease_expires_at = 999.0
+    duplicate.process_tree = {"root_pid": 99999}
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    index_path = store._idempotency_index_path("wrong-index-key")
+    index_path.write_text(json.dumps(store._idempotency_binding(duplicate)), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="idempotency index conflicts"):
+        store.put_request(_request(idempotency_key="wrong-index-key"))
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    stored_original = store.get_request(original.request_id)
+    stored_duplicate = store.get_request(duplicate.request_id)
+    assert stored_original is not None
+    assert stored_duplicate is not None
+    assert stored_original.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert stored_duplicate.lifecycle_state == "SUCCEEDED"
+    assert stored_duplicate.claim_id == ""
+    assert stored_duplicate.lease_expires_at == 0.0
+    assert stored_duplicate.process_tree == {}
+    assert stored_duplicate.diagnostics["ambiguous_idempotency_recovery"]["request_ids"] == sorted(
+        [original.request_id, duplicate.request_id]
+    )
+
+
+def test_wrong_idempotency_index_cannot_claim_forged_earlier_duplicate(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="wrong-index-claim"))
+    duplicate = _request(idempotency_key="wrong-index-claim")
+    duplicate.created_at = original.created_at - 1.0
+    duplicate.lifecycle_state = "QUEUED"
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    index_path = store._idempotency_index_path("wrong-index-claim")
+    index_path.write_text(json.dumps(store._idempotency_binding(duplicate)), encoding="utf-8")
+
+    claimed = store.mark_claimed(
+        duplicate.request_id,
+        claim_id="forged-claim",
+        process_tree={"root_pid": 99999},
+    )
+
+    stored_original = store.get_request(original.request_id)
+    stored_duplicate = store.get_request(duplicate.request_id)
+    assert stored_original is not None
+    assert stored_duplicate is not None
+    assert claimed.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert stored_original.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert stored_duplicate.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert stored_duplicate.claim_id == ""
+    assert stored_duplicate.lease_expires_at == 0.0
+    assert stored_duplicate.process_tree == {}
+    assert stored_duplicate.diagnostics["ambiguous_idempotency_recovery"]["request_ids"] == sorted(
+        [original.request_id, duplicate.request_id]
+    )
+
+
+def test_missing_admission_evidence_wrong_index_duplicate_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="missing-admission-wrong-index"))
+    duplicate = _request(idempotency_key="missing-admission-wrong-index")
+    duplicate.created_at = original.created_at - 1.0
+    duplicate.lifecycle_state = "SUCCEEDED"
+    duplicate.claim_id = "forged-terminal-claim"
+    duplicate.lease_expires_at = 999.0
+    duplicate.process_tree = {"root_pid": 99999}
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+    store.events_path.write_text("", encoding="utf-8")
+    index_path = store._idempotency_index_path("missing-admission-wrong-index")
+    index_path.write_text(json.dumps(store._idempotency_binding(duplicate)), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="ambiguous idempotency recovery"):
+        store.put_request(_request(idempotency_key="missing-admission-wrong-index"))
+
+    stored_original = store.get_request(original.request_id)
+    stored_duplicate = store.get_request(duplicate.request_id)
+    assert stored_original is not None
+    assert stored_duplicate is not None
+    assert stored_original.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert stored_duplicate.lifecycle_state == "SUCCEEDED"
+    assert stored_duplicate.claim_id == ""
+    assert stored_duplicate.lease_expires_at == 0.0
+    assert stored_duplicate.process_tree == {}
+    assert stored_duplicate.diagnostics["ambiguous_idempotency_recovery"]["request_ids"] == sorted(
+        [original.request_id, duplicate.request_id]
+    )
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
+def test_mutated_canonical_request_file_cannot_change_admitted_payload(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    admitted = store.put_request(_request(idempotency_key="mutated-canonical-payload"))
+    mutated = DurableRemoteRequest.from_dict(admitted.to_dict())
+    mutated.params = {"command": "echo mutated", "timeout": 5}
+    mutated.payload_digest = ""
+    mutated.__post_init__()
+    (tmp_path / "requests" / f"{mutated.request_id}.json").write_text(
+        json.dumps(mutated.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    rejected = store.get_request(admitted.request_id)
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.diagnostics["ambiguous_idempotency_recovery"]["request_ids"] == [
+        admitted.request_id
+    ]
+    index = json.loads(store._idempotency_index_path("mutated-canonical-payload").read_text())
+    assert index["payload_digest"] == admitted.payload_digest
+
+
+def test_mutated_canonical_request_file_cannot_claim_or_rewrite_index(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    admitted = store.put_request(_request(idempotency_key="mutated-canonical-claim"))
+    mutated = DurableRemoteRequest.from_dict(admitted.to_dict())
+    mutated.params = {"command": "echo mutated", "timeout": 5}
+    mutated.payload_digest = ""
+    mutated.__post_init__()
+    (tmp_path / "requests" / f"{mutated.request_id}.json").write_text(
+        json.dumps(mutated.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    claimed = store.mark_claimed(mutated.request_id, claim_id="forged-claim")
+
+    assert claimed.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert claimed.claim_id == ""
+    index = json.loads(store._idempotency_index_path("mutated-canonical-claim").read_text())
+    assert index["payload_digest"] == admitted.payload_digest
+    assert index["payload_digest"] != mutated.payload_digest
+
+
+def test_missing_admission_evidence_index_binding_blocks_single_file_mutation(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    admitted = store.put_request(_request(idempotency_key="missing-admission-mutated"))
+    store.events_path.write_text("", encoding="utf-8")
+    mutated = DurableRemoteRequest.from_dict(admitted.to_dict())
+    mutated.params = {"command": "echo mutated", "timeout": 5}
+    mutated.payload_digest = ""
+    mutated.__post_init__()
+    (tmp_path / "requests" / f"{mutated.request_id}.json").write_text(
+        json.dumps(mutated.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    rejected = store.get_request(admitted.request_id)
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    index = json.loads(store._idempotency_index_path("missing-admission-mutated").read_text())
+    assert index["payload_digest"] == admitted.payload_digest
+    assert index["payload_digest"] != mutated.payload_digest
+
+
+def test_admission_binding_blocks_mutation_when_index_missing(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    admitted = store.put_request(_request(idempotency_key="admission-binding-mutated"))
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+    mutated = DurableRemoteRequest.from_dict(admitted.to_dict())
+    mutated.params = {"command": "echo mutated", "timeout": 5}
+    mutated.payload_digest = ""
+    mutated.__post_init__()
+    (tmp_path / "requests" / f"{mutated.request_id}.json").write_text(
+        json.dumps(mutated.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    rejected = store.get_request(admitted.request_id)
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+
+
+def test_idempotency_index_write_rejects_same_request_material_drift(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    admitted = store.put_request(_request(idempotency_key="index-write-drift"))
+    mutated = DurableRemoteRequest.from_dict(admitted.to_dict())
+    mutated.params = {"command": "echo mutated", "timeout": 5}
+    mutated.payload_digest = ""
+    mutated.__post_init__()
+
+    with pytest.raises(ValueError, match="idempotency index binding drift"):
+        store._write_idempotency_index(mutated)
+
+    index = json.loads(store._idempotency_index_path("index-write-drift").read_text())
+    assert index["payload_digest"] == admitted.payload_digest
+    assert index["payload_digest"] != mutated.payload_digest
+
+
+def test_keyless_persisted_request_is_not_deliverable_claimable_or_runnable(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    keyless = _request(idempotency_key="")
+    keyless.claim_id = "forged-claim"
+    keyless.lease_expires_at = 999.0
+    keyless.process_tree = {"root_pid": 99999}
+    (tmp_path / "requests" / f"{keyless.request_id}.json").write_text(
+        json.dumps(keyless.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    rejected = store.get_request(keyless.request_id)
+    assert rejected is not None
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.claim_id == ""
+    assert rejected.lease_expires_at == 0.0
+    assert rejected.process_tree == {}
+    assert rejected.diagnostics["missing_idempotency_key_rejected"]["event"] == (
+        "CANONICAL_IDEMPOTENCY_CHECK"
+    )
+
+    claimed = store.mark_claimed(keyless.request_id, claim_id="claim-1")
+    running = store.mark_running(keyless.request_id, claim_id="claim-1")
+
+    assert claimed.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert running.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert running.claim_id == ""
+    assert running.process_tree == {}
+
+
+def test_keyless_persisted_request_direct_mutators_fail_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    keyless = _request(idempotency_key="")
+    keyless.claim_id = "forged-claim"
+    keyless.lease_expires_at = 999.0
+    keyless.process_tree = {"root_pid": 99999}
+    (tmp_path / "requests" / f"{keyless.request_id}.json").write_text(
+        json.dumps(keyless.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    delivered = store.mark_delivered(keyless.request_id)
+    claimed = store.mark_claimed(keyless.request_id, claim_id="claim-1")
+    running = store.mark_running(keyless.request_id, claim_id="claim-1")
+
+    for observed in (delivered, claimed, running):
+        assert observed.lifecycle_state == "RECONCILIATION_REQUIRED"
+        assert observed.claim_id == ""
+        assert observed.lease_expires_at == 0.0
+        assert observed.process_tree == {}
+        assert observed.diagnostics["missing_idempotency_key_rejected"]
+
+
+def test_noncanonical_duplicate_claim_is_rejected_without_prior_diagnostic(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="direct-stale-claim"))
+    duplicate = _request(idempotency_key="direct-stale-claim")
+    duplicate.created_at = original.created_at + 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    claimed = store.mark_claimed(duplicate.request_id, claim_id="stale-claim")
+
+    assert claimed.request_id == duplicate.request_id
+    assert claimed.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert claimed.claim_id == ""
+    assert claimed.diagnostics["duplicate_idempotency_noncanonical"]["canonical_request_id"] == (
+        original.request_id
+    )
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+
+
+def test_noncanonical_duplicate_result_is_rejected_without_index_takeover(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="stale-result-duplicate"))
+    duplicate = _request(idempotency_key="stale-result-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    duplicate.lifecycle_state = "RUNNING"
+    duplicate.claim_id = "stale-claim"
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    rejected = store.publish_result(
+        duplicate.request_id,
+        claim_id="stale-claim",
+        state="SUCCEEDED",
+        result={"ok": True},
+        cleanup={"process_residue": []},
+    )
+
+    assert rejected.request_id == duplicate.request_id
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.result_digest == ""
+    assert store.result_for(duplicate.request_id) is None
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+    stored_original = store.get_request(original.request_id)
+    assert stored_original is not None
+    assert stored_original.lifecycle_state == "QUEUED"
+
+
+def test_noncanonical_duplicate_reconcile_cannot_write_terminal_result(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="stale-reconcile-duplicate"))
+    duplicate = _request(idempotency_key="stale-reconcile-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    duplicate.lifecycle_state = "RECONCILIATION_REQUIRED"
+    duplicate.reconciliation_requested_at = 1.0
+    duplicate.reconciliation_deadline_at = 1.0
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    rejected = store.reconcile_request(duplicate.request_id, reason="duplicate-timeout")
+
+    assert rejected.request_id == duplicate.request_id
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.result_digest == ""
+    assert store.result_for(duplicate.request_id) is None
+    stored_original = store.get_request(original.request_id)
+    assert stored_original is not None
+    assert stored_original.lifecycle_state == "QUEUED"
+
+
+def test_noncanonical_duplicate_fail_unresolved_cannot_write_terminal_result(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="stale-unresolved-duplicate"))
+    duplicate = _request(idempotency_key="stale-unresolved-duplicate")
+    duplicate.created_at = original.created_at + 1.0
+    duplicate.lifecycle_state = "CLAIMED"
+    duplicate.claim_id = "stale-claim"
+    (tmp_path / "requests" / f"{duplicate.request_id}.json").write_text(
+        json.dumps(duplicate.to_dict(), sort_keys=True),
+        encoding="utf-8",
+    )
+
+    rejected = store.fail_unresolved_request(duplicate.request_id, reason="duplicate-timeout")
+
+    assert rejected.request_id == duplicate.request_id
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.result_digest == ""
+    assert store.result_for(duplicate.request_id) is None
+    stored_original = store.get_request(original.request_id)
+    assert stored_original is not None
+    assert stored_original.lifecycle_state == "QUEUED"
+
+
+def test_idempotency_index_write_cannot_take_over_existing_canonical_binding(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="index-takeover"))
+    duplicate = _request(idempotency_key="index-takeover")
+
+    with pytest.raises(ValueError, match="idempotency index canonical request mismatch"):
+        store._write_idempotency_index(duplicate)
+
+    index_files = list((tmp_path / "idempotency").glob("*.json"))
+    assert len(index_files) == 1
+    index = json.loads(index_files[0].read_text(encoding="utf-8"))
+    assert index["canonical_request_id"] == original.request_id
+
+
+@pytest.mark.parametrize("state", ["RUNNING", "SUCCEEDED", "FAILED", "CANCELLED", "RECONCILIATION_REQUIRED"])
+def test_duplicate_after_existing_lifecycle_returns_same_trajectory(tmp_path, state: str) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key=f"terminal-{state.lower()}"))
+    if state == "RUNNING":
+        store.mark_claimed(original.request_id, claim_id="claim-1")
+        store.mark_running(original.request_id, claim_id="claim-1")
+    elif state == "SUCCEEDED":
+        store.mark_claimed(original.request_id, claim_id="claim-1")
+        store.mark_running(original.request_id, claim_id="claim-1")
+        store.publish_result(
+            original.request_id,
+            claim_id="claim-1",
+            state="SUCCEEDED",
+            result={"ok": True},
+            cleanup={"process_residue": []},
+        )
+    elif state == "FAILED":
+        store.mark_claimed(original.request_id, claim_id="claim-1")
+        store.mark_running(original.request_id, claim_id="claim-1")
+        store.publish_result(
+            original.request_id,
+            claim_id="claim-1",
+            state="FAILED",
+            result={"ok": False},
+            cleanup={"process_residue": []},
+        )
+    elif state == "CANCELLED":
+        store.request_cancel(original.request_id)
+    else:
+        store.mark_claimed(original.request_id, claim_id="claim-1")
+        store.mark_claimed(original.request_id, claim_id="claim-2")
+
+    replay = store.put_request(_request(idempotency_key=f"terminal-{state.lower()}"))
+
+    assert replay.request_id == original.request_id
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+def test_missing_idempotency_key_on_consequential_request_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = make_request(
+        correlation_id="missing-key",
+        candidate_sha="abc123",
+        node_id="windows-desktop",
+        operation_type="codex_probe",
+        capability="shell",
+        params={"command": "echo ok", "timeout": 5},
+        ttl_seconds=60,
+    )
+
+    with pytest.raises(ValueError, match="requires idempotency_key"):
+        store.put_request(req)
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
+
+
+def test_omitted_key_retry_with_new_correlation_cannot_fork_request(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    first = make_request(
+        correlation_id="retry-a",
+        candidate_sha="abc123",
+        node_id="windows-desktop",
+        operation_type="codex_probe",
+        capability="shell",
+        params={"command": "echo ok", "timeout": 5},
+        ttl_seconds=60,
+    )
+    second = make_request(
+        correlation_id="retry-b",
+        candidate_sha="abc123",
+        node_id="windows-desktop",
+        operation_type="codex_probe",
+        capability="shell",
+        params={"command": "echo ok", "timeout": 5},
+        ttl_seconds=60,
+    )
+
+    for req in (first, second):
+        with pytest.raises(ValueError, match="requires idempotency_key"):
+            store.put_request(req)
+
+    assert list((tmp_path / "requests").glob("*.json")) == []
+
+
+def test_missing_idempotency_index_is_recovered_from_request_scan(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="scan-recovery"))
+    for path in (tmp_path / "idempotency").glob("*.json"):
+        path.unlink()
+
+    replay = store.put_request(_request(idempotency_key="scan-recovery"))
+
+    assert replay.request_id == original.request_id
+    assert len(list((tmp_path / "idempotency").glob("*.json"))) == 1
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 1
+
+
+def test_idempotency_index_pointing_nowhere_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    original = store.put_request(_request(idempotency_key="dangling-index"))
+    (tmp_path / "requests" / f"{original.request_id}.json").unlink()
+
+    with pytest.raises(ValueError, match="points to missing canonical request"):
+        store.put_request(_request(idempotency_key="dangling-index"))
+
+    assert len(list((tmp_path / "requests").glob("*.json"))) == 0
+
+
+def test_claim_conflict_requires_reconciliation(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    conflicted = store.mark_claimed(req.request_id, claim_id="claim-2")
+
+    assert conflicted.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert conflicted.reconciliation_deadline_at > conflicted.reconciliation_requested_at
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
+def test_running_claim_conflict_requires_bounded_reconciliation(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    conflicted = store.mark_running(req.request_id, claim_id="claim-2")
+
+    assert conflicted.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert conflicted.diagnostics["running_claim_conflict"]["existing"] == "claim-1"
+    assert conflicted.reconciliation_deadline_at > conflicted.reconciliation_requested_at
+
+
+def test_running_without_prior_claim_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+
+    rejected = store.mark_running(req.request_id, claim_id="claim-1")
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert not rejected.claim_id
+    assert rejected.diagnostics["running_without_claim"] == {"incoming": "claim-1"}
+    assert store.deliverable_for_node("windows-desktop") == []
+
+
+def test_running_requires_current_claimed_lifecycle(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    delivered = store.mark_delivered(req.request_id)
+    delivered.claim_id = "claim-1"
+    store.update_request(delivered, "MALFORMED_CLAIM_INJECTION")
+
+    current = store.get_request(req.request_id)
+    assert current is not None
+    assert not current.claim_id
+
+    rejected = store.mark_running(req.request_id, claim_id="claim-1")
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.diagnostics["running_without_claim"] == {"incoming": "claim-1"}
+
+
+def test_running_rejects_corrupt_active_claim_outside_claimed_state(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    corrupt = store.mark_delivered(req.request_id)
+    corrupt.lifecycle_state = "DELIVERED"
+    corrupt.claim_id = "claim-1"
+    store._update_request_locked(corrupt, "CORRUPT_CLAIM_FOR_TEST")
+
+    with pytest.raises(KeyError):
+        store.mark_running(req.request_id, claim_id="claim-1")
+
+    corruption = list((tmp_path / "corrupt").glob("requests-*.json"))
+    assert len(corruption) == 1
+
+
+def test_same_claim_running_replay_updates_execution_evidence_without_reconciliation(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"node_pid": 10})
+    pre_start = store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"node_pid": 10, "root_pid": None, "pre_start_containment": True},
+    )
+    assert pre_start.lifecycle_state == "RUNNING"
+
+    updated = store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"root_pid": 1234, "command_digest": req.payload_digest},
+    )
+
+    assert updated.lifecycle_state == "RUNNING"
+    assert updated.claim_id == "claim-1"
+    assert updated.process_tree["node_pid"] == 10
+    assert updated.process_tree["root_pid"] == 1234
+    assert updated.process_tree["command_digest"] == req.payload_digest
+    assert "running_without_claimed_state" not in updated.diagnostics
+
+
+def test_late_running_after_succeeded_is_ignored_even_for_foreign_claim(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.mark_running(req.request_id, claim_id="claim-1", process_tree={"root_pid": 22})
+    store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "done"},
+        cleanup=_positive_cleanup(),
+    )
+
+    late = store.mark_running(req.request_id, claim_id="foreign-claim")
+
+    assert late.lifecycle_state == "SUCCEEDED"
+    assert late.claim_id == "claim-1"
+    assert "running_claim_conflict" not in late.diagnostics
+    events = [
+        json.loads(line)["event"]
+        for line in store.events_path.read_text(encoding="utf-8").splitlines()
+        if json.loads(line)["request_id"] == req.request_id
+    ]
+    assert events[-1] == "LATE_RUNNING_IGNORED"
+
+
+def test_same_claim_late_running_after_succeeded_is_ignored(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.mark_running(req.request_id, claim_id="claim-1", process_tree={"root_pid": 22})
+    store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "done"},
+        cleanup=_positive_cleanup(),
+    )
+
+    late = store.mark_running(
+        req.request_id,
+        claim_id="claim-1",
+        process_tree={"root_pid": 99, "late": True},
+    )
+
+    assert late.lifecycle_state == "SUCCEEDED"
+    assert late.process_tree["root_pid"] == 22
+    assert "running_without_claimed_state" not in late.diagnostics
+    assert "running_claim_conflict" not in late.diagnostics
+    events = [
+        json.loads(line)["event"]
+        for line in store.events_path.read_text(encoding="utf-8").splitlines()
+        if json.loads(line)["request_id"] == req.request_id
+    ]
+    assert events[-1] == "LATE_RUNNING_IGNORED"
+
+
+def test_late_running_after_failed_cancelled_or_recovery_terminal_does_not_regress(
+    tmp_path,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+
+    failed = store.put_request(_request(idempotency_key="failed"))
+    store.mark_claimed(failed.request_id, claim_id="claim-failed")
+    store.mark_running(failed.request_id, claim_id="claim-failed")
+    store.publish_result(
+        failed.request_id,
+        claim_id="claim-failed",
+        state="FAILED",
+        result={"success": False, "error": "boom"},
+        cleanup=_positive_cleanup(),
+    )
+    assert store.mark_running(failed.request_id, claim_id="late").lifecycle_state == "FAILED"
+
+    cancelled = store.put_request(_request(idempotency_key="cancelled"))
+    store.mark_claimed(cancelled.request_id, claim_id="claim-cancelled")
+    current = store.request_cancel(cancelled.request_id)
+    store.publish_result(
+        cancelled.request_id,
+        claim_id="claim-cancelled",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup=_positive_cleanup(
+            **current.cancellation_identity(claim_id="claim-cancelled")
+        ),
+    )
+    assert (
+        store.mark_running(cancelled.request_id, claim_id="late").lifecycle_state
+        == "CANCELLED"
+    )
+
+    recovery = store.put_request(_request(idempotency_key="recovery"))
+    store.mark_claimed(recovery.request_id, claim_id="claim-1")
+    assert store.mark_claimed(recovery.request_id, claim_id="claim-2").lifecycle_state == (
+        "RECONCILIATION_REQUIRED"
+    )
+    assert (
+        store.mark_running(recovery.request_id, claim_id="claim-2").lifecycle_state
+        == "RECONCILIATION_REQUIRED"
+    )
+
+
+def test_success_after_cancel_request_wins_before_cancel_ack(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    cancelled = store.request_cancel(req.request_id)
+    assert cancelled.lifecycle_state == "CANCEL_REQUESTED"
+
+    final = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "late"},
+        cleanup=_positive_cleanup(),
+    )
+
+    assert final.lifecycle_state == "SUCCEEDED"
+    assert final.diagnostics["success_after_cancel_requested"]["resolution"] == (
+        "success_won_before_acknowledged_cancellation"
+    )
+    assert store.result_for(req.request_id)["state"] == "SUCCEEDED"
+
+
+def test_cancel_ack_rejects_late_success_but_preserves_evidence(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.request_cancel(req.request_id)
+    current = store.get_request(req.request_id)
+    assert current is not None
+    cancelled = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup=_positive_cleanup(**current.cancellation_identity(claim_id="claim-1")),
+    )
+    assert cancelled.lifecycle_state == "CANCELLED"
+    request_path = store._request_path(req.request_id)
+    terminal_bytes = request_path.read_bytes()
+
+    final = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "too late"},
+    )
+
+    assert final.lifecycle_state == "CANCELLED"
+    assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+    assert request_path.read_bytes() == terminal_bytes
+
+
+def test_cancel_ack_zero_generation_rejected_before_terminal_cancelled(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    cancelled = store.request_cancel(req.request_id)
+
+    rejected = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={
+            "process_residue": [],
+            "request_id": req.request_id,
+            "correlation_id": req.correlation_id,
+            "node_id": req.node_id,
+            "claim_id": "claim-1",
+            "cancellation_generation": 0.0,
+            "cancellation_requested_at": 0.0,
+            "cancellation_deadline_at": cancelled.cancellation_deadline_at,
+            "cancellation_envelope_digest": "wrong",
+        },
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.cancellation_acknowledged_at == 0.0
+    assert rejected.diagnostics["cancel_ack_rejected"][0]["reason"].startswith(
+        "cancel_ack_identity_mismatch"
+    )
+    assert store.result_for(req.request_id) is None
+    assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+
+
+def test_cancel_ack_cleanup_proof_without_identity_rejected(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.request_cancel(req.request_id)
+
+    rejected = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup=_positive_cleanup(),
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.cancellation_acknowledged_at == 0.0
+    assert rejected.diagnostics["cancel_ack_rejected"][0]["reason"].startswith(
+        "cancel_ack_identity_mismatch"
+    )
+    assert store.result_for(req.request_id) is None
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("cancellation_generation", None),
+        ("cancellation_generation", 0.0),
+        ("cancellation_generation", 99.0),
+        ("cancellation_generation", 101.0),
+        ("cancellation_requested_at", None),
+        ("cancellation_deadline_at", None),
+        ("cancellation_deadline_at", 0.0),
+        ("claim_id", "other-claim"),
+        ("request_id", "other-request"),
+        ("correlation_id", "other-correlation"),
+        ("cancellation_envelope_digest", "wrong"),
+    ],
+)
+def test_cancel_ack_identity_fields_must_match_active_cancellation(
+    tmp_path, monkeypatch, field, value
+) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    monkeypatch.setattr(durable, "now_s", lambda: 100.0)
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    cancelled = store.request_cancel(req.request_id)
+    cleanup = {"process_residue": [], **cancelled.cancellation_identity(claim_id="claim-1")}
+    if value is None:
+        cleanup.pop(field)
+    else:
+        cleanup[field] = value
+
+    rejected = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup=cleanup,
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.cancellation_acknowledged_at == 0.0
+    assert rejected.diagnostics["cancel_ack_rejected"]
+    assert store.result_for(req.request_id) is None
+
+
+def test_unclaimed_result_is_rejected_and_cannot_terminalize(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+
+    rejected = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "not claimed"},
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert rejected.diagnostics["result_without_claim"]["incoming"] == "claim-1"
+    assert store.result_for(req.request_id) is None
+    assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+
+
+def test_unclaimed_marker_without_positive_no_execution_proof_is_rejected(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+
+    rejected = store.publish_result(
+        req.request_id,
+        claim_id="unclaimed",
+        state="FAILED",
+        result={"success": False, "error": "pre-launch failure"},
+        cleanup={"process_residue": []},
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert store.result_for(req.request_id) is None
+    assert rejected.diagnostics["result_without_claim"] == {"incoming": "unclaimed"}
+
+
+def test_duplicate_cancel_does_not_extend_cancellation_deadline(tmp_path, monkeypatch) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    monkeypatch.setattr(durable, "now_s", lambda: 100.0)
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    first = store.request_cancel(req.request_id)
+
+    monkeypatch.setattr(durable, "now_s", lambda: 120.0)
+    second = store.request_cancel(req.request_id)
+
+    assert second.cancellation_requested_at == first.cancellation_requested_at
+    assert second.cancellation_deadline_at == first.cancellation_deadline_at
+
+
+def test_update_request_cannot_regress_recovery_state(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    recovery = store.mark_claimed(req.request_id, claim_id="claim-2")
+    stale = DurableRemoteRequest.from_dict(recovery.to_dict())
+    stale.lifecycle_state = "RUNNING"
+
+    store.update_request(stale, "RUNNING")
+
+    final = store.get_request(req.request_id)
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+
+def test_update_request_cannot_regress_active_state_or_drop_claim(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    running = store.mark_running(req.request_id, claim_id="claim-1", process_tree={"pid": 11})
+    stale = DurableRemoteRequest.from_dict(running.to_dict())
+    stale.lifecycle_state = "QUEUED"
+    stale.claim_id = ""
+    stale.process_tree = {}
+
+    store.update_request(stale, "QUEUED")
+
+    final = store.get_request(req.request_id)
+    assert final is not None
+    assert final.lifecycle_state == "RUNNING"
+    assert final.claim_id == "claim-1"
+    assert final.process_tree["pid"] == 11
+    assert final.process_tree["running_at"] >= running.process_tree["running_at"]
+
+
+def test_existing_terminal_result_recovers_active_request_after_crash_split(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    active = store.mark_running(req.request_id, claim_id="claim-1")
+    digest = store._write_result_record(
+        active,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "ok"},
+        cleanup=_positive_cleanup(),
+    )
+
+    recovered = store.get_request(req.request_id)
+
+    assert recovered is not None
+    assert recovered.lifecycle_state == "SUCCEEDED"
+    assert recovered.result_digest == digest
+    assert recovered.diagnostics["recovered_terminal_result"] is True
+
+
+def test_existing_terminal_result_without_prior_claim_is_not_recovered(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store._write_result_record(
+        req,
+        claim_id="claim-foreign",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "unclaimed"},
+        cleanup=_positive_cleanup(),
+    )
+
+    current = store.get_request(req.request_id)
+
+    assert current is not None
+    assert current.lifecycle_state == "QUEUED"
+    assert current.claim_id == ""
+    assert current.diagnostics["unclaimed_terminal_result_ignored"][0]["result_claim_id"] == (
+        "claim-foreign"
+    )
+
+
+def test_existing_terminal_result_with_bad_digest_is_not_recovered(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    running = store.mark_running(req.request_id, claim_id="claim-1")
+    store._write_result_record(
+        running,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "ok"},
+        cleanup=_positive_cleanup(),
+    )
+    result_path = tmp_path / "results" / f"{req.request_id}.json"
+    data = result_path.read_text(encoding="utf-8")
+    result_path.write_text(data.replace('"stdout": "ok"', '"stdout": "tampered"'), encoding="utf-8")
+
+    current = store.get_request(req.request_id)
+
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert current.diagnostics["terminal_result_digest_mismatch"][0]["stored_result_digest"]
+    assert store.result_for(req.request_id)["result"]["stdout"] == "tampered"
+
+
+def test_terminal_result_with_bad_digest_enters_reconciliation(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "ok"},
+        cleanup=_positive_cleanup(),
+    )
+    result_path = tmp_path / "results" / f"{req.request_id}.json"
+    data = result_path.read_text(encoding="utf-8")
+    result_path.write_text(data.replace('"stdout": "ok"', '"stdout": "tampered"'), encoding="utf-8")
+
+    current = store.get_request(req.request_id)
+
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert current.diagnostics["terminal_result_digest_mismatch"][0]["stored_result_digest"]
+
+
+def test_existing_terminal_result_with_residue_enters_reconciliation(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    running = store.mark_running(req.request_id, claim_id="claim-1")
+    store._write_result_record(
+        running,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "ok"},
+        cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
+    )
+
+    current = store.get_request(req.request_id)
+
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert current.diagnostics["success_without_cleanup"][0]["pid"] == 123
+    assert current.cleanup["process_residue"][0]["state"] == "still_alive"
+
+
+def test_existing_terminal_result_with_residue_is_not_deliverable(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    running = store.mark_running(req.request_id, claim_id="claim-1")
+    store._write_result_record(
+        running,
+        claim_id="claim-1",
+        state="FAILED",
+        result={"success": False, "error": "timed out"},
+        cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    current = store.get_request(req.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert current.diagnostics["failed_without_cleanup"][0]["pid"] == 123
+
+
+def test_cancel_before_claim_terminalizes_without_execution(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+
+    cancelled = store.request_cancel(req.request_id)
+
+    assert cancelled.lifecycle_state == "CANCELLED"
+    assert cancelled.claim_id == "unclaimed"
+    assert cancelled.diagnostics["cancelled_before_claim"] is True
+    assert store.result_for(req.request_id)["state"] == "CANCELLED"
+
+
+def test_cancel_before_claim_terminal_result_recovers_after_crash_split(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store._write_result_record(
+        req,
+        claim_id="unclaimed",
+        state="CANCELLED",
+        result={"success": False, "error": "durable remote request cancelled before claim"},
+        cleanup=_positive_no_execution_cleanup(),
+    )
+
+    recovered = store.get_request(req.request_id)
+
+    assert recovered is not None
+    assert recovered.lifecycle_state == "CANCELLED"
+    assert recovered.claim_id == "unclaimed"
+    assert recovered.diagnostics["cancelled_before_claim"] is True
+
+
+def test_cancel_before_claim_crash_split_is_not_deliverable(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store._write_result_record(
+        req,
+        claim_id="unclaimed",
+        state="CANCELLED",
+        result={"success": False, "error": "durable remote request cancelled before claim"},
+        cleanup=_positive_no_execution_cleanup(),
+    )
+
+    assert store.deliverable_for_node("windows-desktop") == []
+    recovered = store.get_request(req.request_id)
+    assert recovered is not None
+    assert recovered.lifecycle_state == "CANCELLED"
+
+
+def test_cancel_requested_cannot_be_regressed_by_late_claim_or_running_ack(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    cancelled = store.request_cancel(req.request_id)
+    assert cancelled.lifecycle_state == "CANCEL_REQUESTED"
+
+    late_claim = store.mark_claimed(req.request_id, claim_id="claim-1")
+    late_running = store.mark_running(req.request_id, claim_id="claim-1")
+
+    assert late_claim.lifecycle_state == "CANCEL_REQUESTED"
+    assert late_running.lifecycle_state == "CANCEL_REQUESTED"
+    final = store.get_request(req.request_id)
+    assert final is not None
+    assert final.lifecycle_state == "CANCEL_REQUESTED"
+    assert final.cancellation_deadline_at == cancelled.cancellation_deadline_at
+
+
+def test_terminal_result_is_idempotent_but_conflicting_replay_fails_closed(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    first = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "ok"},
+        cleanup=_positive_cleanup(),
+    )
+    assert first.lifecycle_state == "SUCCEEDED"
+    request_path = store._request_path(req.request_id)
+    terminal_bytes = request_path.read_bytes()
+
+    same = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "ok"},
+        cleanup=_positive_cleanup(),
+    )
+    assert same.lifecycle_state == "SUCCEEDED"
+
+    conflict = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="FAILED",
+        result={"success": False, "error": "different"},
+    )
+    assert conflict.lifecycle_state == "SUCCEEDED"
+    assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+    assert request_path.read_bytes() == terminal_bytes
+
+
+def test_remove_request_refuses_terminal_evidence_without_explicit_force(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request(idempotency_key="remove-terminal"))
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "ok"},
+        cleanup=_positive_cleanup(),
+    )
+
+    with pytest.raises(ValueError, match="terminal durable request"):
+        store.remove_request(req.request_id)
+
+    assert store.get_request(req.request_id) is not None
+    assert store.result_for(req.request_id) is not None
+    store.remove_request(req.request_id, force_terminal=True)
+    assert store.get_request(req.request_id) is None
+    with pytest.raises(ValueError, match="points to missing canonical request"):
+        store.put_request(_request(idempotency_key="remove-terminal"))
+
+
+def test_remove_request_preserves_recovery_idempotency_tombstone(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request(idempotency_key="remove-recovery"))
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.mark_claimed(req.request_id, claim_id="claim-2")
+    current = store.get_request(req.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    store.remove_request(req.request_id)
+
+    assert store.get_request(req.request_id) is None
+    with pytest.raises(ValueError, match="points to missing canonical request"):
+        store.put_request(_request(idempotency_key="remove-recovery"))
+
+
+def test_expired_request_cannot_publish_success(tmp_path, monkeypatch) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    monkeypatch.setattr(durable, "now_s", lambda: 100.0)
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request(ttl_seconds=1))
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    monkeypatch.setattr(durable, "now_s", lambda: 200.0)
+
+    deliverable = store.deliverable_for_node("windows-desktop")
+    assert [item.request_id for item in deliverable] == [req.request_id]
+    expired = store.get_request(req.request_id)
+    assert expired is not None
+    assert expired.lifecycle_state == "CANCEL_REQUESTED"
+    assert expired.diagnostics["expired_during_owned_execution"] is True
+
+    final = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True},
+    )
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+
+
+def test_bounded_reconciliation_preserves_unknown_outcome(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
+    conflicted = store.publish_result(
+        req.request_id,
+        claim_id="foreign-claim",
+        state="SUCCEEDED",
+        result={"success": True},
+    )
+    assert conflicted.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    reconciled = store.reconcile_request(req.request_id, reason="unit-test-bound")
+
+    assert reconciled.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert reconciled.diagnostics["reconciled_fail_closed"]["reason"] == "unit-test-bound"
+    assert store.result_for(req.request_id) is None
+    assert reconciled.diagnostics["terminal_admissibility_rejected"][-1]["proposed_state"] == (
+        "FAILED"
+    )
+
+
+def test_cancelled_with_process_residue_requires_reconciliation(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.request_cancel(req.request_id)
+
+    final = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={
+            "process_residue": [{"pid": 123, "state": "still_alive"}],
+            **store.get_request(req.request_id).cancellation_identity(claim_id="claim-1"),
+        },
+    )
+
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["cancel_without_cleanup"][0]["state"] == "still_alive"
+    assert final.cleanup["process_residue"][0]["pid"] == 123
+
+
+def test_failed_with_process_residue_requires_reconciliation(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    final = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="FAILED",
+        result={"success": False, "error": "timed out"},
+        cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
+    )
+
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["failed_without_cleanup"][0]["state"] == "still_alive"
+    assert final.cleanup["process_residue"][0]["pid"] == 123
+    assert store.result_for(req.request_id) is None
+
+
+def test_success_with_process_residue_requires_reconciliation(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    final = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "ok"},
+        cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
+    )
+
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["success_without_cleanup"][0]["state"] == "still_alive"
+    assert store.result_for(req.request_id) is None
+
+
+def test_success_without_cleanup_proof_requires_reconciliation(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+
+    final = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="SUCCEEDED",
+        result={"success": True, "stdout": "ok"},
+        cleanup=None,
+    )
+
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["success_without_cleanup"] == [
+        {"state": "cleanup_proof_missing"}
+    ]
+    assert final.cleanup == {}
+    assert store.result_for(req.request_id) is None
+
+
+def test_residue_bearing_reconciliation_does_not_terminalize_without_cleanup(
+    tmp_path, monkeypatch
+) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    monkeypatch.setattr(durable, "now_s", lambda: 100.0)
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.request_cancel(req.request_id)
+    store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={
+            "process_residue": [{"pid": 123, "state": "still_alive"}],
+            **store.get_request(req.request_id).cancellation_identity(claim_id="claim-1"),
+        },
+    )
+
+    monkeypatch.setattr(durable, "now_s", lambda: 200.0)
+    final = store.get_request(req.request_id)
+    unresolved = store.fail_unresolved_request(req.request_id, reason="unit-timeout")
+    direct = store.reconcile_request(req.request_id, reason="direct-public-call")
+
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert unresolved.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert direct.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert store.result_for(req.request_id) is None
+
+
+def test_reconciliation_required_rejects_unrelated_same_claim_terminal_cleanup(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    conflicted = store.publish_result(
+        req.request_id,
+        claim_id="foreign",
+        state="SUCCEEDED",
+        result={"success": True},
+    )
+    assert conflicted.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    assert store.request_cancel(req.request_id).lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert (
+        store.mark_claimed(req.request_id, claim_id="claim-1").lifecycle_state
+        == "RECONCILIATION_REQUIRED"
+    )
+    still_reconciling = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="FAILED",
+        result={"success": False, "error": "late"},
+        cleanup={
+            "process_residue": [],
+            "cancellation_generation": 100.0,
+            "cancellation_deadline_at": 200.0,
+        },
+    )
+    assert still_reconciling.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert "recovered_from_reconciliation_result" not in still_reconciling.diagnostics
+
+    rejected = list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+    assert len(rejected) >= 2
+
+
+def test_reconciliation_required_rejects_same_claim_without_cleanup_proof(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    conflict = store.publish_result(
+        req.request_id,
+        claim_id="foreign",
+        state="SUCCEEDED",
+        result={"success": True},
+    )
+    assert conflict.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    still_reconciling = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="FAILED",
+        result={"success": False, "error": "late"},
+    )
+
+    assert still_reconciling.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert "recovered_from_reconciliation_result" not in still_reconciling.diagnostics
+    rejected = list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+    assert len(rejected) >= 2
+
+
+def test_cancellation_ack_recovery_requires_matching_generation_and_deadline(
+    tmp_path, monkeypatch
+) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    monkeypatch.setattr(durable, "now_s", lambda: 100.0)
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(
+        _request(
+            params={
+                "command": "sleep",
+                "timeout": 60,
+                "budgets": {
+                    "cancellation_delivery_timeout_s": 1,
+                    "process_termination_timeout_s": 1,
+                    "cancellation_ack_timeout_s": 1,
+                    "reconciliation_timeout_s": 10,
+                },
+            }
+        )
+    )
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    cancelled = store.request_cancel(req.request_id)
+
+    monkeypatch.setattr(durable, "now_s", lambda: 104.0)
+    current = store.get_request(req.request_id)
+    assert current is not None
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    wrong_generation = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={
+            "process_residue": [],
+            "cancellation_generation": cancelled.cancellation_requested_at - 1,
+            "cancellation_requested_at": cancelled.cancellation_requested_at - 1,
+            "cancellation_deadline_at": cancelled.cancellation_deadline_at,
+        },
+    )
+    assert wrong_generation.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    recovered = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup=_positive_cleanup(**cancelled.cancellation_identity(claim_id="claim-1")),
+    )
+
+    assert recovered.lifecycle_state == "CANCELLED"
+    assert recovered.diagnostics["recovered_from_reconciliation_result"][0]["claim_id"] == "claim-1"
+
+
+def test_cancel_requested_eventually_remains_reconciliation_if_not_acknowledged(
+    tmp_path, monkeypatch
+) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    monkeypatch.setattr(durable, "now_s", lambda: 100.0)
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
+    store.request_cancel(req.request_id)
+
+    monkeypatch.setattr(durable, "now_s", lambda: 176.0)
+    out = store.deliverable_for_node("windows-desktop")
+
+    assert out == []
+    final = store.get_request(req.request_id)
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["reconciliation_reasons"] == ["cancellation_ack_deadline_expired"]
+
+    monkeypatch.setattr(durable, "now_s", lambda: 191.0)
+    final = store.get_request(req.request_id)
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["reconciled_fail_closed"]["reason"] == "reconciliation_deadline_expired"
+
+
+def test_get_request_converges_overdue_cancel_without_node_delivery(tmp_path, monkeypatch) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    monkeypatch.setattr(durable, "now_s", lambda: 100.0)
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.request_cancel(req.request_id)
+
+    monkeypatch.setattr(durable, "now_s", lambda: 176.0)
+    final = store.get_request(req.request_id)
+
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["reconciliation_reasons"] == ["cancellation_ack_deadline_expired"]
+
+    monkeypatch.setattr(durable, "now_s", lambda: 191.0)
+    final = store.get_request(req.request_id)
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["reconciled_fail_closed"]["reason"] == "reconciliation_deadline_expired"
+
+
+def test_get_request_preserves_overdue_reconciliation_without_health_sweep(
+    tmp_path, monkeypatch
+) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    monkeypatch.setattr(durable, "now_s", lambda: 100.0)
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    conflict = store.mark_claimed(req.request_id, claim_id="claim-2")
+    assert conflict.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    monkeypatch.setattr(durable, "now_s", lambda: 116.0)
+    final = store.get_request(req.request_id)
+
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["reconciled_fail_closed"]["reason"] == "reconciliation_deadline_expired"
+
+
+def test_reconcile_due_requests_advances_without_node_delivery(tmp_path, monkeypatch) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    monkeypatch.setattr(durable, "now_s", lambda: 100.0)
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
+    store.request_cancel(req.request_id)
+
+    monkeypatch.setattr(durable, "now_s", lambda: 176.0)
+    updated = store.reconcile_due_requests()
+
+    assert [item.request_id for item in updated] == [req.request_id]
+    final = store.get_request(req.request_id)
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    monkeypatch.setattr(durable, "now_s", lambda: 191.0)
+    updated = store.reconcile_due_requests()
+
+    assert updated == []
+    final = store.get_request(req.request_id)
+    assert final is not None
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+
+def test_residue_reconciliation_reminders_are_bounded(tmp_path, monkeypatch) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    clock = {"t": 100.0}
+    monkeypatch.setattr(durable, "now_s", lambda: clock["t"])
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
+    store.request_cancel(req.request_id)
+    store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
+    )
+
+    clock["t"] = 1000.0
+    for _ in range(20):
+        store.deliverable_for_node("windows-desktop")
+        store.reconcile_due_requests()
+
+    events = [
+        json.loads(line)["event"]
+        for line in (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert events.count("RESIDUE_RECONCILIATION_PENDING") == 1
+
+    current = store.get_request(req.request_id)
+    assert current is not None
+    observation = current.diagnostics["residue_reconciliation_observation"]
+    assert observation["check_count"] > 1
+    assert observation["event_count"] == 1
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+
+    clock["t"] = float(observation["next_event_after"])
+    store.reconcile_due_requests()
+    events = [
+        json.loads(line)["event"]
+        for line in (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+    assert events.count("RESIDUE_RECONCILIATION_PENDING") == 2
+
+
+def test_residue_reconciliation_backoff_survives_store_restart(tmp_path, monkeypatch) -> None:
+    import substrate.execution.durable_remote_transport as durable
+
+    clock = {"t": 100.0}
+    monkeypatch.setattr(durable, "now_s", lambda: clock["t"])
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
+    store.request_cancel(req.request_id)
+    store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={"process_residue": [{"pid": 123, "state": "still_alive"}]},
+    )
+
+    clock["t"] = 1000.0
+    store.reconcile_due_requests()
+    current = store.get_request(req.request_id)
+    assert current is not None
+    observation = current.diagnostics["residue_reconciliation_observation"]
+    next_event_after = float(observation["next_event_after"])
+    def reminder_count() -> int:
+        return sum(
+            json.loads(line).get("event") == "RESIDUE_RECONCILIATION_PENDING"
+            for line in (tmp_path / "events.jsonl").read_text(encoding="utf-8").splitlines()
+        )
+
+    before = reminder_count()
+
+    restarted = DurableRemoteStore(tmp_path)
+    clock["t"] = next_event_after - 0.01
+    for _ in range(20):
+        restarted.deliverable_for_node("windows-desktop")
+        restarted.reconcile_due_requests()
+    unchanged = reminder_count()
+    assert unchanged == before
+
+    clock["t"] = next_event_after
+    restarted.reconcile_due_requests()
+    after = reminder_count()
+    assert after == before + 1
+
+
+def test_fail_unresolved_request_records_evidence_without_false_terminal(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
+    store.request_cancel(req.request_id)
+
+    final = store.fail_unresolved_request(req.request_id, reason="unit-timeout")
+
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["unresolved_failed_closed"]["reason"] == "unit-timeout"
+    assert store.result_for(req.request_id) is None
+
+
+@pytest.mark.parametrize("proposed_state", ["FAILED", "CANCELLED"])
+def test_central_terminal_gate_rejects_launch_uncertainty_for_each_terminal_outcome(
+    tmp_path,
+    proposed_state: str,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    current = store.get_request(req.request_id)
+    assert current is not None
+    current.process_tree = {
+        "launch_state": "LAUNCH_IN_PROGRESS",
+        "launch_intent_id": "launch-uncertain",
+    }
+    current.cancellation_requested_at = 100.0
+    current.cancellation_deadline_at = 130.0
+    cleanup = _positive_cleanup(
+        **current.cancellation_identity(claim_id="claim-1")
+    )
+
+    final = store._terminalize(
+        current,
+        claim_id="claim-1",
+        state=proposed_state,
+        result={"success": False, "error": "wrapper failed during uncertain launch"},
+        cleanup=cleanup,
+        event="TEST_TERMINAL_PROPOSAL",
+    )
+
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["terminal_admissibility_rejected"][-1]["reason"] == (
+        "launch_in_progress_outcome_unknown"
+    )
+    assert store.result_for(req.request_id) is None
+
+
+def test_terminal_replay_with_cleanup_conflict_preserves_terminal_lifecycle(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    store.request_cancel(req.request_id)
+    current = store.get_request(req.request_id)
+    assert current is not None
+    first = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup=_positive_cleanup(**current.cancellation_identity(claim_id="claim-1")),
+    )
+    assert first.lifecycle_state == "CANCELLED"
+
+    conflict = store.publish_result(
+        req.request_id,
+        claim_id="claim-1",
+        state="CANCELLED",
+        result={"success": False, "error": "cancelled"},
+        cleanup={"process_residue": [{"pid": 999, "state": "still_alive"}]},
+    )
+
+    assert conflict.lifecycle_state == "CANCELLED"
+    assert conflict.cleanup["process_residue"] == []
+    observed = store.get_request(req.request_id)
+    assert observed is not None
+    assert observed.lifecycle_state == "CANCELLED"
+    assert observed.cleanup["process_residue"] == []
+    rejected = list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
+    assert rejected
+    rejected_payload = json.loads(rejected[0].read_text(encoding="utf-8"))
+    assert rejected_payload["rejected_reason"] == "terminal_cancel_cleanup_conflict"
+    assert rejected_payload["cleanup"]["process_residue"][0]["state"] == "still_alive"

@@ -279,6 +279,50 @@ def planning_operation_key(tenant_id: str, conversation_id: str, client_message_
 # ── The protocol ─────────────────────────────────────────────────────────────
 
 
+class TaskScopeUndeclaredError(RuntimeError):
+    """A Task would persist with no declared writable authority. Fail closed."""
+
+
+class LaneResolutionError(RuntimeError):
+    """The declared-lane resolver failed, so no decomposition owner was resolved.
+
+    Fail closed rather than returning None: None is a legitimate value meaning
+    "not decomposed", so a swallowed resolver fault is indistinguishable from a
+    deliberate single-Task objective — and when grounding evidence exists it
+    silently transfers executable Task authority to the evidence-derived
+    producer.
+    """
+
+
+def _task_requirements(archetype: Any, declared_scope: list[str] | None) -> dict[str, Any]:
+    """Build a Task's WorkRequirements with its DECLARED writable authority.
+
+    ``capture_task`` is the SECOND canonical WorkPacket writer (the CREATE_TASK
+    chat rail). It previously hand-built a requirements dict with no
+    ``writable_path_scope``/``scope_declared``, reproducing exactly the
+    field-observed defect the compiler fix closed: a persisted Task whose every
+    future diff is unverifiable. Both writers now seed through the ONE contract
+    API and fail closed identically — an undeclared scope is never
+    whole-repository permission.
+    """
+    from substrate.contracts.work_context import WorkRequirements
+
+    if declared_scope is None:
+        raise TaskScopeUndeclaredError(
+            "refusing to capture a Task with undeclared mutation authority — "
+            "the target workspace declared no writable_path_scope"
+        )
+    requirements = WorkRequirements(
+        work_archetype_ref=f"{archetype.archetype_id}@v{archetype.archetype_version}",
+        required_skill_refs=[dict(r) for r in archetype.required_skill_refs],
+    )
+    requirements.declare_writable_paths([str(p) for p in declared_scope])
+    errors = requirements.validate_writable_path_scope()
+    if errors:
+        raise TaskScopeUndeclaredError(f"invalid declared writable_path_scope: {errors}")
+    return requirements.to_dict()
+
+
 class OperatorIntentProtocol:
     """The canonical intent seam. Deterministic spine; injectable governance."""
 
@@ -288,11 +332,25 @@ class OperatorIntentProtocol:
         goal_registry: Any | None = None,
         event_spine: Any | None = None,
         mutation_runner: Callable[..., Any] | None = None,
+        workspace_scope_resolver: Callable[[Any], list[str] | None] | None = None,
+        lane_resolver: Callable[[Any, str], list[Any] | None] | None = None,
     ) -> None:
         self._store = store or PlanningStore()
         self._goal_registry = goal_registry
         self._event_spine = event_spine
         self._mutation_runner = mutation_runner
+        # Resolves a WorkScope → the target workspace's DECLARED writable-path
+        # authority (worktree-relative, least-privilege). Substrate is
+        # instance-agnostic: it never knows a concrete workspace's paths, so the
+        # runtime that owns the workspace injects this. Returning None means the
+        # workspace declared no authority and Task materialization fails closed
+        # (an undeclared scope is never whole-repository permission).
+        self._workspace_scope_resolver = workspace_scope_resolver
+        # Resolves (WorkScope, objective_text) → the DECLARED lane decomposition
+        # for this objective, or None for "not decomposed" (one umbrella Task).
+        # Injected for the same reason as the scope resolver: substrate must not
+        # know a concrete workspace's lanes, and must never infer them.
+        self._lane_resolver = lane_resolver
 
     # ── Lazy canonical collaborators ────────────────────────────────────
 
@@ -1077,10 +1135,7 @@ class OperatorIntentProtocol:
             approval_gates=["execution_authorization_required"],
             work_scope=scope.to_dict(),
             lineage=lineage.to_dict(),
-            requirements={
-                "work_archetype_ref": f"{archetype.archetype_id}@v{archetype.archetype_version}",
-                "required_skill_refs": [dict(r) for r in archetype.required_skill_refs],
-            },
+            requirements=_task_requirements(archetype, self._resolve_workspace_scope(scope)),
         )
 
         def _write() -> tuple[str, bool]:
@@ -1253,8 +1308,57 @@ class OperatorIntentProtocol:
             event_emit=lambda event_type, data: self._emit(
                 event_type, data, resolution.correlation_id
             ),
+            writable_path_scope=self._resolve_workspace_scope(scope),
+            lanes=self._resolve_lanes(scope, objective_text),
         )
         return session, plan
+
+    def _resolve_lanes(self, scope: Any, objective_text: str) -> list[Any] | None:
+        """The caller-DECLARED lane decomposition for this objective, or None.
+
+        Mirrors ``_resolve_workspace_scope``: substrate is instance-agnostic and
+        never infers lanes (no title matching, no id shapes, no diff reading), so
+        the runtime that owns the target workspace injects the declaration. None
+        means "not decomposed" and the objective compiles to one umbrella Task,
+        exactly as before. Fails CLOSED on a resolver error — a broken resolver
+        must never silently downgrade a declared multi-lane objective to one
+        Task (that downgrade is what made a field run unqualifiable).
+        """
+        if self._lane_resolver is None:
+            return None
+        try:
+            return self._lane_resolver(scope, objective_text)
+        except Exception as exc:
+            # FAIL CLOSED (adversarial-review HIGH). Swallowing this returned
+            # None, and None does NOT mean "one umbrella Task" when grounding
+            # evidence exists — it hands executable Task authority to the
+            # evidence-DERIVED producer, the exact rival the declared-exclusive
+            # selection exists to dethrone. A resolver fault must never
+            # silently choose a different decomposition owner, and logging it
+            # at debug made that transfer invisible at default log level.
+            logger.error("lane resolver failed — refusing to compile: %s", exc)
+            raise LaneResolutionError(
+                f"declared-lane resolver failed: {exc} — refusing to compile a "
+                "decomposition whose authority was not resolved"
+            ) from exc
+
+    def _resolve_workspace_scope(self, scope: Any) -> list[str] | None:
+        """The target workspace's DECLARED writable-path authority, or None.
+
+        None propagates to materialization, which fails closed. Never infer a
+        scope here — no title matching, no id shapes, no diff-derived authority.
+        """
+        resolver = self._workspace_scope_resolver
+        if resolver is None:
+            return None
+        try:
+            declared = resolver(scope)
+        except Exception as exc:  # a resolver fault must fail CLOSED, not open
+            logger.debug("workspace scope resolver failed: %s", exc)
+            return None
+        if declared is None:
+            return None
+        return [str(p) for p in declared]
 
     def _governed(
         self,

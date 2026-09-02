@@ -8,6 +8,7 @@ Covers the three mechanisms of the runtime/source separation:
 
 from __future__ import annotations
 
+import importlib
 import json
 import os
 import subprocess
@@ -38,6 +39,13 @@ class TestRuntimePathResolver:
     def test_state_dir_env_override(self, monkeypatch, tmp_path):
         monkeypatch.setenv("UMH_STATE_DIR", str(tmp_path / "state"))
         assert runtime_state_root() == tmp_path / "state"
+
+    def test_required_state_dir_fails_closed_without_override(self, monkeypatch):
+        monkeypatch.delenv("UMH_STATE_DIR", raising=False)
+        monkeypatch.setenv("UMH_REQUIRE_STATE_DIR", "1")
+        monkeypatch.setenv("UMH_ROOT", "/app")
+        with pytest.raises(ValueError, match="UMH_STATE_DIR is required"):
+            runtime_state_root()
 
     def test_empty_state_dir_rejected(self, monkeypatch):
         monkeypatch.setenv("UMH_STATE_DIR", "   ")
@@ -85,6 +93,167 @@ class TestRuntimePathResolver:
         custom = tmp_path / "custom"
         store = OrganismStore(store_dir=custom)
         assert store._dir == custom
+
+    def test_default_runtime_writers_resolve_under_state_dir(self, monkeypatch, tmp_path):
+        """Default runtime writers must not target the source checkout.
+
+        This pins the production-container failure where OrganismDaemon startup
+        tried to create ``data/runtime/canonical_memory_store`` under read-only
+        ``UMH_ROOT=/app`` before the governed spine could register.
+        """
+        app_root = tmp_path / "app"
+        state_dir = tmp_path / "state" / "umh"
+        app_root.mkdir()
+        state_dir.mkdir(parents=True)
+        monkeypatch.setenv("UMH_ROOT", str(app_root))
+        monkeypatch.setenv("UMH_STATE_DIR", str(state_dir))
+
+        cms = importlib.reload(
+            importlib.import_module("substrate.state.memory.contracts.canonical_memory_store_v1")
+        )
+        cre = importlib.reload(
+            importlib.import_module(
+                "substrate.state.memory.contracts.canonical_memory_reconciliation_engine_v1"
+            )
+        )
+        mcg = importlib.reload(
+            importlib.import_module("substrate.state.memory.contracts.memory_conflict_governance_v1")
+        )
+        proof = importlib.reload(importlib.import_module("substrate.organism.proof_store"))
+        ledger = importlib.reload(importlib.import_module("substrate.organism.execution_ledger"))
+        audit = importlib.reload(importlib.import_module("transports.api.cockpit_audit"))
+        signals = importlib.reload(
+            importlib.import_module("substrate.control_plane.runtime.orchestrator.signals")
+        )
+        loop = importlib.reload(
+            importlib.import_module("substrate.control_plane.runtime.orchestrator.loop")
+        )
+
+        assert cms.CanonicalMemoryStore().store_dir == (
+            state_dir / "memory" / "canonical_memory_store"
+        )
+        assert cre.ReconciliationEngine().store_dir == (
+            state_dir / "memory" / "canonical_memory_store"
+        )
+        assert mcg.ConflictGovernance().store_dir == state_dir / "memory" / "memory_conflicts"
+        assert proof._STORE_PATH == state_dir / "organism" / "proof_packages.jsonl"
+        assert ledger._LEDGER_PATH == state_dir / "organism" / "execution_ledger.jsonl"
+        assert audit._MUTATION_LEDGER_PATH == str(state_dir / "audit" / "mutation_ledger.jsonl")
+        assert signals.SIGNALS_ROOT == str(state_dir / "logs" / "signals")
+        assert loop.HEARTBEAT_PATH == str(state_dir / "logs" / "orchestrator_heartbeat.json")
+        assert not (app_root / "data" / "runtime" / "canonical_memory_store").exists()
+
+    def test_operator_api_mutable_paths_resolve_under_state_dir(self, tmp_path):
+        """The live os-operator entrypoint must not write into read-only source."""
+        app_root = tmp_path / "immutable-app"
+        state_dir = tmp_path / "state" / "umh"
+        app_root.mkdir()
+        state_dir.mkdir(parents=True)
+        env = dict(os.environ)
+        env["PYTHONPATH"] = REPO_ROOT
+        env["UMH_ROOT"] = str(app_root)
+        env["UMH_STATE_DIR"] = str(state_dir)
+        script = """
+import json
+import services.operator_api as api
+print(json.dumps({
+    "memories": str(api.MEMORIES_PATH),
+    "cost_log": str(api.COST_LOG_PATH),
+    "voice_ack_dir": str(api._VOICE_ACK_DIR),
+}))
+"""
+        res = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=env,
+        )
+        assert res.returncode == 0, res.stdout + res.stderr
+        paths = json.loads(res.stdout.strip().splitlines()[-1])
+        assert paths == {
+            "memories": str(state_dir / "memory" / "canonical_memory_store" / "memories.jsonl"),
+            "cost_log": str(state_dir / "logs" / "cost_log.json"),
+            "voice_ack_dir": str(state_dir / "voice_acks"),
+        }
+        assert not (app_root / "data").exists()
+        assert not (app_root / "services" / "cost_log.json").exists()
+
+    def test_operator_startup_dependency_defaults_resolve_under_state_dir(self, monkeypatch, tmp_path):
+        """Default operator-startup stores must not create checkout-relative data.
+
+        This pins the immutable operator cutover failure where the running
+        source was mounted read-only and a startup dependency attempted to
+        create ``data/umh/intelligence`` under the application root.
+        """
+        app_root = tmp_path / "immutable-app"
+        state_dir = tmp_path / "state" / "umh"
+        app_root.mkdir()
+        state_dir.mkdir(parents=True)
+        monkeypatch.setenv("UMH_ROOT", str(app_root))
+        monkeypatch.setenv("UMH_STATE_DIR", str(state_dir))
+
+        config_store = importlib.reload(
+            importlib.import_module("substrate.state.config.config_store")
+        )
+        intelligence = importlib.reload(importlib.import_module("substrate.intelligence.runtime"))
+        discovery = importlib.reload(
+            importlib.import_module("substrate.organism.tailscale_discovery")
+        )
+        daemon_mod = importlib.reload(importlib.import_module("substrate.organism.daemon"))
+
+        cfg = config_store.ConfigStore()
+        cfg.set("ai_name", "BoundaryTest", layer="system")
+        patterns = intelligence.PatternIntelligence()
+        decisions = intelligence.DecisionIntelligence()
+        tailscale = discovery.TailscaleDiscoveryTick()
+        daemon = daemon_mod.OrganismDaemon(graph=None)
+
+        assert cfg._layer_path("system") == state_dir / "config" / "system.json"
+        assert patterns._store_path == state_dir / "intelligence" / "patterns.json"
+        assert decisions._store_path == state_dir / "intelligence" / "decisions.jsonl"
+        assert (
+            Path(tailscale._discovered_peers_path)
+            == state_dir / "discovery" / "discovered_peers.json"
+        )
+        assert (
+            Path(daemon._tailscale_discovery._discovered_peers_path)
+            == state_dir / "discovery" / "discovered_peers.json"
+        )
+        assert not (app_root / "data").exists()
+
+    def test_intelligence_runtime_records_under_state_dir(self, monkeypatch, tmp_path):
+        app_root = tmp_path / "immutable-app"
+        state_dir = tmp_path / "state" / "umh"
+        app_root.mkdir()
+        monkeypatch.setenv("UMH_ROOT", str(app_root))
+        monkeypatch.setenv("UMH_STATE_DIR", str(state_dir))
+
+        intelligence = importlib.reload(importlib.import_module("substrate.intelligence.runtime"))
+        runtime = intelligence.IntelligenceRuntime()
+        runtime.learn_from_execution(
+            content="operator source-state boundary test",
+            action="route mutable state",
+            outcome="success",
+            success=True,
+            domain="wave2",
+        )
+
+        assert (state_dir / "intelligence" / "patterns.json").is_file()
+        assert (state_dir / "intelligence" / "decisions.jsonl").is_file()
+        assert not (app_root / "data").exists()
+
+    def test_os_operator_compose_declares_external_state_boundary(self):
+        compose = (Path(REPO_ROOT) / "docker-compose.yml").read_text()
+        start = compose.index("  os-operator:")
+        block = compose[start:]
+
+        assert "${UMH_ROOT:-/opt/OS}:/app:ro" in block
+        assert "${UMH_OPERATOR_STATE_DIR:-/var/lib/umh/operator/state/live}:/state/umh" in block
+        assert "UMH_ROOT=/app" in block
+        assert "UMH_STATE_DIR=/state/umh" in block
+        assert "UMH_REQUIRE_STATE_DIR=1" in block
+        assert "PYTHONDONTWRITEBYTECODE=1" in block
 
 
 def _run_migrate(args: list[str], repo: Path, backup: Path) -> subprocess.CompletedProcess:

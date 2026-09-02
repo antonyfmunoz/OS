@@ -8,21 +8,21 @@ Phase 25 prerequisite. UMH transport layer.
 
 from __future__ import annotations
 
-import json
 import asyncio
+import hashlib
+import json
 import logging
 import os
-import hmac as _hmac
 import re
-import subprocess
 import time
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
 import psutil
 from fastapi import APIRouter, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+
 from substrate.execution.cpu_gate import gated_subprocess_run
 from transports.api.governed import governed_mutation
 
@@ -37,6 +37,8 @@ SKILLS_DIR = _ROOT / "skills"
 AGENTS_DIR = _ROOT / "agents"
 _DOCKER_SOCK = "/var/run/docker.sock"
 _DEVICE_REGISTRY_PATH = _ROOT / "infra" / "device_registry.json"
+_FRONTEND_ARTIFACT_MANIFEST = ".umh-wave2-artifact.json"
+_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 
 # ── Module state set by configure() ──────────────────────────────────────────
 
@@ -58,6 +60,198 @@ push_organism_event: Any = None
 push_mutation_event: Any = None
 
 
+class _CockpitAssetParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.module_scripts: list[str] = []
+        self.stylesheets: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attr = {key: value or "" for key, value in attrs}
+        if tag == "script" and attr.get("type") == "module" and attr.get("src"):
+            self.module_scripts.append(attr["src"])
+        if tag == "link" and attr.get("rel") == "stylesheet" and attr.get("href"):
+            self.stylesheets.append(attr["href"])
+
+
+def _asset_name_from_ref(ref: str, suffix: str) -> str:
+    normalized = ref.split("?", 1)[0].split("#", 1)[0].lstrip("./")
+    prefix = "assets/"
+    if not normalized.startswith(prefix) or not normalized.endswith(suffix):
+        return ""
+    name = normalized[len(prefix) :]
+    if "/" in name or not name:
+        return ""
+    return name
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _manifest_identity_digest(manifest: dict[str, Any]) -> str:
+    stable = {k: v for k, v in manifest.items() if k != "manifest_sha256"}
+    raw = json.dumps(stable, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def _current_source_sha(root: Path | None = None) -> str:
+    base = root or _ROOT
+    for key in (
+        "UMH_SOURCE_SHA",
+        "SOURCE_SHA",
+        "UMH_RELEASE_SHA",
+        "UMH_CANDIDATE_SHA",
+        "UMH_BUILD_COMMIT",
+    ):
+        value = os.getenv(key, "").strip()
+        if _SHA_RE.match(value):
+            return value
+    source_file = base / "SOURCE_SHA"
+    try:
+        value = source_file.read_text(encoding="ascii").strip()
+        if _SHA_RE.match(value):
+            return value
+    except OSError:
+        pass
+    try:
+        result = gated_subprocess_run(
+            ["git", "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            cwd=str(base),
+        )
+    except Exception:
+        return ""
+    value = (result.stdout if result is not None and result.returncode == 0 else "").strip()
+    return value if _SHA_RE.match(value) else ""
+
+
+def _cockpit_frontend_artifact_proof(
+    dist_web: Path, expected_sha: str, bytes_proof: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    manifest_path = dist_web / _FRONTEND_ARTIFACT_MANIFEST
+    proof: dict[str, Any] = {
+        "frontend_artifact_ok": False,
+        "frontend_artifact_manifest": str(manifest_path),
+        "frontend_artifact_errors": [],
+        "expected_sha": expected_sha,
+    }
+    errors: list[str] = proof["frontend_artifact_errors"]
+    if not expected_sha:
+        errors.append("expected source SHA unavailable")
+        return proof
+    if not manifest_path.is_file():
+        errors.append("artifact manifest missing")
+        return proof
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        errors.append(f"artifact manifest unreadable: {type(exc).__name__}")
+        return proof
+    if not isinstance(manifest, dict):
+        errors.append("artifact manifest is not an object")
+        return proof
+    proof["artifact_candidate_sha"] = manifest.get("candidate_sha")
+    proof["artifact_source_head"] = manifest.get("source_head")
+    proof["artifact_source_tree"] = manifest.get("source_tree")
+    proof["artifact_index_sha256"] = manifest.get("index_sha256")
+    proof["artifact_assets"] = manifest.get("assets")
+    proof["artifact_build_status"] = manifest.get("build_status")
+    proof["artifact_manifest_sha256"] = manifest.get("manifest_sha256")
+    if manifest.get("candidate_sha") != expected_sha:
+        errors.append("artifact candidate SHA mismatch")
+    if manifest.get("source_head") != expected_sha:
+        errors.append("artifact source HEAD mismatch")
+    if not manifest.get("source_tree"):
+        errors.append("artifact source tree missing")
+    if manifest.get("build_status") != "SUCCEEDED":
+        errors.append("artifact build status is not SUCCEEDED")
+    expected_manifest_digest = _manifest_identity_digest(manifest)
+    if manifest.get("manifest_sha256") != expected_manifest_digest:
+        errors.append("artifact manifest digest mismatch")
+    if bytes_proof is None:
+        errors.append("artifact bytes proof unavailable")
+    else:
+        if manifest.get("index_sha256") != bytes_proof.get("index_sha256"):
+            errors.append("artifact index hash mismatch")
+        if manifest.get("assets") != bytes_proof.get("assets"):
+            errors.append("artifact asset hash mismatch")
+    proof["frontend_artifact_ok"] = not errors
+    return proof
+
+
+def _cockpit_frontend_asset_info(
+    root: Path | None = None, *, expected_sha: str | None = None
+) -> dict[str, Any]:
+    base = root or _ROOT
+    override = os.getenv("UMH_COCKPIT_DIST_WEB", "").strip()
+    dist_web = (
+        Path(override).expanduser().resolve()
+        if override
+        else base / "cockpit" / "dist-web"
+    )
+    index_html = dist_web / "index.html"
+    if not index_html.is_file():
+        proof = (
+            _cockpit_frontend_artifact_proof(dist_web, expected_sha)
+            if expected_sha is not None
+            else {}
+        )
+        return {
+            **proof,
+            "frontend_assets_ok": False,
+            "frontend_asset_errors": ["index.html missing"],
+        }
+    parser = _CockpitAssetParser()
+    parser.feed(index_html.read_text(encoding="utf-8"))
+    index_sha256 = _sha256_file(index_html)
+    assets: dict[str, str] = {}
+    artifact_assets: dict[str, dict[str, str]] = {}
+    errors: list[str] = []
+    for key, refs, suffix in (
+        ("js", parser.module_scripts, ".js"),
+        ("css", parser.stylesheets, ".css"),
+    ):
+        names = [_asset_name_from_ref(ref, suffix) for ref in refs]
+        names = [name for name in names if name]
+        if len(names) != 1:
+            errors.append(f"expected exactly one {key} asset reference")
+            continue
+        asset_path = dist_web / "assets" / names[0]
+        if not asset_path.is_file():
+            errors.append(f"{key} asset missing: {names[0]}")
+            continue
+        assets[f"{key}_asset"] = names[0]
+        assets[f"{key}_hash"] = names[0]
+        asset_sha = _sha256_file(asset_path)
+        assets[f"{key}_sha256"] = asset_sha
+        artifact_assets[key] = {"name": names[0], "sha256": asset_sha}
+    bytes_proof = {
+        "index_sha256": index_sha256,
+        "assets": artifact_assets,
+    }
+    proof = (
+        _cockpit_frontend_artifact_proof(dist_web, expected_sha, bytes_proof)
+        if expected_sha is not None
+        else {}
+    )
+    artifact_ok = proof.get("frontend_artifact_ok", True)
+    return {
+        **proof,
+        **assets,
+        "index_sha256": index_sha256,
+        "assets": artifact_assets,
+        "frontend_assets_ok": not errors and artifact_ok is True,
+        "frontend_asset_errors": errors,
+    }
+
+
 def configure(
     require_operator_dep: Any,
     is_private_ip_fn: Any = None,
@@ -74,7 +268,9 @@ def configure(
 
     _is_private_ip_fn = is_private_ip_fn
     _validate_ws_clerk_token_fn = validate_ws_clerk_token_fn
-    _ws_token = ws_token
+    from transports.api.cockpit_token_auth import normalize_secret
+
+    _ws_token = normalize_secret(ws_token)
     _dev_bypass = dev_bypass
     _trusted_proxies = trusted_proxies or set()
 
@@ -162,8 +358,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
     def _get_docker_containers() -> list[dict]:
         """Query Docker Engine API via unix socket for running containers."""
-        import socket as _socket
         import http.client
+        import socket as _socket
 
         try:
             if not os.path.exists(_DOCKER_SOCK):
@@ -220,6 +416,10 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 info["commit_sha"] = sha.stdout.strip()
         except Exception:
             pass
+        if not info.get("commit_sha"):
+            source_sha = _current_source_sha(_ROOT)
+            if source_sha:
+                info["commit_sha"] = source_sha
         try:
             ts = gated_subprocess_run(
                 ["git", "log", "-1", "--format=%cI"],
@@ -232,17 +432,12 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 info["commit_time"] = ts.stdout.strip()
         except Exception:
             pass
-        import re as _re
-
-        index_html = _ROOT / "cockpit" / "dist-web" / "index.html"
-        if index_html.is_file():
-            html = index_html.read_text()
-            js_match = _re.search(r'src="[./]*assets/(index-[^"]+\.js)"', html)
-            css_match = _re.search(r'href="[./]*assets/(index-[^"]+\.css)"', html)
-            if js_match:
-                info["js_hash"] = js_match.group(1)
-            if css_match:
-                info["css_hash"] = css_match.group(1)
+        info.update(
+            _cockpit_frontend_asset_info(
+                _ROOT,
+                expected_sha=str(info.get("commit_sha", "")),
+            )
+        )
         return info
 
     _BUILD_INFO = _compute_build_info()
@@ -481,8 +676,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         if source in ("all", "conversation"):
             try:
-                from substrate.state.memory.memory import ConversationMemory
                 from substrate.state.context.context import try_load_context_from_env
+                from substrate.state.memory.memory import ConversationMemory
 
                 ctx = try_load_context_from_env()
                 if ctx:
@@ -776,6 +971,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
     @router.get("/settings")
     def settings():
+        from adapters.models.cc_sdk import query_cc_sync
         from adapters.models.model_router import (
             MODEL_REGISTRY,
             PROVIDER_PRIORITY,
@@ -785,8 +981,7 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
             ROLE_SLOTS,
             ModelRouter,
         )
-        from adapters.models.cc_sdk import query_cc_sync
-        from substrate.contracts.agent_types import ModelProvider, ProviderRole
+        from substrate.contracts.agent_types import ModelProvider
 
         ModelRouter()
 
@@ -1044,8 +1239,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         pre_approved = payload.get("pre_approved", False)
 
         try:
-            from transports.api.app import _pipeline
             from substrate.governance.risk_classes import RiskClass
+            from transports.api.app import _pipeline
 
             risk = RiskClass[risk_class]
         except (ImportError, KeyError):
@@ -1113,8 +1308,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         def _do_trigger():
             try:
-                from transports.api.app import _pipeline
                 from substrate.governance.risk_classes import RiskClass
+                from transports.api.app import _pipeline
 
                 result = _pipeline.submit_signal(
                     content,
@@ -1140,9 +1335,9 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     async def update_settings(request: Request):
         """Update cockpit settings via mutation runtime — persisted + audited."""
         from transports.api.cockpit_settings_mutations import (
-            toggle_provider,
             set_purpose_chain,
             set_role_slot,
+            toggle_provider,
         )
 
         payload = await request.json()
@@ -1451,9 +1646,11 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         Fallback: ?token= query param for clients that cannot set subprotocols.
         """
         sub = _extract_ws_subprotocol(ws)
+        from transports.api.cockpit_token_auth import normalize_secret
+
         if sub:
-            return sub[7:]
-        return ws.query_params.get("token", "")
+            return normalize_secret(sub[7:])
+        return normalize_secret(ws.query_params.get("token", ""))
 
     def _real_ws_client_ip(ws: WebSocket) -> str:
         """Real client IP for WebSocket, same trusted-proxy logic as HTTP."""
@@ -1477,9 +1674,12 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
                 return True
         except HTTPException:
             return False
-        if _ws_token:
+        from transports.api.cockpit_token_auth import normalize_secret, token_matches
+
+        expected_ws_token = normalize_secret(_ws_token)
+        if expected_ws_token:
             token = _extract_ws_token(ws)
-            if token and _hmac.compare_digest(token, _ws_token):
+            if token_matches(token, expected_ws_token):
                 return True
         client_ip = _real_ws_client_ip(ws)
         if _dev_bypass and _is_private_ip_fn(client_ip):
@@ -1661,10 +1861,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         """Return the runtime portfolio — roles, slots, provider status, and purpose routing."""
         from adapters.models.model_router import (
             MODEL_REGISTRY,
-            ROLE_SLOTS,
             PURPOSE_ROUTING,
-            ROLE_FAILOVER,
-            ProviderRole,
+            ROLE_SLOTS,
             get_router,
         )
 
@@ -2032,7 +2230,6 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
         try:
             from substrate.organism.executor_runtime import (
                 load_executor_preference,
-                preferred_executor,
             )
 
             pref = load_executor_preference()
@@ -2078,8 +2275,8 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
 
         def _do_update():
             from substrate.organism.executor_runtime import (
-                save_executor_preference,
                 load_executor_preference,
+                save_executor_preference,
             )
 
             save_executor_preference(order)
@@ -2105,12 +2302,12 @@ def _build_routers(require_operator_dep: Any) -> tuple[APIRouter, APIRouter]:
     }
 
     from transports.api.cockpit_core_bootstrap_routes import register_bootstrap_routes
-    from transports.api.cockpit_core_session_routes import register_session_routes
+    from transports.api.cockpit_core_creatoros_routes import register_creatoros_routes
+    from transports.api.cockpit_core_eos_routes import register_eos_routes
     from transports.api.cockpit_core_feedback_routes import register_feedback_routes
     from transports.api.cockpit_core_governance_routes import register_governance_routes
-    from transports.api.cockpit_core_eos_routes import register_eos_routes
     from transports.api.cockpit_core_lyfeos_routes import register_lyfeos_routes
-    from transports.api.cockpit_core_creatoros_routes import register_creatoros_routes
+    from transports.api.cockpit_core_session_routes import register_session_routes
     from transports.api.cockpit_intent_loop_routes import register_intent_loop_routes
     from transports.api.cockpit_voice_consent_routes import register_voice_consent_routes
 

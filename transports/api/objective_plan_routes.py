@@ -20,7 +20,9 @@ Read surfaces never raise 500 (projection read-surface discipline).
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -32,12 +34,93 @@ logger = logging.getLogger(__name__)
 _protocol_singleton: Any | None = None
 
 
+def _declared_workspace_scope(_scope: Any) -> list[str] | None:
+    """The target workspace's DECLARED writable-path authority, or None.
+
+    Substrate is instance-agnostic, so the concrete workspace's least-privilege
+    mutation authority is declared by the RUNTIME that owns the workspace and
+    injected here (``UMH_WORKSPACE_WRITABLE_PATHS``: a comma-separated list of
+    worktree-relative paths). Returning None means the workspace declared no
+    authority and Task materialization fails CLOSED — an undeclared scope is
+    never whole-repository permission (field run 20260725T230726Z persisted a
+    Task with ``scope_declared=False``, making every legitimate worker diff
+    unverifiable).
+
+    This resolver NEVER infers a scope: no title matching, no packet-id shapes,
+    no evidence, no post-hoc diff. It reads one declaration.
+    """
+    raw = os.environ.get("UMH_WORKSPACE_WRITABLE_PATHS", "").strip()
+    if not raw:
+        return None
+    paths = [p.strip() for p in raw.split(",") if p.strip()]
+    return paths or None
+
+
+def _declared_lanes(_scope: Any, _objective_text: str) -> list[Any] | None:
+    """The DECLARED lane decomposition for this objective, or None.
+
+    Read from ``UMH_WORKSPACE_LANES``: a JSON array of lane objects, each
+    ``{"lane_key", "title", "writable_path_scope", "depends_on", "semantic_label"}``.
+    A multi-lane objective materializes one Task PER LANE, each with its own
+    least-privilege authority and resolved dependencies, instead of a single
+    umbrella Task (field run 20260726T025143Z-p1 compiled one combined Task, so
+    a graph asserting two concurrent implementation Tasks was unsatisfiable by
+    construction).
+
+    Like ``_declared_workspace_scope`` this NEVER infers: no title matching, no
+    packet-id shapes, no evidence, no post-hoc diff. It reads one declaration.
+    Unset → None → the objective compiles to one umbrella Task exactly as
+    before. Malformed → None, and any lane the runtime meant to declare is then
+    absent, which the pre-dispatch graph-shape gate refuses BEFORE quota rather
+    than discovering after a worker has run.
+    """
+    raw = os.environ.get("UMH_WORKSPACE_LANES", "").strip()
+    if not raw:
+        return None
+    try:
+        declared = json.loads(raw)
+    except (ValueError, TypeError):
+        logger.warning("UMH_WORKSPACE_LANES is not valid JSON — no lanes declared")
+        return None
+    if not isinstance(declared, list) or not declared:
+        logger.warning("UMH_WORKSPACE_LANES is not a non-empty JSON array — no lanes declared")
+        return None
+
+    from substrate.execution.planning.records import ObjectiveLane
+
+    lanes: list[Any] = []
+    for entry in declared:
+        if not isinstance(entry, dict):
+            logger.warning("UMH_WORKSPACE_LANES entry is not an object — no lanes declared")
+            return None
+        # An OMITTED writable_path_scope is not the same declaration as an
+        # explicitly empty one, and `ObjectiveLane` cannot tell them apart once
+        # its default has been applied: `[]` is MEANINGFUL (it declares the
+        # zero-write verifier lane). So a typo in the runtime's declaration
+        # would silently mint a zero-write Task that no legitimate diff can
+        # satisfy, discovered only at verification time (adversarial-review
+        # MEDIUM). Require the key explicitly — an undeclared authority is
+        # never inferred, in either direction.
+        if "writable_path_scope" not in entry:
+            logger.warning(
+                "UMH_WORKSPACE_LANES entry %r omits writable_path_scope — no lanes "
+                "declared (declare [] explicitly for a zero-write lane)",
+                entry.get("lane_key", "?"),
+            )
+            return None
+        lanes.append(ObjectiveLane.from_dict(entry))
+    return lanes
+
+
 def _protocol() -> Any:
     global _protocol_singleton
     if _protocol_singleton is None:
         from substrate.execution.intent.protocol import OperatorIntentProtocol
 
-        _protocol_singleton = OperatorIntentProtocol()
+        _protocol_singleton = OperatorIntentProtocol(
+            workspace_scope_resolver=_declared_workspace_scope,
+            lane_resolver=_declared_lanes,
+        )
     return _protocol_singleton
 
 
@@ -70,6 +153,27 @@ def _plan_detail(plan: Any) -> dict[str, Any]:
     return detail
 
 
+def _latest_approved_plan_for_conversation(store: Any, conversation_id: str) -> Any:
+    """The newest APPROVED, non-superseded plan for a conversation (or None).
+
+    Used by the execution-request rail to resolve exactly which accepted plan the
+    operator means when they say "execute the approved plan"."""
+    try:
+        plans = store.load_plans()
+    except Exception as exc:  # read-only resolve; never raise into the rail
+        logger.debug("approved-plan lookup failed: %s", exc)
+        return None
+    candidates = [
+        p
+        for p in plans
+        if getattr(p, "conversation_id", "") == conversation_id
+        and getattr(p, "status", "") == "approved"
+    ]
+    if not candidates:
+        return None
+    return max(candidates, key=lambda p: getattr(p, "graph_version", 0))
+
+
 # ── Chat planning rail (the ONE conversational work seam) ────────────────────
 
 
@@ -79,6 +183,7 @@ def try_chat_planning_rail(
     client_message_id: str = "",
     user_id: str = "",
     _depth: int = 0,
+    correlation_id: str = "",
 ) -> dict | None:
     """Route one Cockpit chat/voice message through the canonical protocol.
 
@@ -158,6 +263,12 @@ def try_chat_planning_rail(
                     client_message_id=client_message_id or session.client_message_id,
                     user_id=user_id,
                     _depth=1,
+                    # Carry the caller's correlation across the clarification
+                    # re-entry. Dropping it here would mint the grant under the
+                    # intent fallback whenever the journey asked a clarifying
+                    # question — the same unbindable-grant defect, on a path
+                    # that only shows up when clarification happens.
+                    correlation_id=correlation_id,
                 )
             return None  # nothing held — let the conversation answer
 
@@ -286,11 +397,77 @@ def try_chat_planning_rail(
             )
 
         if intent_class == IntentClass.REQUEST_EXECUTION.value:
-            metadata["state"] = "execution_refused"
+            # Wave 2: chat NEVER authorizes execution. It resolves the accepted
+            # plan, runs a readiness pre-pass, and surfaces ONE bounded
+            # execution-authorization Decision to the HUD (the sole authorization
+            # surface). Nothing runs until the operator authorizes it there.
+            from substrate.execution.attempts.decisions import (
+                ExecutionDecisionConflict,
+                request_execution_authorization,
+            )
+            from substrate.execution.attempts.store import ExecutionAttemptStore
+
+            # Resolve the plan: an explicitly matched plan, else the latest
+            # APPROVED plan for this conversation's objective.
+            plan_id = resolution.existing_work_resolution.get("matched_plan_record_id", "")
+            plan = protocol._store.get_plan(plan_id) if plan_id else None
+            if plan is None:
+                plan = _latest_approved_plan_for_conversation(protocol._store, conv_id)
+            if plan is None:
+                metadata["state"] = "execution_no_accepted_plan"
+                return _respond(
+                    "There's no accepted plan to execute yet. Accept a plan in "
+                    "the control panel first, then ask me to execute it.",
+                    actions=[{"type": "focus_panel", "payload": {"panel": "work"}}],
+                )
+            if plan.status != "approved":
+                metadata["state"] = "execution_plan_not_accepted"
+                return _respond(
+                    f"That plan (v{plan.graph_version}) isn't accepted yet — "
+                    "accept it in the control panel first.",
+                    actions=[{"type": "focus_panel", "payload": {"panel": "approvals"}}],
+                )
+
+            frontier = [pid for pid in plan.workpacket_ids if pid]
+            try:
+                _grant, _approval = request_execution_authorization(
+                    ExecutionAttemptStore(),
+                    plan=plan,
+                    task_frontier=frontier,
+                    tenant_id=scope.tenant_id,
+                    principal_id=principal.principal_id,
+                    membership_id=principal.membership_id,
+                    conversation_id=conv_id,
+                    # The CALLER's correlation wins when supplied. The field
+                    # collector stamps `X-Correlation-ID: w2-<run_id>` on every
+                    # candidate-origin request precisely so the grant it causes
+                    # is uniquely identifiable as THIS run's; the exact-
+                    # correlation binding in wave2_field_dispatch.py refuses
+                    # anything else (fail-closed, by design — a parallel run's
+                    # ACTIVE grant must stay irrelevant).
+                    #
+                    # This previously hardcoded `resolution.intent_id`, so every
+                    # grant carried an `intent_*` correlation and NO grant this
+                    # system could mint would ever satisfy the gate. The intent
+                    # id remains the fallback for ordinary chat, which sends no
+                    # correlation header.
+                    correlation_id=correlation_id or resolution.intent_id,
+                    requested_by=user_id or "cockpit_chat_operator",
+                    mutation_runner=protocol._runner(),
+                )
+            except ExecutionDecisionConflict as exc:
+                metadata["state"] = "execution_request_conflict"
+                return _respond(f"Cannot request execution: {exc}")
+
+            metadata["state"] = "execution_authorization_pending"
+            metadata["plan_record_id"] = plan.plan_record_id
+            metadata["decision_ref"] = _grant.decision_ref
+            metadata["surface"] = "execution_status"
             return _respond(
-                "Execution authorization is a separate decision that does not "
-                "exist yet (Wave 2). Plans can be accepted in the control "
-                "panel, but nothing runs from chat."
+                f"I've surfaced an execution decision for plan v{plan.graph_version} "
+                f"({len(frontier)} task(s)) in the control panel. Nothing runs "
+                "until you authorize it there.",
+                actions=[{"type": "focus_panel", "payload": {"panel": "approvals"}}],
             )
 
         if intent_class == IntentClass.CANCEL_WORK.value:

@@ -648,6 +648,176 @@ OBJECTIVE_PLAN_REVISE = MutationSpec(
     ),
 )
 
+# ── Wave 2 governed execution mutations ─────────────────────────────────────
+# Every canonical write in substrate/execution/attempts/ occurs inside one of
+# these governed execute functions. There is no direct route/store mutation
+# bypass. The execution AUTHORIZATION DECISION is the one high-risk, fail-closed,
+# never-auto-approved gate; everything else is a bounded ledger write.
+
+EXECUTION_AUTHORIZATION_REQUEST = MutationSpec(
+    name="execution_authorization_request",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=15.0,
+    verification_required=False,
+    degraded_mode_allowed=True,
+    description=(
+        "Request execution authorization for an accepted plan: readiness "
+        "pre-pass + surface one execution_authorization ApprovalRequest to the "
+        "HUD. Conveys ZERO execution authority on its own — it only asks."
+    ),
+)
+
+EXECUTION_AUTHORIZATION_DECISION = MutationSpec(
+    name="execution_authorization_decision",
+    action_type=ActionType.STATE,
+    risk_level="high",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=15.0,
+    verification_required=True,
+    require_approval=False,  # the HUD ApprovalRequest IS the approval, not a nested one
+    # HIGH risk, NOT degraded-allowed: when the control plane is down, an
+    # execution grant CANNOT be issued — fail closed. There is NO auto-approval
+    # path; the only callers are UnifiedApprovalRuntime + the HUD route.
+    degraded_mode_allowed=False,
+    description=(
+        "Apply one HUD execution-authorization decision (approve/reject/revoke). "
+        "Approve creates the bounded ExecutionAuthorizationGrant; reject leaves "
+        "zero grant. No degraded-mode grant, no auto-approval — fail closed."
+    ),
+)
+
+EXECUTION_AUTHORIZATION_REVOKE = MutationSpec(
+    name="execution_authorization_revoke",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=15.0,
+    verification_required=False,
+    # Revocation must ALWAYS be executable, even control-plane-down (safety
+    # precedent: voice_consent_revoke). Withdrawing authority never fails closed.
+    degraded_mode_allowed=True,
+    description=(
+        "Revoke a granted execution authorization: grant → REVOKED, cascade "
+        "cancels non-terminal attempts and revokes their leases. Always "
+        "executable — withdrawing authority is a safety action."
+    ),
+)
+
+EXECUTION_ATTEMPT_CREATE = MutationSpec(
+    name="execution_attempt_create",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=15.0,
+    verification_required=False,
+    degraded_mode_allowed=False,
+    description=(
+        "Idempotently create one ExecutionAttempt ledger record from an "
+        "authorized frontier entry (key: task_id + authorization_ref + "
+        "attempt_number). Duplicate requests return the existing attempt."
+    ),
+)
+
+EXECUTION_ATTEMPT_TRANSITION = MutationSpec(
+    name="execution_attempt_transition",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=15.0,
+    verification_required=False,
+    degraded_mode_allowed=False,
+    description=(
+        "One CAS-protected ExecutionAttempt lifecycle transition (append-only "
+        "history, transition-table + guard validated). The single lifecycle "
+        "write path; identity fields are immutable."
+    ),
+)
+
+EXECUTION_PLACEMENT_RECORD = MutationSpec(
+    name="execution_placement_record",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_FILE,
+    timeout_seconds=15.0,
+    verification_required=False,
+    degraded_mode_allowed=False,
+    description=(
+        "Persist one durable FleetAssignment placement (role/skills/worker/"
+        "model/harness/tools/compute/environment/verifier + deterministic "
+        "scores + rejection reasons + rationale)."
+    ),
+)
+
+EXECUTION_LEASE_MUTATE = MutationSpec(
+    name="execution_lease_mutate",
+    action_type=ActionType.STATE,
+    risk_level="medium",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=30.0,
+    verification_required=False,
+    degraded_mode_allowed=False,
+    description=(
+        "Acquire/heartbeat/release one ExecutionEnvironmentLease (a git "
+        "worktree sandbox). One active lease per Task; the writable worktree "
+        "is separate from the read-only control-plane source."
+    ),
+)
+
+EXECUTION_LEASE_REVOKE = MutationSpec(
+    name="execution_lease_revoke",
+    action_type=ActionType.STATE,
+    risk_level="low",
+    reversibility=ReversibilityClass.FULLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.LOCAL_RUNTIME,
+    timeout_seconds=30.0,
+    verification_required=False,
+    # Lease revocation must always be executable (stops further mutation).
+    degraded_mode_allowed=True,
+    description=(
+        "Revoke one environment lease: lease → REVOKED, cleanup pending. Always "
+        "executable — stopping a worker's writable window is a safety action."
+    ),
+)
+
+EXECUTION_ATTEMPT_DISPATCH = MutationSpec(
+    name="execution_attempt_dispatch",
+    action_type=ActionType.PROCESS,
+    risk_level="high",
+    reversibility=ReversibilityClass.PARTIALLY_REVERSIBLE,
+    allowed_modes=_ALL_MODES,
+    blast_radius=BlastRadius.SINGLE_SERVICE,
+    timeout_seconds=600.0,
+    verification_required=True,
+    rollback_supported=True,
+    # The grant + attempt lifecycle already carry the authority; the HUD
+    # ApprovalRequest was the approval. Never degraded, never auto — a real
+    # CPU-gated worker subprocess runs in an isolated worktree.
+    require_approval=False,
+    degraded_mode_allowed=False,
+    description=(
+        "Dispatch one real CPU-gated worker subprocess for an authorized, "
+        "leased, package-sealed attempt into its isolated worktree. High-risk "
+        "PROCESS mutation; no simulation fallback on the qualified path."
+    ),
+)
+
 VOICE_CONSENT_GRANT = MutationSpec(
     name="voice_consent_grant",
     action_type=ActionType.STATE,
@@ -987,6 +1157,15 @@ class MutationRegistry:
             OBJECTIVE_PLAN_COMPILE,
             OBJECTIVE_PLAN_DECISION,
             OBJECTIVE_PLAN_REVISE,
+            EXECUTION_AUTHORIZATION_REQUEST,
+            EXECUTION_AUTHORIZATION_DECISION,
+            EXECUTION_AUTHORIZATION_REVOKE,
+            EXECUTION_ATTEMPT_CREATE,
+            EXECUTION_ATTEMPT_TRANSITION,
+            EXECUTION_PLACEMENT_RECORD,
+            EXECUTION_LEASE_MUTATE,
+            EXECUTION_LEASE_REVOKE,
+            EXECUTION_ATTEMPT_DISPATCH,
             VOICE_CONSENT_GRANT,
             VOICE_CONSENT_REVOKE,
             GOVERNANCE_UPDATE,

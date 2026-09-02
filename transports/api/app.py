@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sys
+import os
 import threading
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Callable
 from uuid import uuid4
 
 from fastapi import FastAPI, HTTPException
@@ -217,6 +216,13 @@ def _register_organism() -> None:
         )
         _organism = OrganismDaemon(pipeline=_pipeline, view_socket=_view_socket, graph=graph)
         _organism.start()
+        try:
+            from substrate.sockets.organism_port import register_organism_accessor
+
+            register_organism_accessor(lambda: _organism)
+            logger.info("organism registered with canonical organism_port")
+        except Exception as exc:
+            logger.error("failed to register organism accessor: %s", exc)
         logger.info("organism daemon started")
     except Exception as exc:
         logger.warning("organism daemon not started: %s", exc)

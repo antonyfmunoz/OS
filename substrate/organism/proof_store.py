@@ -11,26 +11,22 @@ from __future__ import annotations
 
 import json
 import logging
-import os
 import time
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from substrate.state.runtime_paths import runtime_state_dir, runtime_state_path
+
 logger = logging.getLogger(__name__)
 
-_STORE_PATH = Path(
-    os.environ.get("UMH_ROOT", "/opt/OS")
-) / "data" / "runtime" / "proof_packages.jsonl"
-
-_EVIDENCE_DIR = Path(
-    os.environ.get("UMH_ROOT", "/opt/OS")
-) / "data" / "runtime" / "proof_evidence"
+_STORE_PATH = runtime_state_path("organism", "proof_packages.jsonl", create_parent=False)
+_EVIDENCE_DIR = runtime_state_dir("organism", create=False) / "proof_evidence"
 
 
 @dataclass
-class ProofPackage:
+class ProofStorePackage:
     proof_id: str = field(default_factory=lambda: f"proof-{uuid4().hex[:12]}")
     request_id: str = ""
     execution_id: str = ""
@@ -51,7 +47,7 @@ class ProofPackage:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any]) -> ProofPackage:
+    def from_dict(cls, d: dict[str, Any]) -> ProofStorePackage:
         known = {f.name for f in cls.__dataclass_fields__.values()}
         return cls(**{k: v for k, v in d.items() if k in known})
 
@@ -65,8 +61,8 @@ class ProofStore:
 
     def __init__(self, path: Path | None = None) -> None:
         self._path = path or _STORE_PATH
-        self._packages: list[ProofPackage] = []
-        self._by_id: dict[str, ProofPackage] = {}
+        self._packages: list[ProofStorePackage] = []
+        self._by_id: dict[str, ProofStorePackage] = {}
         self._load()
 
     def _load(self) -> None:
@@ -78,7 +74,7 @@ class ProofStore:
                     continue
                 try:
                     row = json.loads(line)
-                    pkg = ProofPackage.from_dict(row)
+                    pkg = ProofStorePackage.from_dict(row)
                     self._packages.append(pkg)
                     self._by_id[pkg.proof_id] = pkg
                 except (json.JSONDecodeError, TypeError):
@@ -87,7 +83,7 @@ class ProofStore:
         except Exception as exc:
             logger.warning("Failed to load proof store: %s", exc)
 
-    def _append(self, pkg: ProofPackage) -> None:
+    def _append(self, pkg: ProofStorePackage) -> None:
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
             with open(self._path, "a") as f:
@@ -105,8 +101,8 @@ class ProofStore:
         commands_run: list[str] | None = None,
         logs: list[str] | None = None,
         verification_results: list[dict[str, Any]] | None = None,
-    ) -> ProofPackage:
-        pkg = ProofPackage(
+    ) -> ProofStorePackage:
+        pkg = ProofStorePackage(
             request_id=request_id,
             execution_id=execution_id,
             packet_id=packet_id,
@@ -122,10 +118,12 @@ class ProofStore:
         pkg.evidence_dir.mkdir(parents=True, exist_ok=True)
         return pkg
 
-    def get(self, proof_id: str) -> ProofPackage | None:
+    def get(self, proof_id: str) -> ProofStorePackage | None:
         return self._by_id.get(proof_id)
 
-    def approve(self, proof_id: str, notes: str = "", reviewer: str = "operator") -> ProofPackage | None:
+    def approve(
+        self, proof_id: str, notes: str = "", reviewer: str = "operator"
+    ) -> ProofStorePackage | None:
         pkg = self._by_id.get(proof_id)
         if pkg is None:
             return None
@@ -136,7 +134,9 @@ class ProofStore:
         self._append(pkg)
         return pkg
 
-    def reject(self, proof_id: str, notes: str = "", reviewer: str = "operator") -> ProofPackage | None:
+    def reject(
+        self, proof_id: str, notes: str = "", reviewer: str = "operator"
+    ) -> ProofStorePackage | None:
         pkg = self._by_id.get(proof_id)
         if pkg is None:
             return None
@@ -152,7 +152,7 @@ class ProofStore:
         status: str = "",
         limit: int = 50,
         offset: int = 0,
-    ) -> list[ProofPackage]:
+    ) -> list[ProofStorePackage]:
         filtered = self._packages
         if status:
             filtered = [p for p in filtered if p.status == status]
@@ -177,3 +177,8 @@ def get_proof_store() -> ProofStore:
     if _store_instance is None:
         _store_instance = ProofStore()
     return _store_instance
+
+
+# Compatibility for legacy callers of this JSONL proof-store facade. The
+# canonical ProofPackage type lives in substrate.organism.proof_runtime.
+ProofPackage = ProofStorePackage

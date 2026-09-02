@@ -18,6 +18,7 @@ import time
 from typing import Any
 
 from substrate.execution.cpu_gate import gated_subprocess_run
+from substrate.state.runtime_paths import runtime_state_path
 
 logger = logging.getLogger(__name__)
 
@@ -37,8 +38,8 @@ class TailscaleDiscoveryTick:
         self._registry_path = registry_path or os.path.join(
             _ROOT, "infra", "device_registry.json",
         )
-        self._discovered_peers_path = discovered_peers_path or os.path.join(
-            _ROOT, "data", "runtime", "discovered_peers.json",
+        self._discovered_peers_path = discovered_peers_path or str(
+            runtime_state_path("discovery", "discovered_peers.json")
         )
         self._interval = interval_seconds or int(
             os.environ.get("UMH_DISCOVERY_INTERVAL_SECONDS", "300"),

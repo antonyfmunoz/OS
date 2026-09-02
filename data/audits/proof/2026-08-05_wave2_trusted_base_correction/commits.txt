@@ -1,0 +1,6 @@
+86a6be5bacc4b001d7ef8767a1155abee098de34 test: pin the ends of the trusted-base chain, replacing source-string tests
+f6112ecdda53120cb83b4d5ad6bcb15f4b342245 fix: dispatch the checks builder by signature, never by catching TypeError
+4dc831cbab2e5850f02fbf5ca10a5fec495eb1f1 fix: authorize the trusted-base re-anchor instead of trusting it
+a0fd6a231e3c82a4afcf236a04f88a5be96d0e3c test: cover the two properties that make the trusted-base re-anchor safe
+08124fbdfd3a4c223f7708d0c3e6d16e0172064b fix: read trusted_base defensively so a stale worker result cannot strand a dispatch
+a818012f13ee6e16360ea80c08cc7b8ce6e5c07b fix: propagate trusted projection base so diff_scope evaluates worker changes only

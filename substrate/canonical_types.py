@@ -129,6 +129,9 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "PlanningStageMarker": ["substrate.execution.planning.records"],
     "ObjectivePlanRecord": ["substrate.execution.planning.records"],
     "ObjectivePlanNode": ["substrate.execution.planning.records"],
+    "ObjectiveLane": ["substrate.execution.planning.records"],
+    "LaneDeclarationError": ["substrate.execution.planning.records"],
+    "DecompositionMode": ["substrate.execution.planning.records"],
     "ObjectivePlanStatus": ["substrate.execution.planning.records"],
     "IntentAssessment": ["substrate.execution.planning.records"],
     "IntentAssessmentState": ["substrate.execution.planning.records"],
@@ -144,6 +147,79 @@ CANONICAL_TYPES: dict[str, list[str]] = {
     "DecisionReadinessAssessment": ["substrate.execution.planning.readiness"],
     "InstructionCompilationRequest": ["substrate.execution.planning.instruction_compilation"],
     "ModelExecutionPackage": ["substrate.execution.planning.instruction_compilation"],
+    # ── substrate/execution/attempts/ (Wave 2 canonical execution slice) ──
+    # ExecutionAttempt is the ONE canonical concrete execution object. The
+    # ExecutionAuthorizationGrant is the persisted bounded EFFECT of an APPROVED
+    # execution_authorization Decision — NOT a rival Decision (ApprovalRequest
+    # remains the sole Decision authority; the grant carries no requested/denied
+    # state). ExecutionReadinessAssessment is distinct from the organism
+    # WorkReadinessRuntime.ReadinessAssessment (a legacy read-surface), and from
+    # planning.readiness.DecisionReadinessAssessment (plan-acceptance readiness).
+    "GraphShapeVerdict": ["substrate.execution.attempts.graph_shape_gate"],
+    "AttemptExecutionKind": ["substrate.execution.attempts.records"],
+    "CanonicalRecordSourceError": ["substrate.execution.attempts.field_control_plane"],
+    "CompositionAuthorityUnresolved": ["substrate.execution.attempts.records"],
+    "CompositionConflict": ["substrate.execution.attempts.composition"],
+    "CompositionError": ["substrate.execution.attempts.composition"],
+    "CompositionResult": ["substrate.execution.attempts.composition"],
+    # THE single declaration authority: what execution class each Task of one
+    # run is. Built once from canonical lineage, immutable for the run, carried
+    # into Attempt creation. Never re-derived from a mutable file by a consumer.
+    "VerifiedExecutionDeclaration": ["substrate.execution.attempts.records"],
+    # The THREE-STATE declaration outcome. DECLARED / NO_COMPOSITION /
+    # UNANSWERABLE must stay distinguishable: collapsing the last two into one
+    # absence is what let five reproduced bypasses persist an immutable
+    # `Task C + worker` row. UNKNOWN MUST NEVER MEAN WORKER.
+    "DeclarationOutcome": ["substrate.execution.attempts.records"],
+    "DeclarationResult": ["substrate.execution.attempts.records"],
+    "ExecutionAttempt": ["substrate.execution.attempts.records"],
+    "ExecutionAttemptStatus": ["substrate.execution.attempts.records"],
+    "AttemptTransition": ["substrate.execution.attempts.records"],
+    "ExecutionAuthorizationGrant": ["substrate.execution.attempts.records"],
+    "ExecutionAuthorizationGrantStatus": ["substrate.execution.attempts.records"],
+    "ExecutionAttemptStore": ["substrate.execution.attempts.store"],
+    "AttemptStoreConflict": ["substrate.execution.attempts.store"],
+    "AttemptLifecycleError": ["substrate.execution.attempts.lifecycle"],
+    # C2 readiness + authorization. ExecutionReadinessAssessment is the
+    # execution-gating readiness type (distinct from organism ReadinessAssessment
+    # and planning DecisionReadinessAssessment). ExecutionDecisionConflict guards
+    # the one execution-authorization write path.
+    "ExecutionReadinessAssessment": ["substrate.execution.attempts.readiness"],
+    "ExecutionReadinessState": ["substrate.execution.attempts.readiness"],
+    # R3: AdmissionVerdict is the ONE canonical admission answer, produced by
+    # `admission.authorize_admission` and consumed atomically by the scheduler
+    # at the final attempt-admission boundary. It does NOT rival
+    # ExecutionReadinessAssessment: readiness is the pre-grant advisory
+    # assessment surface; AdmissionVerdict is the enforcing authority. Exactly
+    # one component decides admission, and this is its verdict type.
+    "AdmissionVerdict": ["substrate.execution.attempts.admission"],
+    "ExecutionDecisionConflict": ["substrate.execution.attempts.decisions"],
+    "ExecutionAuthorizationDecisionSource": ["substrate.execution.attempts.decisions"],
+    # C3 placement + lease + instruction compilation. ExecutionAssignment is the
+    # durable canonical placement record; ExecutionEnvironmentLease is the one
+    # writable-window record (no prior owner). DispatchBlocked / PlacementError /
+    # LeaseError are the fail-closed guards on each stage.
+    "ExecutionAssignment": ["substrate.execution.attempts.placement"],
+    "PlacementError": ["substrate.execution.attempts.placement"],
+    "ExecutionEnvironmentLease": ["substrate.execution.attempts.leases"],
+    "LeaseManager": ["substrate.execution.attempts.leases"],
+    "LeaseError": ["substrate.execution.attempts.leases"],
+    "DispatchBlocked": ["substrate.execution.attempts.dispatch"],
+    # C4 scheduler. AttemptScheduler is the bounded, single-writer, dependency-
+    # aware admission core (NOT a persistent supervisor — Wave 3).
+    "AttemptScheduler": ["substrate.execution.attempts.scheduler"],
+    "SchedulerPassReport": ["substrate.execution.attempts.scheduler"],
+    # C4 part 2: real worker, enforced host isolation, signed dispatch spool.
+    "WorkerResult": ["substrate.execution.attempts.worker_model_executor"],
+    "IsolationProfile": ["substrate.execution.attempts.host_isolation"],
+    "IsolationUnavailable": ["substrate.execution.attempts.host_isolation"],
+    "DispatchEnvelope": ["substrate.execution.attempts.spool"],
+    "DispatchSpool": ["substrate.execution.attempts.spool"],
+    # C5 verification + the two Proof classifications under the one canonical
+    # Proof authority (ProofPackage). VerificationVerdict carries an AttemptProof
+    # or PlanExecutionProof classification; it is NOT a rival Proof type.
+    "VerificationVerdict": ["substrate.execution.attempts.verification"],
+    "VerificationCheck": ["substrate.execution.attempts.verification"],
     # ── substrate/execution/runtime/capability_router.py ────────────────
     # Capability (Enum) lists job capability names: CODE_WRITE, REASON, etc.
     # Capability (BaseModel) in substrate.types describes a capability instance.
@@ -1416,6 +1492,27 @@ CANONICAL_TYPES: dict[str, list[str]] = {
 # Shape: {module_path: {type_name: {"owner", "sunset" (YYYY-MM-DD), "rationale"}}}
 
 LEGACY_DUPLICATES_META: dict[str, dict[str, dict[str, str]]] = {
+    # ── MVP Wave 2 (2026-07-23) ────────────────────────────────────────────
+    # Pre-existing homonym surfaced (not introduced) when the Wave 2 C1
+    # fail-closed edit touched plan_execution_adapter.py: Gate 1 blocks any
+    # STAGED file carrying a divergence, even a long-standing one. The adapter's
+    # local ``ExecutionGraph`` (a dict of ExecutablePlan for spine execution)
+    # predates and is distinct from the canonical
+    # ``substrate.organism.execution_graph.ExecutionGraph`` (an ExecutionGraphNode
+    # DAG). It is ruled a Wave 2 compatibility representation (convergence ledger
+    # #13); registered here rather than weakening the gate — must SHRINK, retired
+    # when plan_execution_adapter is converged off the legacy execution path.
+    "substrate.organism.plan_execution_adapter": {
+        "ExecutionGraph": {
+            "owner": "organism",
+            "sunset": "2026-12-31",
+            "rationale": (
+                "adapter-local ExecutablePlan DAG predates canonical "
+                "execution_graph.ExecutionGraph; Wave 2 compat representation "
+                "(ledger #13), retired when the adapter leaves the legacy path"
+            ),
+        },
+    },
     # ── MVP Wave 0 (2026-07-20) ────────────────────────────────────────────
     # Pre-existing homonyms surfaced (not introduced) when the runtime-state
     # boundary packet touched these modules: Gate 1 blocks any STAGED file

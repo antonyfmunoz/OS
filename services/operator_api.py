@@ -1,29 +1,79 @@
 #!/usr/bin/env python3
+# ruff: noqa: E402, I001
 """UMH Operator Workstation API — FastAPI backend for the operator UI."""
 
 import faulthandler
 import os
 import signal
 import sys
+from pathlib import Path
 
 faulthandler.enable()
 faulthandler.register(signal.SIGUSR1, all_threads=True)
 
+UMH_ROOT = Path(os.getenv("UMH_ROOT") or Path(__file__).resolve().parents[1]).resolve()
+_umh_root_s = str(UMH_ROOT)
+if not sys.path or sys.path[0] != _umh_root_s:
+    try:
+        sys.path.remove(_umh_root_s)
+    except ValueError:
+        pass
+    sys.path.insert(0, _umh_root_s)
+
+
+def _env_truthy(name: str) -> bool:
+    return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+_CANDIDATE_DENIED_ENV_EXACT = {
+    "DATABASE_URL",
+    "EOS_DATABASE_URL",
+    "UMH_DEV_BYPASS",
+    "UMH_DOCKER_BRIDGE_IP",
+}
+_CANDIDATE_DENIED_ENV_SUBSTRINGS = (
+    "MESH",
+    "DISCORD",
+    "FLY",
+    "GITHUB",
+    "GH_",
+    "NOTION",
+    "TELEGRAM",
+    "APIFY",
+    "SSH",
+    "PRIVATE",
+    "1PASSWORD",
+    "OP_",
+)
+
+
+def _candidate_env_key_denied(key: str) -> bool:
+    upper = key.upper()
+    return upper in _CANDIDATE_DENIED_ENV_EXACT or any(
+        token in upper for token in _CANDIDATE_DENIED_ENV_SUBSTRINGS
+    )
+
+
+def _scrub_candidate_denied_env() -> None:
+    if not _env_truthy("UMH_CANDIDATE_ENV_ALLOWLIST_ONLY"):
+        return
+    for key in list(os.environ):
+        if _candidate_env_key_denied(key):
+            os.environ.pop(key, None)
+
+
+_scrub_candidate_denied_env()
+
 from substrate.execution.cpu_gate import gated_subprocess_run
-
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
-
 
 import asyncio
 import concurrent.futures
 import json
 import logging
 import subprocess
-import tempfile
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
 import uvicorn
@@ -40,13 +90,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from transports.api.governed import governed_mutation
+from substrate.state.runtime_paths import runtime_state_dir, runtime_state_path  # noqa: E402
+from transports.api.governed import governed_mutation  # noqa: E402
 
-load_dotenv("/opt/OS/services/.env")
-load_dotenv("/opt/OS/.env", override=False)
 
-UMH_ROOT = Path(os.getenv("UMH_ROOT", "/opt/OS"))
-API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "")
+if not _env_truthy("UMH_CANDIDATE_ENV_ALLOWLIST_ONLY"):
+    load_dotenv(UMH_ROOT / "services" / ".env")
+    load_dotenv(UMH_ROOT / ".env", override=False)
+
+API_KEY = os.getenv("UMH_OPERATOR_API_KEY", "").strip()
 
 logger = logging.getLogger("operator_api")
 logging.basicConfig(level=logging.INFO)
@@ -54,8 +106,61 @@ logging.basicConfig(level=logging.INFO)
 _loop_registry = None
 _organism_daemon = None
 _tick_task = None
+_voice_warmup_task: asyncio.Task | None = None
 _tick_executor: concurrent.futures.ThreadPoolExecutor | None = None
 _api_executor: concurrent.futures.ThreadPoolExecutor | None = None
+_voice_warmup_status: dict[str, Any] = {
+    "state": "NOT_STARTED",
+    "started_at": None,
+    "ended_at": None,
+    "error": None,
+    "shutdown_waiting": False,
+    "shutdown_slow": False,
+    "cancel_requested": False,
+}
+_VOICE_WARMUP_SHUTDOWN_DRAIN_SECONDS = 30.0
+_readiness_components: dict[str, dict[str, Any]] = {
+    "operator_api_key": {"required": True, "ready": bool(API_KEY.strip()), "detail": ""},
+    "execution_spine": {"required": True, "ready": False, "detail": "not initialized"},
+    "adapter_sockets": {"required": True, "ready": False, "detail": "not initialized"},
+    "config_store": {"required": True, "ready": False, "detail": "not initialized"},
+    "organism_daemon": {"required": True, "ready": False, "detail": "not initialized"},
+    "organism_port": {"required": True, "ready": False, "detail": "not initialized"},
+    "cockpit_api": {"required": True, "ready": False, "detail": "not mounted"},
+    "cockpit_frontend_artifact": {
+        "required": True,
+        "ready": False,
+        "detail": "not verified",
+    },
+    "voice_warmup": {"required": False, "ready": False, "detail": "optional"},
+}
+if not API_KEY.strip():
+    _readiness_components["operator_api_key"]["detail"] = "UMH_OPERATOR_API_KEY is not configured"
+else:
+    _readiness_components["operator_api_key"]["detail"] = "configured"
+
+
+def _set_readiness_component(name: str, *, ready: bool, detail: str = "") -> None:
+    component = _readiness_components.setdefault(
+        name, {"required": False, "ready": False, "detail": ""}
+    )
+    component["ready"] = bool(ready)
+    if detail:
+        component["detail"] = detail
+
+
+def operator_readiness_status() -> dict[str, Any]:
+    components = {name: dict(value) for name, value in _readiness_components.items()}
+    required = {name: value for name, value in components.items() if value.get("required")}
+    missing = [name for name, value in required.items() if value.get("ready") is not True]
+    return {
+        "ready": not missing,
+        "status": "ready" if not missing else "not_ready",
+        "missing_required": missing,
+        "components": components,
+        "voice_warmup": voice_warmup_status(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 def _wire_spine_to_cockpit_ws(daemon) -> None:
@@ -90,9 +195,105 @@ async def _tick_loop(daemon, executor: concurrent.futures.ThreadPoolExecutor) ->
         await asyncio.sleep(interval)
 
 
+def voice_warmup_status() -> dict[str, Any]:
+    return dict(_voice_warmup_status)
+
+
+async def _run_voice_warmup(
+    executor: concurrent.futures.ThreadPoolExecutor,
+    preload_fn=None,
+) -> None:
+    global _voice_warmup_status
+    preload = preload_fn
+    if preload is None:
+        from substrate.execution.voice.warm_engine import preload_warm_engine
+
+        preload = preload_warm_engine
+
+    _set_readiness_component("voice_warmup", ready=False, detail="warming")
+    _voice_warmup_status = {
+        "state": "WARMING",
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "ended_at": None,
+        "error": None,
+        "shutdown_waiting": False,
+        "shutdown_slow": False,
+        "cancel_requested": False,
+    }
+    work = asyncio.get_running_loop().run_in_executor(executor, preload)
+    while True:
+        try:
+            ok = await asyncio.shield(work)
+            break
+        except asyncio.CancelledError:
+            _voice_warmup_status = {
+                **_voice_warmup_status,
+                "cancel_requested": True,
+                "shutdown_waiting": True,
+            }
+            logger.info("warm VoiceEngine preload cancellation requested; draining owned work")
+            continue
+        except Exception as exc:
+            _set_readiness_component("voice_warmup", ready=False, detail="fail_soft")
+            _voice_warmup_status = {
+                **_voice_warmup_status,
+                "state": "FAILED",
+                "ended_at": datetime.now(timezone.utc).isoformat(),
+                "error": str(exc),
+            }
+            logger.warning("warm VoiceEngine preload failed (will lazy-load): %s", exc)
+            return
+
+    if ok is False:
+        _set_readiness_component("voice_warmup", ready=False, detail="fail_soft")
+        _voice_warmup_status = {
+            **_voice_warmup_status,
+            "state": "FAILED",
+            "ended_at": datetime.now(timezone.utc).isoformat(),
+            "error": "preload_warm_engine returned false",
+        }
+        logger.warning("warm VoiceEngine preload failed (will lazy-load)")
+        return
+
+    _set_readiness_component("voice_warmup", ready=True, detail="ready")
+    _voice_warmup_status = {
+        **_voice_warmup_status,
+        "state": "READY",
+        "ended_at": datetime.now(timezone.utc).isoformat(),
+    }
+    logger.info("warm VoiceEngine preloaded for governed voice WS")
+
+
+async def _drain_voice_warmup_task_for_shutdown() -> None:
+    global _voice_warmup_task
+    task = _voice_warmup_task
+    if task is None:
+        return
+    if not task.done():
+        _voice_warmup_status["shutdown_waiting"] = True
+        logger.info("waiting for warm VoiceEngine preload to finish before shutdown")
+        done, _pending = await asyncio.wait(
+            {task},
+            timeout=_VOICE_WARMUP_SHUTDOWN_DRAIN_SECONDS,
+        )
+        if not done:
+            _voice_warmup_status.update(
+                {
+                    "shutdown_slow": True,
+                },
+            )
+            logger.warning("warm VoiceEngine preload exceeded shutdown drain observation budget")
+    try:
+        await task
+    except Exception as exc:
+        logger.warning("warm VoiceEngine preload task ended during shutdown: %s", exc)
+    finally:
+        _voice_warmup_task = None
+
+
 @asynccontextmanager
 async def lifespan(application):
-    global _loop_registry, _organism_daemon, _tick_task, _tick_executor, _api_executor
+    global _loop_registry, _organism_daemon, _tick_task, _voice_warmup_task, _tick_executor, _api_executor
 
     # ── Thread pool isolation: tick gets its own thread, API gets 4 ───────
     _tick_executor = concurrent.futures.ThreadPoolExecutor(
@@ -121,8 +322,14 @@ async def lifespan(application):
             "adapter sockets registered: intelligence_wired=%s",
             _call_with_fallback_fn is not None,
         )
+        _set_readiness_component(
+            "adapter_sockets",
+            ready=_call_with_fallback_fn is not None,
+            detail="registered" if _call_with_fallback_fn is not None else "intelligence port unwired",
+        )
     except Exception as exc:
         logger.error("adapter socket registration failed: %s", exc)
+        _set_readiness_component("adapter_sockets", ready=False, detail=type(exc).__name__)
 
     # ── Register config store ─────────────────────────────────────────────
     try:
@@ -132,8 +339,10 @@ async def lifespan(application):
         _cfg = ConfigStore()
         register_config_store(_cfg.get, _cfg.set, _cfg.get_all, _cfg.on_change)
         logger.info("config store registered: ai_name=%s", _cfg.get("ai_name"))
+        _set_readiness_component("config_store", ready=True, detail="registered")
     except Exception as exc:
         logger.warning("config store not registered: %s", exc)
+        _set_readiness_component("config_store", ready=False, detail=type(exc).__name__)
 
     # ── Apply persisted settings overrides + backfill device fields ──────
     try:
@@ -172,26 +381,32 @@ async def lifespan(application):
         logger.info("runtime graph built: %d runtimes, %d available", graph.node_count, avail)
         _organism_daemon = OrganismDaemon(graph=graph)
         _organism_daemon.start()
+        # Register the running daemon with the CANONICAL organism port so the
+        # governed mutation path (transports/api/governed.py -> _get_router) can
+        # reach the control plane. Without this the governed path finds no
+        # organism, degrades EVERY mutation, and fail-closes HIGH-risk decisions
+        # like execution_authorization_decision — the operator can approve
+        # execution in the HUD (200) but the grant never activates and no worker
+        # ever runs (observed field run 20260725T172540Z-p1). Voice wiring alone
+        # (wire_organism) does not populate this port.
+        try:
+            from substrate.sockets.organism_port import register_organism_accessor
+
+            register_organism_accessor(lambda: _organism_daemon)
+            logger.info("organism registered with canonical organism_port (governed path live)")
+            _set_readiness_component("organism_port", ready=True, detail="registered")
+        except Exception as exc:  # never block startup on the accessor wiring
+            logger.error("failed to register organism accessor: %s", exc)
+            _set_readiness_component("organism_port", ready=False, detail=type(exc).__name__)
         _wire_spine_to_cockpit_ws(_organism_daemon)
         _tick_task = asyncio.create_task(_tick_loop(_organism_daemon, _tick_executor))
         logger.info("organism daemon started with autonomous tick loop (dedicated thread)")
+        _set_readiness_component("organism_daemon", ready=True, detail="started")
     except Exception as exc:
         import traceback
 
         logger.error("organism daemon failed to start: %s\n%s", exc, traceback.format_exc())
-
-    # ── Preload the warm VoiceEngine (GAP A) ─────────────────────────────────
-    # The governed voice WS builds VoiceSession(engine=get_warm_engine()); preload
-    # the SAME instance now so the WhisperModel is resident before the first voice
-    # turn (no cold-start latency). Off-thread + best-effort — never blocks
-    # startup. FREE+LOCAL: this is local faster-whisper, no cloud STT.
-    try:
-        from substrate.execution.voice.warm_engine import preload_warm_engine
-
-        await asyncio.get_running_loop().run_in_executor(_api_executor, preload_warm_engine)
-        logger.info("warm VoiceEngine preloaded for governed voice WS")
-    except Exception as exc:
-        logger.warning("warm VoiceEngine preload skipped (will lazy-load): %s", exc)
+        _set_readiness_component("organism_daemon", ready=False, detail=type(exc).__name__)
 
     # ── Register notification port implementations ──────────────────────
     try:
@@ -208,7 +423,17 @@ async def lifespan(application):
     except Exception as exc:
         logger.warning("notification port registration failed: %s", exc)
 
+    # ── Preload the warm VoiceEngine (GAP A) ─────────────────────────────────
+    # The governed voice WS builds VoiceSession(engine=get_warm_engine()); warm
+    # the SAME instance off the startup critical path. This best-effort task is
+    # lifecycle-owned so cold model downloads cannot block /health, and shutdown
+    # still drains/consumes the work cleanly.
+    if _api_executor is not None:
+        _voice_warmup_task = asyncio.create_task(_run_voice_warmup(_api_executor))
+
     yield
+
+    await _drain_voice_warmup_task_for_shutdown()
 
     if _tick_task is not None:
         _tick_task.cancel()
@@ -298,18 +523,23 @@ try:
     _ctx = try_load_context_from_env()
     _HAS_SPINE = True
     logger.info("ExecutionSpine loaded — chat via spine")
+    _set_readiness_component("execution_spine", ready=True, detail="loaded")
 except Exception as e:
     logger.warning(f"ExecutionSpine not available: {e}")
     _spine = None
     _ctx_builder = None
     _ctx = None
+    _set_readiness_component("execution_spine", ready=False, detail=type(e).__name__)
 
 
 # ─── Auth dependency ───────────────────────────────────────────────────────────
 async def verify_api_key(request: Request) -> None:
     """Check X-API-Key header against configured key."""
-    key = request.headers.get("X-API-Key", "")
-    if key != API_KEY:
+    configured = API_KEY.strip()
+    if not configured:
+        raise HTTPException(status_code=503, detail="Operator API key is not configured")
+    key = request.headers.get("X-API-Key", "").strip()
+    if not key or key != configured:
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
@@ -329,11 +559,26 @@ async def health():
             {"status": "degraded", "detail": "event loop blocked"},
             status_code=503,
         )
-    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+    return {
+        "status": "ok",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "voice_warmup": voice_warmup_status(),
+    }
+
+
+@app.get("/ready")
+async def ready():
+    """Semantic readiness for Wave 2 governed execution."""
+    status = operator_readiness_status()
+    if status["ready"]:
+        return status
+    return JSONResponse(status, status_code=503)
 
 
 # ─── Knowledge endpoints ───────────────────────────────────────────────────────
-MEMORIES_PATH = UMH_ROOT / "data" / "runtime" / "canonical_memory_store" / "memories.jsonl"
+MEMORIES_PATH = runtime_state_path(
+    "memory/canonical_memory_store", "memories.jsonl", create_parent=False
+)
 
 
 def _load_memories() -> list[dict[str, Any]]:
@@ -396,7 +641,7 @@ async def knowledge_search(q: str = "") -> dict[str, Any]:
 
 
 # ─── System endpoints ──────────────────────────────────────────────────────────
-COST_LOG_PATH = UMH_ROOT / "services" / "cost_log.json"
+COST_LOG_PATH = runtime_state_path("logs", "cost_log.json", create_parent=False)
 
 
 @app.get("/api/system/costs", dependencies=[Depends(verify_api_key)])
@@ -436,7 +681,7 @@ async def system_containers() -> dict[str, Any]:
 @app.get("/api/system/ingestion-status", dependencies=[Depends(verify_api_key)])
 async def system_ingestion_status() -> dict[str, Any]:
     """Read latest ingestion status from proofs directory."""
-    proofs_dir = UMH_ROOT / "data" / "runtime" / "canonical_memory_store" / "proofs"
+    proofs_dir = runtime_state_dir("memory/canonical_memory_store/proofs", create=False)
     if not proofs_dir.exists():
         return {"available": False, "message": "No proofs directory"}
     # List proof directories sorted by name (date-prefixed)
@@ -520,7 +765,7 @@ async def ingest_trigger(request: Request) -> dict[str, Any]:
 
 # ─── Voice-first helpers ──────────────────────────────────────────────────────
 
-_VOICE_ACK_DIR = UMH_ROOT / "data" / "voice_acks"
+_VOICE_ACK_DIR = runtime_state_dir("voice_acks", create=False)
 
 
 # P4S31 Voice Convergence: the rival voice runtime (the espeak TTS helper, the
@@ -612,7 +857,7 @@ async def vision_analyze(request: Request) -> dict[str, Any]:
 
 
 # ─── WebSocket ─────────────────────────────────────────────────────────────────
-_WS_TOKEN = os.getenv("UMH_WS_TOKEN", "") or API_KEY
+_WS_TOKEN = os.getenv("UMH_WS_TOKEN", "").strip() or API_KEY.strip()
 _DEV_BYPASS = os.getenv("UMH_DEV_BYPASS", "").lower() in ("1", "true", "yes")
 
 import hmac as _hmac
@@ -659,7 +904,7 @@ def _validate_ws_auth(ws: WebSocket) -> bool:
     if not _WS_TOKEN:
         client_ip = _real_ws_client_ip(ws)
         return _DEV_BYPASS and _is_private_ip(client_ip)
-    token = _extract_ws_token(ws)
+    token = _extract_ws_token(ws).strip()
     if token and _hmac.compare_digest(token, _WS_TOKEN):
         return True
     client_ip = _real_ws_client_ip(ws)
@@ -773,8 +1018,10 @@ try:
 
     app.include_router(cockpit_router)
     app.include_router(cockpit_ws_router)
+    _set_readiness_component("cockpit_api", ready=True, detail="mounted")
     logger.info("cockpit router mounted at /api/umh/")
 except Exception as e:
+    _set_readiness_component("cockpit_api", ready=False, detail=type(e).__name__)
     logger.warning(f"cockpit router not available: {e}")
 
 # ─── Governed voice router (the ONE voice ingress: /api/umh/voice/ws) ──────────
@@ -793,10 +1040,53 @@ except Exception as e:
     logger.warning(f"voice router not available: {e}")
 
 
-# ─── Static files (cockpit build) ─────────────────────────────────────────────
-cockpit_dist = UMH_ROOT / "cockpit" / "dist-web"
+# ─── Static files (Cockpit release artifact) ─────────────────────────────────
+_cockpit_dist_override = os.getenv("UMH_COCKPIT_DIST_WEB", "").strip()
+cockpit_dist = (
+    Path(_cockpit_dist_override).expanduser().resolve()
+    if _cockpit_dist_override
+    else UMH_ROOT / "cockpit" / "dist-web"
+)
 if cockpit_dist.exists():
-    app.mount("/", StaticFiles(directory=str(cockpit_dist), html=True), name="cockpit")
+    try:
+        from transports.api.cockpit_core_routes import (  # noqa: E402
+            _cockpit_frontend_asset_info,
+            _current_source_sha,
+        )
+
+        frontend_proof = _cockpit_frontend_asset_info(
+            UMH_ROOT,
+            expected_sha=_current_source_sha(UMH_ROOT),
+        )
+    except Exception as exc:  # noqa: BLE001
+        frontend_proof = {
+            "frontend_assets_ok": False,
+            "frontend_artifact_ok": False,
+            "frontend_artifact_errors": [f"artifact proof failed: {type(exc).__name__}"],
+        }
+    if (
+        frontend_proof.get("frontend_assets_ok") is True
+        and frontend_proof.get("frontend_artifact_ok") is True
+    ):
+        app.mount("/", StaticFiles(directory=str(cockpit_dist), html=True), name="cockpit")
+        _set_readiness_component(
+            "cockpit_frontend_artifact",
+            ready=True,
+            detail="exact release artifact verified",
+        )
+    else:
+        _set_readiness_component(
+            "cockpit_frontend_artifact",
+            ready=False,
+            detail="exact artifact refused",
+        )
+        logger.error("cockpit static mount refused: %s", frontend_proof)
+else:
+    _set_readiness_component(
+        "cockpit_frontend_artifact",
+        ready=False,
+        detail="frontend release artifact missing",
+    )
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":

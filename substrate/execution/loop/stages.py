@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from substrate.execution.loop.persistent_loop import CycleReport, stage
+from substrate.state.runtime_paths import runtime_state_dir
 
 if TYPE_CHECKING:
     from substrate.execution.loop.persistent_loop import PersistentLoop
@@ -162,8 +163,8 @@ def health_check(loop: PersistentLoop, report: CycleReport) -> None:
 
 # ─── Research stages ─────────────────────────────────────────────────────────
 
-_RESEARCH_QUEUE = _ROOT / "data" / "runtime" / "research_queue"
-_WORLD_MODEL_DIR = _ROOT / "data" / "runtime" / "world_model"
+_RESEARCH_QUEUE = runtime_state_dir("research_queue", create=False)
+_WORLD_MODEL_DIR = runtime_state_dir("world_model", create=False)
 
 
 @stage("research_topic_select")

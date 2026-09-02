@@ -33,6 +33,37 @@ def _from_dict(cls: type, d: dict[str, Any]) -> Any:
     return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
+class LaneDeclarationError(ValueError):
+    """A declared lane carries a key this record cannot represent.
+
+    Raised INSTEAD of silently dropping it. ``_from_dict`` filters unknown keys
+    by design — harmless for records rebuilt from their own ``to_dict()``, but
+    catastrophic for a CALLER-AUTHORED lane: a task contract declared as
+    ``intent``/``constraints`` was accepted without error and then discarded
+    before any worker saw it, so the correction was dead code that still passed
+    its own tests (independent review F-1). A caller-authored shape must fail
+    CLOSED on a key it cannot carry — a misspelled ``constraint`` must be a
+    loud error, never a silently unenforced boundary.
+    """
+
+
+def _from_dict_strict(cls: type, d: dict[str, Any]) -> Any:
+    """``_from_dict`` for CALLER-AUTHORED shapes: unknown keys raise.
+
+    Used only where a value crosses from outside the planning runtime into it.
+    Records rebuilt from their own serialization keep the lenient path so a
+    forward-compatible reread of a newer on-disk record still loads.
+    """
+    unknown = sorted(set(d) - set(cls.__dataclass_fields__))
+    if unknown:
+        raise LaneDeclarationError(
+            f"{cls.__name__} cannot carry declared key(s) {unknown} — "
+            f"known keys: {sorted(cls.__dataclass_fields__)}. A declared "
+            "boundary that cannot be carried must fail closed, not vanish."
+        )
+    return cls(**dict(d))
+
+
 # ── Intent assessment ────────────────────────────────────────────────────────
 
 
@@ -160,12 +191,22 @@ class GapAssessmentSnapshot:
     current_state_id: str = ""
     desired_state_id: str = ""
     goal_refs: list[str] = field(default_factory=list)
+    # The EXECUTABLE gap set — exactly the gaps that materialize as Tasks.
     gaps: list[dict[str, Any]] = field(default_factory=list)
     assumptions: list[str] = field(default_factory=list)
     contradictions: list[dict[str, Any]] = field(default_factory=list)
     unknowns: list[str] = field(default_factory=list)
     owner_decisions: list[dict[str, Any]] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
+    # Which producer owns ``gaps`` for this Plan version (DecompositionMode).
+    # Recorded so the selection is auditable rather than inferred after the
+    # fact from what happens to be present.
+    decomposition_mode: str = ""
+    # Evidence-derived gaps that did NOT win executable authority under
+    # DECLARED_EXCLUSIVE. They are PRESERVED here as non-executable planning
+    # evidence — never silently deleted, never materialized as sibling Tasks —
+    # so the information remains inspectable and available to later planning.
+    derived_evidence_gaps: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -269,6 +310,32 @@ class ObjectivePlanNode:
     # Cross-projection planning (§23.6): "" | "substrate" | "projection:<id>".
     # Projection-target nodes materialize with a NARROWED WorkScope.
     target: str = ""
+    # The node's OBJECTIVE-DERIVED writable-path authority, worktree-relative.
+    # This is the planning-time owner of mutation scope: the compiler seeds it
+    # onto the materialized WorkPacket's WorkRequirements
+    # (``declare_writable_paths`` → ``scope_declared=True``), and verification
+    # reads that persisted contract alone. Empty list + ``scope_declared`` means
+    # "nothing may change" (the verifier lane); a packet node that declares NO
+    # scope fails materialization closed — an undeclared scope is never
+    # whole-repository permission (field run 20260725T230726Z: a Task persisted
+    # with scope_declared=False made every legitimate diff unverifiable).
+    writable_path_scope: list[str] = field(default_factory=list)
+    scope_declared: bool = False
+    # The declaring lane's semantic identity (e.g. implementation vs the
+    # independent-verification lane), carried for read surfaces and verifier
+    # diagnostics. NEVER used to derive authority — the persisted
+    # writable_path_scope is the only mutation authority.
+    semantic_label: str = ""
+    # ── Declared task contract, carried from the lane (empty = legacy) ───────
+    # Planning-time owner of the node's INSTRUCTION content, mirroring how
+    # writable_path_scope is the planning-time owner of its AUTHORITY. The
+    # compiler seeds these onto the materialized WorkPacket's canonical
+    # user_intent / desired_end_state / constraints fields. Empty preserves the
+    # pre-correction title-derived behavior exactly.
+    intent: str = ""
+    desired_end_state: str = ""
+    constraints: list[str] = field(default_factory=list)
+    forbidden_path_scope: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -276,6 +343,100 @@ class ObjectivePlanNode:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> ObjectivePlanNode:
         return _from_dict(cls, d)
+
+
+class DecompositionMode(str, Enum):
+    """WHO owns the executable decomposition of one Plan version.
+
+    Exactly one mode wins per ObjectivePlanRecord version, chosen at a single
+    deterministic selection point in the canonical compiler. Two producers may
+    never both claim executable Task authority for the same Plan version: a
+    caller-DECLARED lane set and generic evidence-DERIVED gaps compiling as
+    siblings is what produced an 11-Task graph where the protocol requires
+    four (field run 20260726T193442Z, layer 11).
+
+    - ``DECLARED_EXCLUSIVE`` — the caller declared lanes; that set is the
+      COMPLETE executable decomposition. Evidence-derived gaps are preserved as
+      non-executable planning evidence (``GapAssessmentSnapshot.gaps`` retains
+      them via ``derived_evidence_gaps``) and materialize ZERO sibling Tasks.
+    - ``DERIVED`` — no declaration; the evidence/gap compiler owns it.
+    - ``UMBRELLA_FALLBACK`` — neither produced anything actionable, so the
+      objective itself is the single transformation.
+    """
+
+    DECLARED_EXCLUSIVE = "declared_exclusive"
+    DERIVED = "derived"
+    UMBRELLA_FALLBACK = "umbrella_fallback"
+
+
+@dataclass
+class ObjectiveLane:
+    """One caller-declared lane of a decomposed objective.
+
+    A lane is the planning-time declaration that an objective is realized by
+    SEVERAL cooperating Tasks rather than one umbrella Task — each with its own
+    least-privilege mutation authority and its own place in the dependency
+    graph. It is the typed form of the authority the caller already supplies
+    via ``writable_path_scope``: substrate never infers lanes from titles, ids,
+    packet-id shapes, or a worker's diff (all explicitly prohibited) — the
+    runtime that OWNS the target workspace declares them, exactly as it already
+    declares that workspace's writable paths.
+
+    ``lane_key`` is the caller's stable handle for this lane; ``depends_on``
+    names other lanes by their ``lane_key``. The compiler resolves those keys
+    to canonical gap keys and then to real node ids — a caller never supplies a
+    node id or a packet id, so a lane declaration can never mint identity.
+
+    ``writable_path_scope`` is this lane's own authority. An EMPTY list is
+    meaningful and legal: it declares a zero-write lane (the independent
+    verifier), which materializes a Task whose every diff is out of scope.
+    ``None`` is NOT permitted here — a lane that declares no authority is a
+    caller error, and the compiler fails closed rather than materializing a
+    Task no diff can satisfy.
+    """
+
+    lane_key: str = ""
+    title: str = ""
+    writable_path_scope: list[str] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
+    # Optional semantic identity for this lane (e.g. an implementation lane vs
+    # the independent-verification lane). Carried onto the node for read
+    # surfaces and the verifier contract; never used to DERIVE authority.
+    semantic_label: str = ""
+    # ── Task contract (optional; empty = legacy lane, behavior unchanged) ────
+    # The lane's own INSTRUCTION content, as distinct from its AUTHORITY
+    # (``writable_path_scope``). Declaring the right paths is not enough: the
+    # w16 field failure had correct scopes on both lanes and still refused both
+    # workers, because the only substantive spec either could find was the
+    # fixture's single all-tasks OBJECTIVE.md, so BOTH implemented the WHOLE
+    # objective and BOTH were correctly refused on ``diff_scope``.
+    #
+    # These are DECLARED by the runtime that owns the workspace — the same seam
+    # that declares writable paths — and are never inferred from titles or
+    # diffs. Empty values are legal and preserve pre-correction behavior
+    # exactly (the compiler falls back to title-derived text only when the lane
+    # declares nothing).
+    intent: str = ""
+    desired_end_state: str = ""
+    constraints: list[str] = field(default_factory=list)
+    # Paths this lane must NOT touch. DISTINCT from writable_path_scope: that
+    # is the enforced grant, this is the explicit prohibition the worker is
+    # shown. Never used to derive authority — verification enforces the
+    # writable scope, exactly as before.
+    forbidden_path_scope: list[str] = field(default_factory=list)
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> ObjectiveLane:
+        """Build a lane from a CALLER-AUTHORED dict — unknown keys fail closed.
+
+        Strict by design: a lane is the one shape in this module authored
+        OUTSIDE the planning runtime, so a key it cannot carry is a caller
+        error, not forward compatibility. See ``LaneDeclarationError``.
+        """
+        return _from_dict_strict(cls, d)
 
 
 @dataclass
@@ -322,6 +483,13 @@ class ObjectivePlanRecord:
     work_scope: dict[str, Any] = field(default_factory=dict)
     planning_scale: str = ""
     decomposition: dict[str, Any] = field(default_factory=dict)
+    # WHICH producer owns this VERSION's executable decomposition
+    # (``DecompositionMode``). It lives on the PLAN, not only on the transient
+    # gap snapshot, because a plan VERSION is also minted by ``compile_revision``
+    # — which never loads a gap snapshot and so could add an executable packet
+    # node to a DECLARED_EXCLUSIVE plan, reintroducing the additive defect
+    # through a second door.
+    decomposition_mode: str = ""
     archetype_resolution: dict[str, Any] = field(default_factory=dict)
     development_profile: dict[str, Any] = field(default_factory=dict)
     readiness_assessment: dict[str, Any] = field(default_factory=dict)
@@ -402,9 +570,11 @@ __all__ = [
     "EDIT_OPS",
     "NODE_KINDS",
     "CurrentStateRecord",
+    "DecompositionMode",
     "DesiredStateRecord",
     "GapAssessmentSnapshot",
     "GroundingSnapshot",
+    "ObjectiveLane",
     "IntentAssessment",
     "IntentAssessmentState",
     "ObjectivePlanNode",

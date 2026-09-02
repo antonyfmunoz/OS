@@ -26,11 +26,21 @@ def test_warm_engine_is_singleton() -> None:
 def test_preload_loads_model_once(monkeypatch) -> None:
     we.reset_warm_engine_for_tests()
     fake = MagicMock()
-    fake.load_whisper = MagicMock(return_value=True)
+    fake.intelligent.load_faster_whisper = MagicMock(return_value=True)
     monkeypatch.setattr(we, "VoiceEngine", lambda: fake)
-    we.preload_warm_engine()
-    fake.load_whisper.assert_called_once()
+    assert we.preload_warm_engine() is True
+    fake.intelligent.load_faster_whisper.assert_called_once_with(local_files_only=True)
     # subsequent get returns the same preloaded instance
+    assert we.get_warm_engine() is fake
+
+
+def test_preload_reports_fail_soft_load_failure(monkeypatch) -> None:
+    we.reset_warm_engine_for_tests()
+    fake = MagicMock()
+    fake.intelligent.load_faster_whisper = MagicMock(return_value=False)
+    monkeypatch.setattr(we, "VoiceEngine", lambda: fake)
+    assert we.preload_warm_engine() is False
+    fake.intelligent.load_faster_whisper.assert_called_once_with(local_files_only=True)
     assert we.get_warm_engine() is fake
 
 

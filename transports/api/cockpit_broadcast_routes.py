@@ -7,11 +7,11 @@ Node-aware: every mutating endpoint accepts an optional `target_node`
 query param.  "local" (default) runs FFmpeg on the VPS; any other value
 dispatches to that mesh node via the HTTP relay on port 8095.
 """
+# ruff: noqa: E402, I001
 
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
 import sys
@@ -121,45 +121,55 @@ async def _dispatch_remote(
 ) -> dict[str, Any]:
     """Dispatch a broadcast capability to a remote mesh node via the mesh relay.
 
-    Authenticates to the relay with the bearer secret and, for write-class
-    broadcast operations (everything except read-only health), attaches a
-    signed governance verdict bound to node+capability so the relay and node
-    validate before executing. Fail-closed on missing secrets.
+    Authenticates to the relay for read-only broadcast observations. Write-class
+    broadcast operations must use DurableRemote; this sync helper has no
+    canonical replay/trajectory authority and therefore rejects them.
     """
     import os
     from uuid import uuid4
 
     import aiohttp
 
-    from substrate.execution.mesh_verdict import get_verdict_secret, is_write_class, sign_verdict
+    from substrate.execution.mesh_verdict import (
+        READ_ONLY_EFFECT,
+        canonical_payload_digest,
+        canonical_sync_effect_policy,
+    )
 
     full_cap = f"broadcast.{capability}"
     risk_class = "read_only" if capability in ("health", "status") else "reversible_write"
+    policy = canonical_sync_effect_policy(full_cap, declared_effect_class=READ_ONLY_EFFECT)
+    if not policy.sync_allowed:
+        raise HTTPException(
+            status_code=409,
+            detail="remote broadcast operation must use DurableRemote or registered read-only policy",
+        )
 
-    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
     if not relay_secret:
         raise HTTPException(status_code=503, detail="mesh relay secret unset (fail-closed)")
     req_headers = {"Authorization": f"Bearer {relay_secret}"}
 
-    verdict_token = ""
-    if is_write_class(risk_class):
-        if not get_verdict_secret():
-            raise HTTPException(status_code=503, detail="mesh verdict secret unset (fail-closed)")
-        verdict_token = sign_verdict(
-            verdict_id=uuid4().hex,
-            node_id=node_id,
-            capability=full_cap,
-            risk_class=risk_class,
-            ttl_seconds=timeout + 30,
-        )
+    request_id = f"sync-{uuid4().hex}"
+    correlation_id = f"cockpit-broadcast:{capability}:{request_id}"
+    effect_class = READ_ONLY_EFFECT
+    payload_digest = canonical_payload_digest(params)
 
     relay_url = f"http://127.0.0.1:{_MESH_RELAY_PORT}/dispatch"
     payload = {
+        "request_id": request_id,
+        "correlation_id": correlation_id,
+        "candidate_sha": os.environ.get("UMH_SOURCE_SHA", "").strip(),
+        "effect_class": effect_class,
+        "authoritative_effect_class": policy.authoritative_effect_class,
+        "effect_policy": policy.policy_id,
+        "idempotency_key": request_id,
+        "payload_digest": payload_digest,
         "node_id": node_id,
         "capability": full_cap,
         "params": params,
         "risk_class": risk_class,
-        "verdict_token": verdict_token,
+        "verdict_token": "",
         "timeout": timeout,
     }
 
@@ -493,7 +503,7 @@ async def list_broadcast_nodes(_user=Depends(require_clerk_auth)):
 
     nodes = [{"node_id": _LOCAL, "status": "available", "local": True}]
 
-    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
     if not relay_secret:
         # /nodes now requires relay auth (fail-closed) — return local only.
         return {"nodes": nodes, "active_node": _active_node}
@@ -592,7 +602,7 @@ async def _get_remote_health(node_id: str) -> dict[str, Any]:
 
     import aiohttp
 
-    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+    relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
     if not relay_secret:
         return {"state": "unknown", "error": "mesh relay secret unset (fail-closed)"}
     req_headers = {"Authorization": f"Bearer {relay_secret}"}

@@ -1,0 +1,49 @@
+Round 12 FINAL — authority-boundary correction + medium finding closure
+Date: 2026-08-07
+Baseline: 131549ee4d1775a55953ecb9ff5d30fc720d20b1
+
+SOURCE FILES:
+81972a60265ffbd9282eec1008b17d873014235df6802c1d15bca8ab1dec2688  substrate/execution/attempts/store.py
+2073c59bcc7b3c2e95b537bcfcade556a1fe63011360272d1ce24a67c3a6e197  substrate/execution/attempts/records.py
+b2e3c92eba3406f84b685d5d772d206830da8dd54508c9d249a63d4fe31edc79  substrate/execution/attempts/field_control_plane.py
+5295a06e1f823df3b49dc205d86d81c504fe267b242e26fcfaa5604e54820780  substrate/execution/attempts/field_scenario_map.py
+a76e1578e4d0858532ddf2c812bfcb59acc36c1a9de3c73e8198830c6da249c3  substrate/execution/attempts/scheduler.py
+e1f0e898fdb24c7f9c4d91e27009646ad04ba5102b2262b6697b2fa024936301  substrate/execution/attempts/poller.py
+082af28c8f8713924f7a793fe7dbdd3ca195b4dfe7e822a9118b5eaccdf082f7  substrate/execution/attempts/lifecycle.py
+a1278054d704c4c1e9df39b00eefd6980ac55bdd25ea53b5482dc1f932b73748  scripts/wave2_attempt_runner.py
+
+TEST FILES:
+b0aead514dc48116f395093faeedbe46c97c7c93e9d5a37374de4ea0d02a9137  tests/test_wave2_verified_declaration.py
+2506c0991738b626fb0e3560ee32dc9bf7605229003a011265977d411c0def7c  tests/test_wave2_field_control_plane.py
+606bbd0726e9497a35ffad3f4effa0c600f57badf9f80766aedd37e0c3d06b36  tests/test_wave2_admission_pause_behavior.py
+bec4c7c0f8fa4de2ae28afee8c8d2dc948986293080a9a9e510716a8c6880284  tests/test_wave2_canonical_record_loader.py
+
+CORRECTIONS IN THIS PASS:
+1. FIFO HIGH (CRITICAL): _read_regular_authority_file had `if False:` guard —
+   dead code; changed to `if not stat.S_ISREG(st.st_mode):` — now active.
+   chardev/dev-zero tests were hanging because os.stat() succeeded on the
+   device but the guard never fired.
+
+2. MEDIUM: except AttributeError catch on apply_declaration_result replaced with
+   getattr+None check — AttributeError from INSIDE the method now propagates
+   instead of being silently swallowed.
+
+3. MEDIUM: DeclarationResult.__post_init__ added — validates that NO_COMPOSITION
+   never carries a declaration payload and DECLARED always carries one.
+
+TEST ADDITIONS: 3 new tests (119 total in test_wave2_verified_declaration.py)
+  - test_no_composition_with_declaration_payload_is_rejected
+  - test_declared_without_declaration_payload_is_rejected
+  - test_builder_exception_inside_apply_propagates
+
+MUTATION SWEEP:
+  S1 (FIFO guard):    KILLED — _read_regular_authority_file refuses non-regular
+  S2/S3 (equivalent): Proven equivalent by execution — pre-existing guards catch
+  S4 (skip claimed):  KILLED — foreign candidate stays SEALED
+  S5 (skip context):  KILLED — dishonest context stays SEALED
+  S6 (remove abspath): KILLED — relative path resolves via abspath
+  Payload mutations:  KILLED — __post_init__ rejects incoherent payloads
+  AttributeError:     KILLED — getattr pattern propagates internal errors
+
+ALL 18 GATES: PASS
+WAVE 2 SUITE: 1679 passed (excluding pre-existing phase14 failures)

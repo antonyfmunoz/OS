@@ -1,12 +1,18 @@
-from dataclasses import dataclass, field
 import json
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-load_dotenv(_REPO_ROOT / ".env")
+if os.getenv("UMH_CANDIDATE_ENV_ALLOWLIST_ONLY", "").strip().lower() not in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}:
+    load_dotenv(_REPO_ROOT / ".env")
 
 
 @dataclass

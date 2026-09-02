@@ -1,0 +1,17 @@
+{
+  "backend_task_id": "wp-94f3bcd9a755",
+  "binding_digest": "10fb5a157582f56353cec151c99a685e990d271fb11bcfe89d0be28627895af8",
+  "candidate_sha": "69f9fe272d5bbb1b4d0b16b503e1879807ff8c5d",
+  "conversation_id": "conv-7185c062b3da",
+  "correlation_id": "w2-20260808T014829Z-p1",
+  "digest": "d7c05ff6a2e4d53b580dd11e21fb4eca52b54b9498a78a7f869d8c4f0030763a",
+  "execution_authorization_ref": "objective_plan:opr-c0329ddeef94:execution_authorization:v1",
+  "frontend_task_id": "wp-47fb00e975d0",
+  "grant_id": "exgrant-49c0148872ac",
+  "integration_task_id": "wp-dbaadab5f4ce",
+  "plan_record_id": "opr-c0329ddeef94",
+  "plan_version": 1,
+  "run_id": "20260808T014829Z-p1",
+  "tenant_id": "tenant-72727be3-e24d-48f2-bcea-de760ecb4c23",
+  "verification_task_id": "wp-a96428d454fb"
+}

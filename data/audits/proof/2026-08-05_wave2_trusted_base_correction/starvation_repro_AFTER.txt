@@ -1,0 +1,7 @@
+withhold w1: withheld=True active_sandboxes=0
+withhold w2: withheld=True active_sandboxes=0
+THIRD TASK ADMITTED: /tmp/starve-ekmtyxkb/wt/auto-5ac507b7
+expire_stale cleared: 3
+active_sandboxes after expire: 1
+BOTH PRESERVED COMMITS SURVIVE GC: True
+VERDICT: PASS

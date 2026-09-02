@@ -60,6 +60,22 @@ from substrate.organism.memory_promotion import (
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
+def _ok_executor() -> tuple[str, bool]:
+    """An explicit, real (trivial) step executor for tests.
+
+    Wave 2 §V removed the adapter's fake-success default: a step with no
+    executor now raises PlanExecutionAdapterError. Tests that exercise envelope
+    construction / graph traversal supply THIS explicit executor themselves —
+    the success is the test's, not a hidden adapter fallback.
+    """
+    return ("step executed (test executor)", True)
+
+
+def _executors_for(executable) -> dict:
+    """Map every step's composition_step_id → the explicit test executor."""
+    return {step.composition_step_id: _ok_executor for step in executable.steps}
+
+
 def _make_plan(
     num_steps: int = 3,
     risk: RiskClass = RiskClass.LOW,
@@ -281,7 +297,7 @@ class TestGovernancePreservation:
         plan = _make_plan(1, governance=GovernanceMode.OPERATOR_REQUIRED)
         adapter = PlanExecutionAdapter(governed_spine=FakeSpine(auto_approve=False))
         executable = adapter.convert_plan(plan)
-        envelope = adapter._build_envelope(executable.steps[0], executable)
+        envelope = adapter._build_envelope(executable.steps[0], executable, execute_fn=_ok_executor)
         assert envelope.metadata["governance_mode"] == "operator_required"
         assert envelope.constraints.require_approval is True
 
@@ -289,14 +305,14 @@ class TestGovernancePreservation:
         plan = _make_plan(1, risk=RiskClass.CRITICAL)
         adapter = PlanExecutionAdapter(governed_spine=FakeSpine())
         executable = adapter.convert_plan(plan)
-        envelope = adapter._build_envelope(executable.steps[0], executable)
+        envelope = adapter._build_envelope(executable.steps[0], executable, execute_fn=_ok_executor)
         assert envelope.risk_level == "critical"
 
     def test_plan_id_in_metadata(self):
         plan = _make_plan(1)
         adapter = PlanExecutionAdapter(governed_spine=FakeSpine())
         executable = adapter.convert_plan(plan)
-        envelope = adapter._build_envelope(executable.steps[0], executable)
+        envelope = adapter._build_envelope(executable.steps[0], executable, execute_fn=_ok_executor)
         assert envelope.metadata["plan_id"] == executable.id
         assert envelope.metadata["step_id"] == "step-0"
 
@@ -304,7 +320,7 @@ class TestGovernancePreservation:
         plan = _make_plan(1)
         adapter = PlanExecutionAdapter(governed_spine=FakeSpine())
         executable = adapter.convert_plan(plan)
-        envelope = adapter._build_envelope(executable.steps[0], executable)
+        envelope = adapter._build_envelope(executable.steps[0], executable, execute_fn=_ok_executor)
         assert envelope.verification is not None
         assert "verify step 0" in envelope.verification.description
 
@@ -312,7 +328,7 @@ class TestGovernancePreservation:
         plan = _make_plan(1)
         adapter = PlanExecutionAdapter(governed_spine=FakeSpine())
         executable = adapter.convert_plan(plan)
-        envelope = adapter._build_envelope(executable.steps[0], executable)
+        envelope = adapter._build_envelope(executable.steps[0], executable, execute_fn=_ok_executor)
         assert envelope.rollback is not None
         assert "undo everything" in envelope.rollback.description
 
@@ -320,14 +336,14 @@ class TestGovernancePreservation:
         plan = _make_plan(1, risk=RiskClass.HIGH)
         adapter = PlanExecutionAdapter(governed_spine=FakeSpine())
         executable = adapter.convert_plan(plan)
-        envelope = adapter._build_envelope(executable.steps[0], executable)
+        envelope = adapter._build_envelope(executable.steps[0], executable, execute_fn=_ok_executor)
         assert envelope.constraints.max_retries == 0
 
     def test_low_risk_retries_one(self):
         plan = _make_plan(1, risk=RiskClass.LOW)
         adapter = PlanExecutionAdapter(governed_spine=FakeSpine())
         executable = adapter.convert_plan(plan)
-        envelope = adapter._build_envelope(executable.steps[0], executable)
+        envelope = adapter._build_envelope(executable.steps[0], executable, execute_fn=_ok_executor)
         assert envelope.constraints.max_retries == 1
 
 
@@ -340,7 +356,7 @@ class TestApprovalRouting:
         adapter = PlanExecutionAdapter(governed_spine=spine)
         plan = _make_plan(1, governance=GovernanceMode.OPERATOR_REQUIRED)
         executable = adapter.convert_plan(plan)
-        result = adapter.execute_plan(executable)
+        result = adapter.execute_plan(executable, step_executors=_executors_for(executable))
         assert result.steps[0].status == StepExecutionStatus.AWAITING_APPROVAL
 
     def test_approve_step_executes(self):
@@ -348,7 +364,7 @@ class TestApprovalRouting:
         adapter = PlanExecutionAdapter(governed_spine=spine)
         plan = _make_plan(1, governance=GovernanceMode.OPERATOR_REQUIRED)
         executable = adapter.convert_plan(plan)
-        adapter.execute_plan(executable)
+        adapter.execute_plan(executable, step_executors=_executors_for(executable))
         pending = adapter.check_pending_approvals(executable)
         assert len(pending) == 1
         step = adapter.approve_step(executable, "step-0", approved_by="test")
@@ -380,7 +396,7 @@ class TestExecutionGraphTraversal:
         adapter = PlanExecutionAdapter(governed_spine=spine)
         plan = _make_plan(3, chain=False)
         executable = adapter.convert_plan(plan)
-        result = adapter.execute_plan(executable)
+        result = adapter.execute_plan(executable, step_executors=_executors_for(executable))
         assert result.status == ExecutionGraphStatus.COMPLETED
         assert all(s.status == StepExecutionStatus.COMPLETED for s in result.steps)
         assert len(spine.submitted) == 3
@@ -390,7 +406,7 @@ class TestExecutionGraphTraversal:
         adapter = PlanExecutionAdapter(governed_spine=spine)
         plan = _make_plan(3, chain=True)
         executable = adapter.convert_plan(plan)
-        result = adapter.execute_plan(executable)
+        result = adapter.execute_plan(executable, step_executors=_executors_for(executable))
         assert result.status == ExecutionGraphStatus.COMPLETED
         assert all(s.status == StepExecutionStatus.COMPLETED for s in result.steps)
 
@@ -399,7 +415,7 @@ class TestExecutionGraphTraversal:
         adapter = PlanExecutionAdapter(governed_spine=spine)
         plan = _make_plan(3, chain=True)
         executable = adapter.convert_plan(plan)
-        result = adapter.execute_plan(executable)
+        result = adapter.execute_plan(executable, step_executors=_executors_for(executable))
         assert result.steps[0].status == StepExecutionStatus.FAILED
         assert result.steps[1].status == StepExecutionStatus.BLOCKED_BY_FAILURE
         assert result.steps[2].status == StepExecutionStatus.BLOCKED_BY_FAILURE
@@ -410,7 +426,7 @@ class TestExecutionGraphTraversal:
         adapter = PlanExecutionAdapter(governed_spine=spine)
         plan = _make_plan(3, chain=False)
         executable = adapter.convert_plan(plan)
-        result = adapter.execute_plan(executable)
+        result = adapter.execute_plan(executable, step_executors=_executors_for(executable))
         assert result.status == ExecutionGraphStatus.PARTIALLY_COMPLETED
         assert result.success_count() == 2
         assert result.failure_count() == 1
@@ -420,7 +436,7 @@ class TestExecutionGraphTraversal:
         adapter = PlanExecutionAdapter(governed_spine=spine)
         plan = _make_plan(3, chain=False)
         executable = adapter.convert_plan(plan)
-        result = adapter.execute_plan(executable)
+        result = adapter.execute_plan(executable, step_executors=_executors_for(executable))
         assert result.steps[1].status == StepExecutionStatus.FAILED
         assert "governance_rejected" in result.steps[1].error
         assert result.status == ExecutionGraphStatus.PARTIALLY_COMPLETED
@@ -429,7 +445,7 @@ class TestExecutionGraphTraversal:
         adapter = PlanExecutionAdapter()
         plan = _make_plan(2)
         executable = adapter.convert_plan(plan)
-        result = adapter.execute_plan(executable)
+        result = adapter.execute_plan(executable, step_executors=_executors_for(executable))
         assert result.status == ExecutionGraphStatus.FAILED
 
     def test_ready_steps_respects_completed(self):
@@ -474,7 +490,7 @@ class TestRollbackGeneration:
         plan = _make_plan(1)
         adapter = PlanExecutionAdapter(governed_spine=FakeSpine())
         executable = adapter.convert_plan(plan)
-        envelope = adapter._build_envelope(executable.steps[0], executable)
+        envelope = adapter._build_envelope(executable.steps[0], executable, execute_fn=_ok_executor)
         assert envelope.rollback is not None
         assert envelope.rollback.description == "undo everything"
 
@@ -487,7 +503,7 @@ class TestRollbackGeneration:
         )
         adapter = PlanExecutionAdapter(governed_spine=FakeSpine())
         executable = adapter.convert_plan(plan)
-        envelope = adapter._build_envelope(executable.steps[0], executable)
+        envelope = adapter._build_envelope(executable.steps[0], executable, execute_fn=_ok_executor)
         assert envelope.rollback is None
 
 
@@ -504,7 +520,7 @@ class TestOutcomeGeneration:
             adapter = PlanExecutionAdapter(governed_spine=spine, outcome_loop=loop)
             plan = _make_plan(3, chain=False)
             executable = adapter.convert_plan(plan)
-            adapter.execute_plan(executable)
+            adapter.execute_plan(executable, step_executors=_executors_for(executable))
             assert len(loop.recent_outcomes(50)) == 3
             for outcome in loop.recent_outcomes(50):
                 assert outcome.status == OutcomeStatus.SUCCESS
@@ -521,7 +537,7 @@ class TestOutcomeGeneration:
             adapter = PlanExecutionAdapter(governed_spine=spine, outcome_loop=loop)
             plan = _make_plan(1)
             executable = adapter.convert_plan(plan)
-            adapter.execute_plan(executable)
+            adapter.execute_plan(executable, step_executors=_executors_for(executable))
             outcomes = loop.recent_outcomes(50)
             assert len(outcomes) == 1
             assert outcomes[0].status == OutcomeStatus.FAILURE
@@ -537,7 +553,7 @@ class TestOutcomeGeneration:
             adapter = PlanExecutionAdapter(governed_spine=spine, outcome_loop=loop)
             plan = _make_plan(1)
             executable = adapter.convert_plan(plan)
-            adapter.execute_plan(executable)
+            adapter.execute_plan(executable, step_executors=_executors_for(executable))
             outcome = loop.recent_outcomes(1)[0]
             assert outcome.step_id == "step-0"
         finally:
@@ -548,7 +564,7 @@ class TestOutcomeGeneration:
         adapter = PlanExecutionAdapter(governed_spine=spine, outcome_loop=None)
         plan = _make_plan(1)
         executable = adapter.convert_plan(plan)
-        adapter.execute_plan(executable)
+        adapter.execute_plan(executable, step_executors=_executors_for(executable))
 
 
 # ── Memory candidate generation tests ─────────────────────────────────────────
@@ -564,7 +580,7 @@ class TestMemoryCandidateGeneration:
             )
             plan = _make_plan(2)
             executable = adapter.convert_plan(plan)
-            adapter.execute_plan(executable)
+            adapter.execute_plan(executable, step_executors=_executors_for(executable))
             candidates = pipeline.list_candidates()
             assert len(candidates) >= 1
             assert any(c.category == MemoryCategory.PATTERN for c in candidates)
@@ -578,7 +594,7 @@ class TestMemoryCandidateGeneration:
             )
             plan = _make_plan(1)
             executable = adapter.convert_plan(plan)
-            adapter.execute_plan(executable)
+            adapter.execute_plan(executable, step_executors=_executors_for(executable))
             candidates = pipeline.list_candidates()
             assert len(candidates) >= 1
             assert any(c.category == MemoryCategory.OBSERVATION for c in candidates)
@@ -592,7 +608,7 @@ class TestMemoryCandidateGeneration:
             )
             plan = _make_plan(2)
             executable = adapter.convert_plan(plan)
-            adapter.execute_plan(executable)
+            adapter.execute_plan(executable, step_executors=_executors_for(executable))
             candidates = pipeline.list_candidates()
             assert len(candidates) >= 1
 
@@ -605,7 +621,7 @@ class TestMemoryCandidateGeneration:
             )
             plan = _make_plan(2)
             executable = adapter.convert_plan(plan)
-            adapter.execute_plan(executable)
+            adapter.execute_plan(executable, step_executors=_executors_for(executable))
             canonical = pipeline.list_canonical()
             assert len(canonical) == 0
 
@@ -614,7 +630,7 @@ class TestMemoryCandidateGeneration:
         adapter = PlanExecutionAdapter(governed_spine=spine, memory_pipeline=None)
         plan = _make_plan(1)
         executable = adapter.convert_plan(plan)
-        adapter.execute_plan(executable)
+        adapter.execute_plan(executable, step_executors=_executors_for(executable))
 
 
 # ── Action type inference tests ───────────────────────────────────────────────
@@ -748,7 +764,7 @@ class TestEndToEnd:
                 assert executable.status == ExecutionGraphStatus.PENDING
                 assert len(executable.steps) == 4
 
-                result = adapter.execute_plan(executable)
+                result = adapter.execute_plan(executable, step_executors=_executors_for(executable))
 
                 assert result.status == ExecutionGraphStatus.COMPLETED
                 assert result.success_count() == 4

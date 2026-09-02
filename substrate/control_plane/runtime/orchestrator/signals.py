@@ -26,10 +26,11 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
-_ROOT = os.environ.get("UMH_ROOT") or os.environ.get("OS_ROOT") or os.environ.get("EOS_ROOT") or "/opt/OS"
+
+from substrate.state.runtime_paths import runtime_state_dir
 
 
-SIGNALS_ROOT = f"{_ROOT}/logs/signals"
+SIGNALS_ROOT = str(runtime_state_dir("logs/signals", create=False))
 BINDINGS_PATH = os.path.join(SIGNALS_ROOT, "bindings.json")
 
 

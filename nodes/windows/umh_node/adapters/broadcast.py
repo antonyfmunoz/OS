@@ -13,13 +13,15 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
-import os
+from pathlib import Path
 from typing import Any
 
-sys.path.insert(0, os.environ.get("UMH_ROOT", "/opt/OS"))
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
 
-from adapters.broadcast.engine import BroadcastEngine
-from adapters.broadcast.scene_model import (
+from adapters.broadcast.engine import BroadcastEngine  # noqa: E402
+from adapters.broadcast.scene_model import (  # noqa: E402
     CompositeConfig,
     Scene,
     SourceEntry,

@@ -83,7 +83,7 @@ from substrate.sockets.projection_port import (
     ProjectionPort,
     ProjectionRegistration,
 )
-from substrate.state.runtime_paths import runtime_state_dir
+from substrate.state.runtime_paths import runtime_state_dir, runtime_state_path
 
 logger = logging.getLogger(__name__)
 
@@ -208,15 +208,9 @@ class OrganismDaemon:
 
         self._tailscale_discovery: TailscaleDiscoveryTick | None = None
         try:
-            _data_dir = os.path.join(
-                os.environ.get("UMH_ROOT") or "/opt/OS",
-                "data",
-            )
             self._tailscale_discovery = TailscaleDiscoveryTick(
-                discovered_peers_path=os.path.join(
-                    _data_dir,
-                    "runtime",
-                    "discovered_peers.json",
+                discovered_peers_path=str(
+                    runtime_state_path("discovery", "discovered_peers.json")
                 ),
             )
         except Exception as exc:

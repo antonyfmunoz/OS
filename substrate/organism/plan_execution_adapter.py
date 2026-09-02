@@ -55,6 +55,12 @@ from substrate.organism.memory_promotion import (
 logger = logging.getLogger(__name__)
 
 
+class PlanExecutionAdapterError(RuntimeError):
+    """Raised when a step has no real executor bound. Wave 2 §V prohibits the
+    former ``_default_execute`` fake-success stub: fabricating a successful
+    result for an unexecutable step is a defect, never a fallback."""
+
+
 class ExecutionGraphStatus(str, Enum):
     PENDING = "pending"
     EXECUTING = "executing"
@@ -408,14 +414,19 @@ class PlanExecutionAdapter:
                 description=plan.rollback_plan,
             )
 
-        def _default_execute() -> tuple[str, bool]:
-            return (f"Step '{step.description}' executed (plan_executor)", True)
+        # Wave 2 §V: no default fake-success execution. A step with no real
+        # executor bound is an explicit failure, never a fabricated success.
+        if execute_fn is None:
+            raise PlanExecutionAdapterError(
+                f"no executor bound for step {step.id!r} ({step.description[:80]!r}) — "
+                f"fake success is prohibited (Wave 2 §V)"
+            )
 
         envelope = ActionEnvelope(
             intent=step.description,
             action_type=action_type,
             source="plan_executor",
-            execute_fn=execute_fn or _default_execute,
+            execute_fn=execute_fn,
             risk_level=risk,
             blast_radius=blast,
             reversibility=reversibility,

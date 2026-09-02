@@ -133,6 +133,17 @@ class ActionEnvelope:
     estimated_cost: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    # ── Wave 2 execution-authorization consumption (Amendment v1 clause 5) ──
+    # First-class fields carrying the bounded HUD authority an action consumes.
+    # GovernedExecutionSpine validates (in C4) that a Wave 2 action is a SUBSET
+    # of the authorized scope named here. Backward-compatible empty defaults: a
+    # non-execution action simply leaves them blank and is unaffected.
+    authorization_ref: str = ""  # decision_ref of the execution_authorization Decision
+    authorization_effect: str = ""  # e.g. "execute_bounded_task_set"
+    authorized_subject_ids: list[str] = field(default_factory=list)  # authorized WorkPacket ids
+    authorized_scope_hash: str = ""  # hash of the immutable authorized scope
+    authorization_expires_at: float = 0.0  # unix ts; 0.0 = not authorization-bound
+
     status: EnvelopeStatus = EnvelopeStatus.PROPOSED
     result_output: str = ""
     result_success: bool = False
@@ -167,6 +178,11 @@ class ActionEnvelope:
             "completed_at": self.completed_at,
             "approved_by": self.approved_by,
             "rejected_reason": self.rejected_reason,
+            "authorization_ref": self.authorization_ref,
+            "authorization_effect": self.authorization_effect,
+            "authorized_subject_ids": self.authorized_subject_ids,
+            "authorized_scope_hash": self.authorized_scope_hash,
+            "authorization_expires_at": self.authorization_expires_at,
             "verification": self.verification.to_dict() if self.verification else None,
             "rollback": self.rollback.to_dict() if self.rollback else None,
         }

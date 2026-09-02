@@ -56,6 +56,10 @@ describe('test O — decisions live ONLY in the Top HUD ControlPanel', () => {
       'panels/WorkDetailPanel.tsx',
       'panels/UniversalWorkPanel.tsx',
       'components/RightRail.tsx',
+      // Wave 2: the execution chat card + attempts view carry NO decision
+      // testids — execution decisions stay HUD-only.
+      'components/cards/ChatExecutionCard.tsx',
+      'components/execution/AttemptsView.tsx',
     ]) {
       expect(src(rel), rel).not.toMatch(/wg-approve-btn|wg-reject-btn/)
     }
@@ -85,12 +89,28 @@ describe('test O — retired ids resolve, no rival surface reachable', () => {
       'panels/IntentLoopPanel.tsx',
       'panels/CommandsPanel.tsx',
       'panels/TasksPanel.tsx',
+      // Wave 2 execution-cluster convergence — the retired execution panels are
+      // non-executable redirect stubs into the one canonical Execution surface.
+      'panels/UnifiedExecutionPanel.tsx',
+      'panels/ExecutorPanel.tsx',
+      'panels/RuntimePanel.tsx',
+      'panels/DistributedRuntimePanel.tsx',
     ]) {
       const stub = src(rel)
       expect(stub, rel).toMatch(/resolvePanelId/)
       // No data fetching, no mutation, no decision controls in a stub.
       expect(stub, rel).not.toMatch(/fetchApi|approve|reject|POST/i)
     }
+  })
+
+  it('execution-cluster aliases resolve to the canonical Execution surface', () => {
+    expect(resolvePanelId('unifiedexecution')).toBe('execution')
+    expect(resolvePanelId('executor')).toBe('execution')
+    expect(resolvePanelId('distributedruntime')).toBe('execution')
+    expect(resolvePanelId('runtime')).toBe('execution')
+    expect(resolvePanelId('execcoord')).toBe('execution')
+    expect(resolvePanelId('agentfleet')).toBe('execution')
+    expect(CANONICAL_PANEL_IDS).toContain('execution')
   })
 
   it('approvals stays canonical — the expanded HUD view, not an alias to a rival', () => {

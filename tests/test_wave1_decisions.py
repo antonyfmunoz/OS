@@ -73,7 +73,14 @@ def env(tmp_path, monkeypatch):
     queue = UniversalWorkQueue(store_path=str(tmp_path / "packets.jsonl"))
     runner = Runner()
     protocol = OperatorIntentProtocol(
-        store=store, goal_registry=goals, event_spine=EventSpine(), mutation_runner=runner
+        store=store,
+        goal_registry=goals,
+        event_spine=EventSpine(),
+        mutation_runner=runner,
+        # Ninth-layer: a materialized Task must carry DECLARED writable authority;
+        # the runtime that owns the workspace declares it (materialization fails
+        # closed without it). These tests exercise the production path.
+        workspace_scope_resolver=lambda _scope: ["app", "tests"],
     )
     principal = PrincipalContext(
         principal_id="user-1", tenant_id="tenant-a", membership_id="mem-abc"

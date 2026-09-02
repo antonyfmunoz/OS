@@ -1,0 +1,12 @@
+=== SPLIT-TREE CONDITION ===
+worktree has attempts: True
+/opt/OS main has attempts: False
+
+=== STEP 1: mesh reads cache /opt/OS substrate ===
+substrate.execution cached from: /opt/OS/substrate/execution/__init__.py
+
+=== STEP 2: plain sys.path.insert(worktree)+from-import (the crash) ===
+plain insert CRASH (reproduced): No module named 'substrate.execution.attempts'
+
+=== STEP 3: importlib leaf load ALSO fails (pointwise insufficient) ===
+importlib leaf CRASH (pointwise insufficient): No module named 'substrate.execution.attempts'

@@ -1,0 +1,7 @@
+ scripts/wave2_attempt_runner.py                    |   20 +-
+ .../execution/attempts/field_control_plane.py      |   18 +-
+ substrate/execution/attempts/poller.py             |  120 +-
+ substrate/execution/attempts/verification.py       |  110 ++
+ substrate/execution/attempts/worker_claude_cli.py  |    9 +-
+ tests/test_wave2_retry_and_trusted_base.py         | 1360 ++++++++++++++++++++
+ 6 files changed, 1618 insertions(+), 19 deletions(-)

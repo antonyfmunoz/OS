@@ -12,7 +12,10 @@ import tempfile
 
 import pytest
 
-sys.path.insert(0, "/opt/OS/.claude/worktrees/c4-6-cockpit-finalization")
+# Repo root DERIVED from the active checkout — never a hardcoded worktree path.
+from tests.repo_root import ensure_repo_on_path
+
+ensure_repo_on_path()
 
 from substrate.organism.strategic_gap_engine import (
     Goal,

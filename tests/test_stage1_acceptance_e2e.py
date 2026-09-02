@@ -10,20 +10,41 @@ services/.env (UMH_OPERATOR_TOKEN).
 
 from __future__ import annotations
 
-import os
-import sys
-import time
 import json
-import urllib.request
+import os
+import time
 import urllib.error
+import urllib.request
 
 import pytest
 
-sys.path.insert(0, "/opt/OS")
+from tests.bounded_http import require_live_service
+from tests.repo_root import ensure_repo_on_path
+
+# Replaces a hardcoded sys.path.insert(0, "/opt/OS") that pinned this suite to
+# one absolute checkout; ensure_repo_on_path() derives the root from the ACTIVE
+# checkout, so the file is correct in the main tree and in any worktree.
+ensure_repo_on_path()
 
 # ── Test infrastructure ─────────────────────────────────────────────────────
 
 BASE = os.environ.get("UMH_COCKPIT_URL", "http://localhost:8091")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _require_live_runtime():
+    """Skip this LIVE-runtime suite once, up front, when the service is absent.
+
+    Every request here already carries ``timeout=10`` and swallows exceptions, so
+    no single call hangs — but with the service down, ~35 calls each burn their
+    full budget and the file reproducibly blows past a 300s bound (measured
+    identically on the accepted baseline). One bounded probe replaces ~350s of
+    rediscovering the same absence. When the service IS up nothing changes and
+    the suite runs against the real runtime exactly as before.
+    """
+    reason = require_live_service(BASE)
+    if reason:
+        pytest.skip(reason, allow_module_level=True)
 
 def _load_operator_token() -> str:
     token = os.environ.get("UMH_OPERATOR_TOKEN", "")

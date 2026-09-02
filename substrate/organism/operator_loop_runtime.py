@@ -255,10 +255,15 @@ class OperatorLoopRuntime:
         self,
         intent: str,
         risk_class: str = "low",
-        target_executor: str = "simulation",
+        target_executor: str = "",
         description: str = "",
     ) -> dict[str, Any]:
-        """Create work from operator intent — routes through GovernedWorkRuntime."""
+        """Create work from operator intent — routes through GovernedWorkRuntime.
+
+        Wave 2: no ``simulation`` default. The executor must be explicit;
+        GovernedWorkRuntime rejects the fake ``simulation`` executor unless a
+        test opts in (UMH_ALLOW_SIMULATION_EXECUTOR=1).
+        """
         self._current_phase = OperatorLoopPhase.DECIDE
 
         if self.work_runtime is None:

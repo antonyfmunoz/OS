@@ -6,7 +6,6 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 if sys.platform == "win32":
     DEFAULT_CONFIG_DIR = Path(os.environ.get("PROGRAMDATA", "C:\\ProgramData")) / "UMH"
@@ -53,6 +52,10 @@ class NodeConfig:
         # logs and proxies. The token travels in the Authorization header
         # (see NodeClient._connect_and_serve). Keep this URL token-free.
         return f"ws://{self.vps_host}:{self.vps_port}/ws"
+
+    @property
+    def relay_http_url(self) -> str:
+        return f"http://{self.vps_host}:{self.vps_port + 1}"
 
     @property
     def auth_header(self) -> dict[str, str]:

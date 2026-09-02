@@ -14,22 +14,47 @@ import os
 import threading
 import time
 from typing import Any, Callable
+from uuid import uuid4
 
 import websockets
 from websockets.asyncio.server import ServerConnection
 
+from substrate.execution.durable_remote_transport import (
+    DurableRemoteStore,
+    sha256_json,
+    shell_running_identity_error,
+    terminal_result_identity,
+)
 from substrate.execution.executor import WorkPacketExecutor
+from substrate.sockets.capability_socket import CapabilitySocket
+from substrate.sockets.envelopes import ViewFrame
+from substrate.sockets.outcome_socket import OutcomeSocket
+from substrate.sockets.registry import IntegrationRegistry
+from substrate.sockets.signal_socket import SignalSocket
+from substrate.sockets.view_socket import ViewSocket
 from transports.node_mesh.config import MeshConfig
 from transports.node_mesh.metrics_buffer import MetricsBuffer, MetricsSnapshot
 from transports.node_mesh.registry import ConnectedNode, NodeCapability, NodeRegistry, Peripheral
-from substrate.sockets.capability_socket import CapabilitySocket
-from substrate.sockets.outcome_socket import OutcomeSocket
-from substrate.sockets.registry import IntegrationManifest, IntegrationRegistry
-from substrate.sockets.signal_socket import SignalSocket
-from substrate.sockets.envelopes import ViewFrame
-from substrate.sockets.view_socket import ViewSocket
 
 logger = logging.getLogger(__name__)
+
+_DURABLE_CLAIM_PROOF_STATES = frozenset(
+    {
+        "CLAIMED",
+        "RUNNING",
+        "CANCEL_REQUESTED",
+        "CANCELLED",
+        "EXPIRED",
+        "FAILED",
+        "SUCCEEDED",
+        "RECONCILIATION_REQUIRED",
+    }
+)
+_DURABLE_PUMP_SCAN_LIMIT = 16
+_DURABLE_DELIVERY_SUPPRESSION_MAX = 512
+_DURABLE_DELIVERY_SUPPRESSION_DEFAULT_S = 30.0
+_DURABLE_DELIVERY_SUPPRESSION_MIN_S = 8.0
+_DURABLE_PUMP_TEARDOWN_S = 2.0
 
 
 def hmac_compare(a: str, b: str) -> bool:
@@ -37,6 +62,21 @@ def hmac_compare(a: str, b: str) -> bool:
     import hmac as _hmac
 
     return _hmac.compare_digest(a.encode("utf-8"), b.encode("utf-8"))
+
+
+def _durable_params(params: Any) -> dict[str, Any]:
+    if not isinstance(params, dict):
+        raise ValueError("durable frame params must be an object")
+    return params
+
+
+def _durable_dict_field(params: dict[str, Any], field: str) -> dict[str, Any]:
+    value = params.get(field)
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ValueError(f"durable frame {field} must be an object")
+    return dict(value)
 
 
 class NodeMeshServer:
@@ -82,6 +122,11 @@ class NodeMeshServer:
         self._thread: threading.Thread | None = None
         self._shutdown_event = threading.Event()
         self._health_task: asyncio.Task[None] | None = None
+        self._durable_store = DurableRemoteStore()
+        self._durable_delivery_inflight: dict[str, dict[str, Any]] = {}
+        self._durable_pump_tasks: dict[str, asyncio.Task[None]] = {}
+        self._durable_pump_connections: dict[str, str] = {}
+        self._ws_send_locks: dict[str, asyncio.Lock] = {}
 
     @property
     def node_registry(self) -> NodeRegistry:
@@ -239,7 +284,6 @@ class NodeMeshServer:
 
         Same protocol as _frame_relay_ws_loop but drains _desktop_frame_queue.
         """
-        import struct as _struct
 
         assert self._desktop_frame_queue is not None
         assert self._desktop_relay_url is not None
@@ -331,6 +375,8 @@ class NodeMeshServer:
             server.close()
             await server.wait_closed()
 
+        for node_id in list(self._durable_pump_tasks):
+            await self._stop_durable_pump(node_id)
         self._health_task.cancel()
         self._vps_metrics_task.cancel()
         self._http_task.cancel()
@@ -340,6 +386,7 @@ class NodeMeshServer:
     async def _handle_connection(self, ws: ServerConnection) -> None:
         """Handle a single node WebSocket connection."""
         node_id: str | None = None
+        connection_id = uuid4().hex
         try:
             token = self._extract_token(ws)
             if not self._authenticate(token):
@@ -367,7 +414,42 @@ class NodeMeshServer:
                             _binary_count,
                         )
                     if node_id and len(raw) > 6:
-                        self._handle_binary_frame(node_id, raw)
+                        # A node that streams ONLY binary frames (desktop/camera
+                        # capture) sends no JSON heartbeat, so the registry used
+                        # to evict it after heartbeat_timeout_s while its socket
+                        # stayed ESTABLISHED — and because the socket never
+                        # dropped, the daemon never reconnected or re-registered.
+                        # Dispatch then refused a demonstrably live node with
+                        # "node not connected" (Beast, 2026-08-05 00:41:30).
+                        #
+                        # Refresh ONLY on a frame the normal handler ACCEPTED,
+                        # and only for THIS connection's authenticated node_id
+                        # (node_id is None until node.hello binds it, so an
+                        # unauthenticated or unregistered socket can never reach
+                        # here). update_heartbeat() is the authoritative
+                        # registry write and returns False for an unknown node —
+                        # that refusal is surfaced, never swallowed.
+                        proves_liveness = self._frame_proves_liveness(raw)
+                        forwarded = self._handle_binary_frame(node_id, raw)
+                        # BOTH gates: the frame must prove a working capture
+                        # pipeline (unforgeable) AND be accepted by the normal
+                        # handler. Forwarding tolerance alone is NOT proof of
+                        # life — b"\x00" * 7 forwards fine but proves nothing.
+                        if proves_liveness and forwarded:
+                            if not self._registry.update_heartbeat(
+                                node_id, connection_id=connection_id
+                            ):
+                                logger.warning(
+                                    "binary-frame heartbeat refused: %s not in registry",
+                                    node_id,
+                                )
+                            else:
+                                await self._schedule_durable_pump(
+                                    node_id,
+                                    ws,
+                                    connection_id,
+                                    reason="binary_liveness",
+                                )
                     continue
 
                 msg = json.loads(raw)
@@ -376,30 +458,46 @@ class NodeMeshServer:
                 msg_id = msg.get("id")
 
                 if method == "node.hello":
-                    node_id = await self._handle_hello(ws, params, msg_id, token)
+                    node_id = await self._handle_hello(
+                        ws, params, msg_id, token, connection_id
+                    )
                 elif method == "node.heartbeat" and node_id:
-                    await self._handle_heartbeat(node_id, params, msg_id, ws)
+                    await self._handle_heartbeat(node_id, params, msg_id, ws, connection_id)
+                elif method == "durable_command.claimed" and node_id:
+                    await self._handle_durable_claimed(
+                        node_id, params, msg_id, ws, connection_id
+                    )
+                elif method == "durable_command.claim_state" and node_id:
+                    await self._handle_durable_claim_state(
+                        node_id, params, msg_id, ws, connection_id
+                    )
+                elif method == "durable_command.result" and node_id:
+                    await self._handle_durable_result(
+                        node_id, params, msg_id, ws, connection_id
+                    )
                 elif method == "node.capabilities_changed" and node_id:
-                    await self._handle_capabilities_changed(node_id, params, ws)
+                    await self._handle_capabilities_changed(
+                        node_id, params, ws, connection_id
+                    )
                 elif method == "node.peripherals_changed" and node_id:
-                    await self._handle_peripherals_changed(node_id, params)
+                    await self._handle_peripherals_changed(node_id, params, connection_id)
                 elif method == "signal.emit" and node_id:
-                    await self._handle_signal(node_id, params, msg_id, ws)
+                    await self._handle_signal(node_id, params, msg_id, ws, connection_id)
                 elif not method and ("result" in msg or "error" in msg):
                     self._resolve_pending_dispatch(msg)
                 else:
                     if msg_id is not None:
-                        await ws.send(
-                            json.dumps(
-                                {
-                                    "jsonrpc": "2.0",
-                                    "error": {
-                                        "code": -32601,
-                                        "message": f"unknown method: {method}",
-                                    },
-                                    "id": msg_id,
-                                }
-                            )
+                        await self._send_ws_json(
+                            ws,
+                            {
+                                "jsonrpc": "2.0",
+                                "error": {
+                                    "code": -32601,
+                                    "message": f"unknown method: {method}",
+                                },
+                                "id": msg_id,
+                            },
+                            connection_id,
                         )
 
         except websockets.exceptions.ConnectionClosed:
@@ -408,19 +506,64 @@ class NodeMeshServer:
             logger.error("node connection error: %s", exc)
         finally:
             if node_id:
-                self._unregister_node(node_id)
+                self._unregister_node(node_id, connection_id=connection_id)
+            if node_id:
+                await self._stop_durable_pump(node_id, connection_id=connection_id)
+            if connection_id:
+                self._ws_send_locks.pop(connection_id, None)
 
-    def _handle_binary_frame(self, node_id: str, raw: bytes) -> None:
+    @staticmethod
+    def _frame_proves_liveness(raw: bytes) -> bool:
+        """Strict predicate: does this frame PROVE a working capture pipeline?
+
+        Deliberately separate from forwarding acceptance. Forwarding is
+        permissive by design — a frame whose meta is unparseable is still
+        relayed with ``meta = {}``. Liveness is the opposite: it must be
+        impossible to forge, because it decides whether dispatch will route real
+        work to this node.
+
+        Reusing forwarding-tolerance as proof of life is what made
+        ``b"\\x00" * 7`` a valid heartbeat: ``meta_len == 0`` clears both bounds
+        checks, ``json.loads(raw[4:4])`` raises, degrades to ``{}``, and the
+        frame "succeeds". A node whose capture thread is dead but whose socket
+        still emits padding would then be advertised as live forever — a
+        fail-OPEN inversion of the eviction bug this path exists to fix.
+
+        Requires: a non-empty meta block that parses to a JSON object, plus a
+        non-empty payload after it.
+        """
+        import struct as _struct
+
+        if len(raw) < 8:
+            return False
+        try:
+            meta_len = _struct.unpack(">I", raw[:4])[0]
+        except Exception:
+            return False
+        if meta_len == 0 or meta_len > 65536 or 4 + meta_len >= len(raw):
+            return False
+        try:
+            meta = json.loads(raw[4 : 4 + meta_len])
+        except Exception:
+            return False
+        return isinstance(meta, dict)
+
+    def _handle_binary_frame(self, node_id: str, raw: bytes) -> bool:
         """Handle binary camera frame from Beast — forward to relay queue.
 
         Wire format: [4-byte meta_len][JSON meta][JPEG bytes]
         Same format as the relay ingest WS, so forward directly.
+
+        Returns True when the frame was well-formed enough to FORWARD. This is
+        NOT the liveness signal — see ``_frame_proves_liveness`` for that, and do
+        not conflate the two: forwarding is intentionally tolerant, liveness must
+        be unforgeable.
         """
         import struct as _struct
 
         meta_len = _struct.unpack(">I", raw[:4])[0]
         if meta_len > 65536 or 4 + meta_len > len(raw):
-            return
+            return False
         try:
             meta = json.loads(raw[4 : 4 + meta_len])
         except Exception:
@@ -449,6 +592,7 @@ class NodeMeshServer:
             payload["image_base64"] = _b64.b64encode(jpeg_bytes).decode("ascii")
             loop = asyncio.get_running_loop()
             loop.run_in_executor(None, self._frame_callback, node_id, payload)
+        return True
 
     def _resolve_pending_dispatch(self, msg: dict[str, Any]) -> None:
         """Route JSON-RPC responses back to pending HTTP dispatch futures."""
@@ -514,12 +658,22 @@ class NodeMeshServer:
                 return nt.node_id
         return None
 
+    def _http_authenticated_node_id(self, auth_header: str) -> str | None:
+        if not auth_header or auth_header[:7].lower() != "bearer ":
+            return None
+        token = auth_header[7:].strip()
+        relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
+        if relay_secret and hmac_compare(token, relay_secret):
+            return "*"
+        return self._node_id_for_token(token)
+
     async def _handle_hello(
         self,
         ws: ServerConnection,
         params: dict[str, Any],
         msg_id: Any,
         token: str = "",
+        connection_id: str = "",
     ) -> str:
         node_id = params.get("node_id", "unknown")
 
@@ -566,7 +720,11 @@ class NodeMeshServer:
                 return node_id
 
         if self._registry.get(node_id) is not None:
-            self._unregister_node(node_id)
+            existing = self._registry.get(node_id)
+            self._unregister_node(
+                node_id,
+                connection_id=existing.connection_id if existing is not None else None,
+            )
 
         caps = [
             NodeCapability(
@@ -589,6 +747,7 @@ class NodeMeshServer:
             daemon_version=params.get("daemon_version", "0.0.0"),
             tailscale_ip=params.get("tailscale_ip", ""),
             ws=ws,
+            connection_id=connection_id,
             peripherals=peripherals,
         )
 
@@ -624,6 +783,7 @@ class NodeMeshServer:
             node.hostname,
             len(node.peripherals),
         )
+        await self._schedule_durable_pump(node_id, ws, connection_id, reason="hello")
         return node_id
 
     async def _handle_heartbeat(
@@ -632,9 +792,22 @@ class NodeMeshServer:
         params: dict[str, Any],
         msg_id: Any,
         ws: ServerConnection,
+        connection_id: str = "",
     ) -> None:
         metrics = params.get("metrics", {})
-        self._registry.update_heartbeat(node_id, metrics)
+        if not self._registry.update_heartbeat(node_id, metrics, connection_id=connection_id):
+            logger.warning("heartbeat refused: %s not owned by this connection", node_id)
+            if msg_id is not None:
+                await self._send_ws_json(
+                    ws,
+                    {
+                        "jsonrpc": "2.0",
+                        "result": {"ack": False, "error": "stale node connection"},
+                        "id": msg_id,
+                    },
+                    connection_id,
+                )
+            return
 
         if self._runtime_graph_hook is not None:
             try:
@@ -664,22 +837,737 @@ class NodeMeshServer:
             self._emit_mesh_event("mesh.node_heartbeat", node)
 
         if msg_id is not None:
-            await ws.send(
-                json.dumps(
+            await self._send_ws_json(
+                ws,
+                {
+                    "jsonrpc": "2.0",
+                    "result": {"ack": True},
+                    "id": msg_id,
+                },
+                connection_id,
+            )
+        await self._schedule_durable_pump(node_id, ws, connection_id, reason="heartbeat")
+
+    async def _send_ws_json(
+        self,
+        ws: ServerConnection,
+        message: dict[str, Any],
+        connection_id: str = "",
+    ) -> None:
+        """Serialize sends per connection without blocking the receive handler on pump scans."""
+        if not connection_id:
+            await ws.send(json.dumps(message))
+            return
+        lock = self._ws_send_locks.setdefault(connection_id, asyncio.Lock())
+        async with lock:
+            await ws.send(json.dumps(message))
+
+    def _durable_transport_identity(self, req: Any) -> dict[str, str]:
+        return {
+            "request_id": str(getattr(req, "request_id", "")),
+            "correlation_id": str(getattr(req, "correlation_id", "")),
+            "node_id": str(getattr(req, "node_id", "")),
+            "candidate_sha": str(getattr(req, "candidate_sha", "")),
+            "idempotency_key": str(getattr(req, "idempotency_key", "")),
+            "payload_digest": str(getattr(req, "payload_digest", "")),
+        }
+
+    @staticmethod
+    def _same_durable_transport_identity(entry: dict[str, Any], req: Any) -> bool:
+        identity = entry.get("identity")
+        if not isinstance(identity, dict):
+            return False
+        expected = {
+            "request_id": str(getattr(req, "request_id", "")),
+            "correlation_id": str(getattr(req, "correlation_id", "")),
+            "node_id": str(getattr(req, "node_id", "")),
+            "candidate_sha": str(getattr(req, "candidate_sha", "")),
+            "idempotency_key": str(getattr(req, "idempotency_key", "")),
+            "payload_digest": str(getattr(req, "payload_digest", "")),
+        }
+        return all(str(identity.get(key, "")) == value for key, value in expected.items())
+
+    @staticmethod
+    def _durable_delivery_suppression_seconds(req: Any) -> float:
+        budgets = getattr(req, "params", {}).get("budgets", {})
+        if not isinstance(budgets, dict):
+            budgets = {}
+        raw_claim = budgets.get("claim_acquisition_timeout_s", None)
+        try:
+            claim_budget = float(raw_claim)
+        except (TypeError, ValueError):
+            claim_budget = _DURABLE_DELIVERY_SUPPRESSION_DEFAULT_S
+        if claim_budget <= 0:
+            claim_budget = _DURABLE_DELIVERY_SUPPRESSION_DEFAULT_S
+        return max(
+            _DURABLE_DELIVERY_SUPPRESSION_MIN_S,
+            min(_DURABLE_DELIVERY_SUPPRESSION_DEFAULT_S, claim_budget),
+        )
+
+    def _record_durable_delivery_progress(
+        self,
+        request_id: str,
+        event: str,
+        payload: dict[str, Any] | None = None,
+    ) -> None:
+        try:
+            self._durable_store.record_transport_diagnostic(request_id, event, payload)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("durable transport diagnostic failed for %s: %s", request_id, exc)
+
+    def _clear_durable_delivery_inflight(self, request_id: str, reason: str) -> None:
+        if request_id in self._durable_delivery_inflight:
+            self._durable_delivery_inflight.pop(request_id, None)
+            self._record_durable_delivery_progress(
+                request_id,
+                "delivery_inflight_cleared",
+                {"reason": reason},
+            )
+
+    def _durable_delivery_suppressed(self, req: Any, current: float) -> bool:
+        entry = self._durable_delivery_inflight.get(str(getattr(req, "request_id", "")))
+        if not entry:
+            return False
+        if not self._same_durable_transport_identity(entry, req):
+            self._clear_durable_delivery_inflight(
+                str(getattr(req, "request_id", "")),
+                "identity_changed",
+            )
+            return False
+        if str(getattr(req, "lifecycle_state", "")).upper() != "QUEUED":
+            self._clear_durable_delivery_inflight(
+                str(getattr(req, "request_id", "")),
+                "canonical_progress",
+            )
+            return False
+        if current >= float(entry.get("suppress_until", 0.0)):
+            self._clear_durable_delivery_inflight(
+                str(getattr(req, "request_id", "")),
+                "suppression_expired",
+            )
+            return False
+        self._record_durable_delivery_progress(
+            str(getattr(req, "request_id", "")),
+            "delivery_suppressed",
+            {
+                "reason": "inflight_same_request",
+                "suppress_until": entry.get("suppress_until"),
+                "connection_id": entry.get("connection_id", ""),
+            },
+        )
+        return True
+
+    def _trim_durable_delivery_inflight(self) -> None:
+        if len(self._durable_delivery_inflight) <= _DURABLE_DELIVERY_SUPPRESSION_MAX:
+            return
+        items = sorted(
+            self._durable_delivery_inflight.items(),
+            key=lambda item: float(item[1].get("sent_at", 0.0)),
+        )
+        overflow = len(items) - _DURABLE_DELIVERY_SUPPRESSION_MAX
+        for request_id, _entry in items[:overflow]:
+            self._clear_durable_delivery_inflight(request_id, "bounded_eviction")
+
+    async def _stop_durable_pump(
+        self,
+        node_id: str,
+        *,
+        connection_id: str | None = None,
+    ) -> None:
+        if connection_id is not None and self._durable_pump_connections.get(node_id) != connection_id:
+            return
+        task = self._durable_pump_tasks.get(node_id)
+        if task is None:
+            return
+        if not task.done():
+            task.cancel()
+        try:
+            await asyncio.wait_for(asyncio.shield(task), timeout=_DURABLE_PUMP_TEARDOWN_S)
+        except asyncio.CancelledError:
+            pass
+        except asyncio.TimeoutError as exc:
+            raise RuntimeError("durable pump teardown exceeded bounded deadline") from exc
+        if self._durable_pump_tasks.get(node_id) is task:
+            self._durable_pump_tasks.pop(node_id, None)
+            self._durable_pump_connections.pop(node_id, None)
+
+    async def _schedule_durable_pump(
+        self,
+        node_id: str,
+        ws: ServerConnection,
+        connection_id: str,
+        *,
+        reason: str,
+    ) -> None:
+        existing = self._durable_pump_tasks.get(node_id)
+        if existing is not None and not existing.done():
+            if self._durable_pump_connections.get(node_id) == connection_id:
+                return
+            await self._stop_durable_pump(node_id)
+
+        async def _runner() -> None:
+            try:
+                await self._pump_durable_requests(node_id, ws, connection_id)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("durable pump failed for %s (%s): %s", node_id, reason, exc)
+
+        task = asyncio.create_task(_runner())
+        self._durable_pump_tasks[node_id] = task
+        self._durable_pump_connections[node_id] = connection_id
+
+        def _cleanup(done: asyncio.Task[None]) -> None:
+            if self._durable_pump_tasks.get(node_id) is done:
+                self._durable_pump_tasks.pop(node_id, None)
+                self._durable_pump_connections.pop(node_id, None)
+
+        task.add_done_callback(_cleanup)
+
+    async def _pump_durable_requests(
+        self, node_id: str, ws: ServerConnection, connection_id: str = ""
+    ) -> None:
+        """Deliver persisted remote requests to a connected node.
+
+        Delivery is deliberately idempotent: the node owns claim/execution
+        deduplication by request_id, and the controller store remains the source
+        of truth if the socket drops before a terminal result is observed.
+        """
+        if connection_id and not self._registry.owns(node_id, connection_id):
+            logger.warning("durable delivery refused: %s not owned by this connection", node_id)
+            return
+        current = time.time()
+        sent = 0
+        for req in self._durable_store.deliverable_for_node(
+            node_id,
+            limit=_DURABLE_PUMP_SCAN_LIMIT,
+        ):
+            request_id = req.request_id
+            if self._durable_delivery_suppressed(req, current):
+                continue
+            try:
+                suppression_s = self._durable_delivery_suppression_seconds(req)
+                suppress_until = current + suppression_s
+                self._durable_delivery_inflight[request_id] = {
+                    "identity": self._durable_transport_identity(req),
+                    "sent_at": current,
+                    "suppress_until": suppress_until,
+                    "connection_id": connection_id,
+                    "node_id": node_id,
+                    "transport_coordination_only": True,
+                }
+                self._trim_durable_delivery_inflight()
+                self._record_durable_delivery_progress(
+                    request_id,
+                    "delivery_frame_queued",
+                    {
+                        "node_id": node_id,
+                        "connection_id": connection_id,
+                        "suppression_s": suppression_s,
+                        "suppress_until": suppress_until,
+                        "canonical_lifecycle": req.lifecycle_state,
+                        "transport_coordination_only": True,
+                    },
+                )
+                await self._send_ws_json(
+                    ws,
                     {
                         "jsonrpc": "2.0",
-                        "result": {"ack": True},
-                        "id": msg_id,
+                        "method": "durable_command.request",
+                        "params": req.to_dict(),
+                        "id": f"durable-{request_id}",
+                    },
+                    connection_id,
+                )
+                self._record_durable_delivery_progress(
+                    request_id,
+                    "delivery_frame_sent",
+                    {
+                        "node_id": node_id,
+                        "connection_id": connection_id,
+                        "canonical_lifecycle": req.lifecycle_state,
+                    },
+                )
+                delivered = self._durable_store.mark_delivered(request_id)
+                self._record_durable_delivery_progress(
+                    request_id,
+                    "delivery_marked",
+                    {
+                        "delivery_attempts": delivered.delivery_attempts,
+                        "canonical_lifecycle": delivered.lifecycle_state,
+                    },
+                )
+                sent += 1
+            except Exception as exc:
+                self._clear_durable_delivery_inflight(request_id, "send_failed")
+                logger.warning("durable request delivery failed for %s: %s", request_id, exc)
+                return
+            if sent >= 1:
+                break
+
+    async def _handle_durable_claimed(
+        self,
+        node_id: str,
+        params: dict[str, Any],
+        msg_id: Any,
+        ws: ServerConnection,
+        connection_id: str = "",
+    ) -> None:
+        request_id = ""
+        claim_id = ""
+        state = "CLAIMED"
+        result: dict[str, Any] = {
+            "ok": False,
+            "accepted": False,
+            "error": "",
+            "request_id": request_id,
+            "correlation_id": "",
+            "candidate_sha": "",
+            "node_id": node_id,
+            "claim_id": "",
+            "lifecycle_state": "",
+            "lease_expires_at": 0.0,
+            "process_tree": {},
+            "authority_source": "vps_canonical_durable_store",
+        }
+        try:
+            params = _durable_params(params)
+            request_id = str(params.get("request_id", "") or "").strip()
+            claim_id = str(params.get("claim_id", "") or "").strip()
+            state = str(params.get("state", "CLAIMED") or "CLAIMED").upper()
+            process_tree = _durable_dict_field(params, "process_tree")
+            result["request_id"] = request_id
+            result["claim_id"] = claim_id
+            self._record_durable_delivery_progress(
+                request_id,
+                "durable_control_frame_received",
+                {
+                    "method": "durable_command.claimed",
+                    "node_id": node_id,
+                    "claim_id": claim_id,
+                    "state": state,
+                    "connection_id": connection_id,
+                },
+            )
+            self._record_durable_delivery_progress(
+                request_id,
+                "inbound_handler_entered",
+                {"method": "durable_command.claimed", "state": state},
+            )
+            if connection_id and not self._registry.owns(node_id, connection_id):
+                result["error"] = "stale node connection"
+                raise RuntimeError(result["error"])
+            req = self._durable_store.get_request(request_id)
+            if req is None or req.node_id != node_id:
+                result["error"] = "request not found for node"
+            elif state not in {"CLAIMED", "RUNNING"}:
+                result["error"] = "unsupported claim state"
+            elif state == "RUNNING":
+                self._record_durable_delivery_progress(
+                    request_id,
+                    "canonical_write_started",
+                    {"method": "durable_command.claimed", "state": "RUNNING"},
+                )
+                identity_error = shell_running_identity_error(
+                    req,
+                    claim_id=claim_id,
+                    process_tree=process_tree,
+                )
+                if identity_error:
+                    updated = self._durable_store.mark_reconciliation_required(
+                        request_id,
+                        reason=identity_error,
+                        cleanup={
+                            "process_residue": [
+                                {
+                                    "pid": process_tree.get("root_pid"),
+                                    "state": "shell_running_identity_rejected",
+                                }
+                            ],
+                            "execution_outcome_unknown": True,
+                            "duplicate_launch_fenced": True,
+                        },
+                    )
+                else:
+                    updated = self._durable_store.mark_running(
+                        request_id, claim_id=claim_id, process_tree=process_tree
+                    )
+                self._record_durable_delivery_progress(
+                    request_id,
+                    "canonical_write_completed",
+                    {
+                        "method": "durable_command.claimed",
+                        "state": updated.lifecycle_state,
+                        "claim_id": updated.claim_id,
+                    },
+                )
+                result.update(
+                    {
+                        "request_id": updated.request_id,
+                        "correlation_id": updated.correlation_id,
+                        "candidate_sha": updated.candidate_sha,
+                        "node_id": updated.node_id,
+                        "claim_id": updated.claim_id,
+                        "lifecycle_state": updated.lifecycle_state,
+                        "lease_expires_at": updated.lease_expires_at,
+                        "process_tree": updated.process_tree,
                     }
                 )
+                result["ok"] = updated.lifecycle_state == "RUNNING" and updated.claim_id == claim_id
+                result["accepted"] = result["ok"]
+                if not result["ok"]:
+                    result["error"] = f"claim rejected into {updated.lifecycle_state}"
+            else:
+                self._record_durable_delivery_progress(
+                    request_id,
+                    "canonical_write_started",
+                    {"method": "durable_command.claimed", "state": "CLAIMED"},
+                )
+                updated = self._durable_store.mark_claimed(
+                    request_id, claim_id=claim_id, process_tree=process_tree
+                )
+                self._record_durable_delivery_progress(
+                    request_id,
+                    "canonical_write_completed",
+                    {
+                        "method": "durable_command.claimed",
+                        "state": updated.lifecycle_state,
+                        "claim_id": updated.claim_id,
+                    },
+                )
+                result.update(
+                    {
+                        "request_id": updated.request_id,
+                        "correlation_id": updated.correlation_id,
+                        "candidate_sha": updated.candidate_sha,
+                        "node_id": updated.node_id,
+                        "claim_id": updated.claim_id,
+                        "lifecycle_state": updated.lifecycle_state,
+                        "lease_expires_at": updated.lease_expires_at,
+                        "process_tree": updated.process_tree,
+                    }
+                )
+                result["ok"] = (
+                    updated.claim_id == claim_id
+                    and updated.lifecycle_state in _DURABLE_CLAIM_PROOF_STATES
+                )
+                result["accepted"] = result["ok"]
+                if not result["ok"]:
+                    result["error"] = f"claim rejected into {updated.lifecycle_state}"
+        except Exception as exc:  # noqa: BLE001
+            result["ok"] = False
+            result["accepted"] = False
+            result["error"] = str(exc)
+        if msg_id is not None:
+            self._record_durable_delivery_progress(
+                request_id,
+                "ack_constructed",
+                {
+                    "method": "durable_command.claimed",
+                    "ok": result.get("ok"),
+                    "accepted": result.get("accepted"),
+                    "lifecycle_state": result.get("lifecycle_state", ""),
+                },
             )
+            await self._send_ws_json(
+                ws,
+                {
+                    "jsonrpc": "2.0",
+                    "result": result,
+                    "id": msg_id,
+                },
+                connection_id,
+            )
+            self._record_durable_delivery_progress(
+                request_id,
+                "ack_sent",
+                {"method": "durable_command.claimed", "ok": result.get("ok")},
+            )
+        if result.get("accepted"):
+            self._clear_durable_delivery_inflight(request_id, f"canonical_{state.lower()}")
+
+    async def _handle_durable_claim_state(
+        self,
+        node_id: str,
+        params: dict[str, Any],
+        msg_id: Any,
+        ws: ServerConnection,
+        connection_id: str = "",
+    ) -> None:
+        request_id = str(params.get("request_id", ""))
+        result: dict[str, Any] = {
+            "ok": False,
+            "accepted": False,
+            "error": "",
+            "request_id": request_id,
+            "correlation_id": "",
+            "candidate_sha": "",
+            "node_id": node_id,
+            "claim_id": "",
+            "lifecycle_state": "",
+            "lease_expires_at": 0.0,
+            "process_tree": {},
+            "authority_source": "vps_canonical_durable_store",
+        }
+        self._record_durable_delivery_progress(
+            request_id,
+            "claim_state_read_received",
+            {
+                "node_id": node_id,
+                "connection_id": connection_id,
+                "claim_id": str(params.get("claim_id", "")),
+                "state": str(params.get("state", "CLAIMED")).upper(),
+            },
+        )
+        self._record_durable_delivery_progress(
+            request_id,
+            "inbound_handler_entered",
+            {"method": "durable_command.claim_state"},
+        )
+        try:
+            if connection_id and not self._registry.owns(node_id, connection_id):
+                result["error"] = "stale node connection"
+                raise RuntimeError(result["error"])
+            result = self._canonical_durable_claim_state(node_id, params)
+        except Exception as exc:  # noqa: BLE001
+            result["ok"] = False
+            result["accepted"] = False
+            result["error"] = str(exc)
+        if msg_id is not None:
+            await self._send_ws_json(
+                ws,
+                {
+                    "jsonrpc": "2.0",
+                    "result": result,
+                    "id": msg_id,
+                },
+                connection_id,
+            )
+            self._record_durable_delivery_progress(
+                request_id,
+                "claim_state_response_sent",
+                {
+                    "ok": result.get("ok"),
+                    "accepted": result.get("accepted"),
+                    "lifecycle_state": result.get("lifecycle_state", ""),
+                },
+            )
+
+    def _canonical_durable_claim_state(
+        self,
+        node_id: str,
+        params: dict[str, Any],
+    ) -> dict[str, Any]:
+        request_id = str(params.get("request_id", ""))
+        correlation_id = str(params.get("correlation_id", ""))
+        candidate_sha = str(params.get("candidate_sha", ""))
+        claim_id = str(params.get("claim_id", ""))
+        expected_state = str(params.get("state", "CLAIMED")).upper()
+        result: dict[str, Any] = {
+            "ok": False,
+            "accepted": False,
+            "error": "",
+            "request_id": request_id,
+            "correlation_id": "",
+            "candidate_sha": "",
+            "node_id": node_id,
+            "claim_id": "",
+            "lifecycle_state": "",
+            "lease_expires_at": 0.0,
+            "process_tree": {},
+            "authority_source": "vps_canonical_durable_store",
+        }
+        req = self._durable_store.get_request(request_id)
+        if req is None:
+            result["error"] = "request not found"
+            return result
+        if req.node_id != node_id:
+            result["error"] = "request not found for node"
+            return result
+        if not self._durable_store.is_canonical_request(req):
+            result["error"] = "request is not canonical for idempotency"
+            return result
+        result.update(
+            {
+                "request_id": req.request_id,
+                "correlation_id": req.correlation_id,
+                "candidate_sha": req.candidate_sha,
+                "node_id": req.node_id,
+                "claim_id": req.claim_id,
+                "lifecycle_state": req.lifecycle_state,
+                "lease_expires_at": req.lease_expires_at,
+                "process_tree": req.process_tree,
+            }
+        )
+        mismatches: list[str] = []
+        if not correlation_id or req.correlation_id != correlation_id:
+            mismatches.append("correlation_id")
+        if not candidate_sha or req.candidate_sha != candidate_sha:
+            mismatches.append("candidate_sha")
+        if not claim_id or req.claim_id != claim_id:
+            mismatches.append("claim_id")
+        if expected_state not in {"CLAIMED", "RUNNING"}:
+            mismatches.append("state")
+        elif expected_state == "CLAIMED":
+            if req.lifecycle_state not in _DURABLE_CLAIM_PROOF_STATES:
+                mismatches.append("lifecycle_state")
+        elif req.lifecycle_state != expected_state:
+            mismatches.append("lifecycle_state")
+        if mismatches:
+            result["error"] = "claim mismatch: " + ",".join(mismatches)
+            return result
+        result["ok"] = True
+        result["accepted"] = True
+        return result
+
+    async def _handle_durable_result(
+        self,
+        node_id: str,
+        params: dict[str, Any],
+        msg_id: Any,
+        ws: ServerConnection,
+        connection_id: str = "",
+    ) -> None:
+        request_id = ""
+        claim_id = ""
+        state = "FAILED"
+        result: dict[str, Any] = {}
+        cleanup: dict[str, Any] = {}
+        incoming_digest = ""
+        receipt: dict[str, Any] = {}
+        ok = False
+        error = ""
+        try:
+            params = _durable_params(params)
+            request_id = str(params.get("request_id", "") or "").strip()
+            claim_id = str(params.get("claim_id", "") or "").strip()
+            state = str(params.get("state", "FAILED") or "FAILED").upper()
+            result = _durable_dict_field(params, "result")
+            cleanup = _durable_dict_field(params, "cleanup")
+            incoming_result_id = str(params.get("result_id", "") or "").strip()
+            incoming_digest = sha256_json(
+                {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup}
+            )
+            self._record_durable_delivery_progress(
+                request_id,
+                "durable_control_frame_received",
+                {
+                    "method": "durable_command.result",
+                    "node_id": node_id,
+                    "claim_id": claim_id,
+                    "state": state,
+                    "connection_id": connection_id,
+                },
+            )
+            self._record_durable_delivery_progress(
+                request_id,
+                "inbound_handler_entered",
+                {"method": "durable_command.result", "state": state},
+            )
+            if connection_id and not self._registry.owns(node_id, connection_id):
+                error = "stale node connection"
+                raise RuntimeError(error)
+            req = self._durable_store.get_request(request_id)
+            if req is None or req.node_id != node_id:
+                error = "request not found for node"
+            else:
+                prior_lifecycle_state = req.lifecycle_state
+                result_identity = terminal_result_identity(
+                    req,
+                    {
+                        "claim_id": claim_id,
+                        "state": state,
+                        "result_digest": incoming_digest,
+                        "cleanup_digest": sha256_json(cleanup),
+                    },
+                )
+                identity_mismatches = [
+                    key
+                    for key in ("correlation_id", "candidate_sha", "node_id")
+                    if str(params.get(key, "") or "") != str(result_identity[key])
+                ]
+                if not incoming_result_id:
+                    identity_mismatches.append("result_id")
+                elif incoming_result_id != result_identity["result_id"]:
+                    identity_mismatches.append("result_id")
+                if identity_mismatches:
+                    raise ValueError(
+                        "terminal result identity mismatch: "
+                        + ",".join(identity_mismatches)
+                    )
+                self._record_durable_delivery_progress(
+                    request_id,
+                    "canonical_write_started",
+                    {"method": "durable_command.result", "state": state},
+                )
+                updated = self._durable_store.publish_result(
+                    request_id,
+                    claim_id=claim_id,
+                    state=state,
+                    result=result,
+                    cleanup=cleanup,
+                )
+                self._record_durable_delivery_progress(
+                    request_id,
+                    "canonical_write_completed",
+                    {
+                        "method": "durable_command.result",
+                        "state": updated.lifecycle_state,
+                        "claim_id": updated.claim_id,
+                    },
+                )
+                if (
+                    updated.lifecycle_state == "RECONCILIATION_REQUIRED"
+                    and not updated.diagnostics.get("cancel_without_cleanup")
+                    and not updated.diagnostics.get("failed_without_cleanup")
+                    and not updated.diagnostics.get("success_without_cleanup")
+                    and not updated.diagnostics.get("terminal_cancel_cleanup_conflict")
+                ):
+                    updated = self._durable_store.reconcile_request(
+                        request_id,
+                        reason="server_result_ingestion_reconciliation",
+                    )
+                ok = updated.lifecycle_state == state and self._durable_store.result_was_accepted(
+                    request_id, incoming_digest
+                )
+                if not ok:
+                    error = (
+                        f"result rejected from {prior_lifecycle_state} "
+                        f"into {updated.lifecycle_state}"
+                    )
+                else:
+                    receipt = {
+                        "ok": True,
+                        **result_identity,
+                    }
+        except Exception as exc:  # noqa: BLE001
+            error = str(exc)
+        if msg_id is not None:
+            await self._send_ws_json(
+                ws,
+                {
+                    "jsonrpc": "2.0",
+                    "result": receipt if ok else {"ok": False, "error": error},
+                    "id": msg_id,
+                },
+                connection_id,
+            )
+            self._record_durable_delivery_progress(
+                request_id,
+                "ack_sent",
+                {"method": "durable_command.result", "ok": ok, "error": error},
+            )
+        if ok:
+            self._clear_durable_delivery_inflight(request_id, f"terminal_{state.lower()}")
 
     async def _handle_capabilities_changed(
         self,
         node_id: str,
         params: dict[str, Any],
         ws: ServerConnection,
+        connection_id: str = "",
     ) -> None:
+        if connection_id and not self._registry.owns(node_id, connection_id):
+            logger.warning("capabilities update refused: %s stale connection", node_id)
+            return
         node = self._registry.get(node_id)
         if node is None:
             return
@@ -703,7 +1591,11 @@ class NodeMeshServer:
         self,
         node_id: str,
         params: dict[str, Any],
+        connection_id: str = "",
     ) -> None:
+        if connection_id and not self._registry.owns(node_id, connection_id):
+            logger.warning("peripherals update refused: %s stale connection", node_id)
+            return
         node = self._registry.get(node_id)
         if node is None:
             return
@@ -718,7 +1610,11 @@ class NodeMeshServer:
         params: dict[str, Any],
         msg_id: Any,
         ws: ServerConnection,
+        connection_id: str = "",
     ) -> None:
+        if connection_id and not self._registry.owns(node_id, connection_id):
+            logger.warning("signal refused: %s stale connection", node_id)
+            return
         signal_class = params.get("signal_class", "event")
 
         if signal_class == "telemetry":
@@ -765,14 +1661,14 @@ class NodeMeshServer:
                 logger.error("pipeline submit for node signal failed: %s", exc)
 
         if msg_id is not None:
-            await ws.send(
-                json.dumps(
-                    {
-                        "jsonrpc": "2.0",
-                        "result": {"ack": True},
-                        "id": msg_id,
-                    }
-                )
+            await self._send_ws_json(
+                ws,
+                {
+                    "jsonrpc": "2.0",
+                    "result": {"ack": True},
+                    "id": msg_id,
+                },
+                connection_id,
             )
 
     def _check_anomalies(self, node_id: str, metrics: dict[str, Any]) -> None:
@@ -820,8 +1716,11 @@ class NodeMeshServer:
         self._executor.unregister_adapter(integration_id)
         logger.info("node adapter unregistered: %s", integration_id)
 
-    def _unregister_node(self, node_id: str) -> None:
+    def _unregister_node(self, node_id: str, *, connection_id: str | None = None) -> None:
         node = self._registry.get(node_id)
+        if connection_id is not None and node is not None and node.connection_id != connection_id:
+            logger.info("node unregister skipped: %s owned by a newer connection", node_id)
+            return
 
         if self._runtime_graph_hook is not None:
             try:
@@ -830,7 +1729,9 @@ class NodeMeshServer:
                 logger.warning("runtime graph hook (disconnect) failed: %s", exc)
 
         self._unregister_integration(node_id)
-        self._registry.remove(node_id)
+        removed = self._registry.remove(node_id, connection_id=connection_id)
+        if removed is None and connection_id is not None:
+            return
         if node:
             node.status = "disconnected"
             self._emit_mesh_event("mesh.node_disconnected", node)
@@ -852,8 +1753,9 @@ class NodeMeshServer:
         Remote node metrics come from heartbeats.
         """
         try:
-            import psutil
             from datetime import datetime, timezone
+
+            import psutil
 
             out: dict[str, Any] = {}
             # VPS self-metrics (always present — this IS the VPS)
@@ -894,6 +1796,15 @@ class NodeMeshServer:
         """Periodically check for stale nodes."""
         while True:
             await asyncio.sleep(30)
+            try:
+                for req in self._durable_store.reconcile_due_requests():
+                    logger.info(
+                        "durable request reconciled by health loop: %s -> %s",
+                        req.request_id,
+                        req.lifecycle_state,
+                    )
+            except Exception as exc:
+                logger.warning("durable request reconciliation sweep failed: %s", exc)
             stale = self._registry.stale_nodes()
             for node_id in stale:
                 node = self._registry.get(node_id)
@@ -902,7 +1813,7 @@ class NodeMeshServer:
                     age = node.heartbeat_age_s()
                     if age > self._config.heartbeat_timeout_s * 2:
                         logger.warning("node %s timed out (%.0fs), unregistering", node_id, age)
-                        self._unregister_node(node_id)
+                        self._unregister_node(node_id, connection_id=node.connection_id)
                         try:
                             await node.ws.close(4002, "heartbeat timeout")
                         except Exception:
@@ -918,7 +1829,7 @@ class NodeMeshServer:
         "no secret" is NEVER treated as "allow". A configured secret requires
         an exact constant-time match of the Authorization: Bearer header.
         """
-        relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "")
+        relay_secret = os.environ.get("UMH_MESH_RELAY_SECRET", "").strip()
         if not relay_secret:
             logger.error("mesh relay fail-closed: UMH_MESH_RELAY_SECRET unset — refusing request")
             return False
@@ -996,6 +1907,29 @@ class NodeMeshServer:
                         await self._write_unauthorized(writer)
                         return
                     resp = self._http_nodes()
+                elif method == "POST" and path.rstrip("/") == "/durable-claim-state":
+                    authed_node_id = self._http_authenticated_node_id(
+                        headers.get("authorization", "")
+                    )
+                    if not authed_node_id:
+                        await self._write_unauthorized(writer)
+                        return
+                    payload = json.loads(body)
+                    if not isinstance(payload, dict):
+                        resp = {"ok": False, "accepted": False, "error": "invalid payload"}
+                    else:
+                        requested_node_id = str(payload.get("node_id", ""))
+                        if authed_node_id != "*" and requested_node_id != authed_node_id:
+                            resp = {
+                                "ok": False,
+                                "accepted": False,
+                                "error": "node token does not match requested node_id",
+                            }
+                        else:
+                            resp = self._canonical_durable_claim_state(
+                                requested_node_id,
+                                payload,
+                            )
                 else:
                     resp = {"error": "not found"}
 
@@ -1060,21 +1994,31 @@ class NodeMeshServer:
     async def _http_dispatch(self, body: dict[str, Any]) -> dict[str, Any]:
         """Dispatch a capability.execute to a connected node via WS and wait for response.
 
-        This is NOT an ungoverned path. Every write-class capability MUST carry
-        a signed governance verdict token (minted upstream by the governed
-        mutation that authorized the dispatch). The relay verifies the verdict
-        server-side (defense in depth) AND forwards it to the node, which
-        validates it independently before executing. A write-class dispatch with
-        a missing or invalid verdict is rejected here (fail-closed).
+        Synchronous mesh is restricted to explicit READ_ONLY observations.
+        Consequential writes must enter DurableRemote so canonical request
+        trajectory/idempotency owns replay, redelivery, and authority proof.
+        Unknown effect classes fail closed.
         """
         from uuid import uuid4
 
-        from substrate.execution.mesh_verdict import is_write_class, verify_verdict
+        from substrate.execution.mesh_verdict import (
+            READ_ONLY_EFFECT,
+            canonical_payload_digest,
+            canonical_sync_effect_policy,
+            verify_verdict,
+        )
 
+        request_id = str(body.get("request_id", "")).strip()
+        correlation_id = str(body.get("correlation_id", "")).strip()
+        candidate_sha = str(body.get("candidate_sha", "")).strip()
+        effect_class = str(body.get("effect_class", "")).strip()
+        idempotency_key = str(body.get("idempotency_key", "")).strip()
         node_id = body.get("node_id", "")
         capability = body.get("capability", "")
         params = body.get("params", {})
         risk_class = body.get("risk_class", "")
+        expected_payload_digest = canonical_payload_digest(params)
+        supplied_payload_digest = str(body.get("payload_digest", "")).strip()
         verdict_token = body.get("verdict_token", "") or body.get("governance_verdict_id", "")
         _MAX_DISPATCH_TIMEOUT = 600
         raw_timeout = body.get("timeout", 15)
@@ -1089,24 +2033,64 @@ class NodeMeshServer:
         if not node_id or not capability:
             return {"ok": False, "error": "node_id and capability required"}
 
-        # Fail-closed verdict enforcement for write-class capabilities.
-        if is_write_class(risk_class):
-            if not verdict_token:
-                logger.error(
-                    "mesh dispatch rejected: write-class capability %s for node %s "
-                    "carries no verdict token",
-                    capability,
-                    node_id,
-                )
-                return {
-                    "ok": False,
-                    "error": "governance verdict required for write-class capability",
-                    "status": "verdict_required",
-                }
+        policy = canonical_sync_effect_policy(capability, declared_effect_class=effect_class)
+        declared_effect = policy.declared_effect_class
+        if not declared_effect:
+            return {
+                "ok": False,
+                "error": "sync dispatch requires explicit known effect_class",
+                "status": "effect_class_required",
+            }
+        if declared_effect != policy.authoritative_effect_class:
+            return {
+                "ok": False,
+                "error": f"sync effect policy mismatch: {policy.reason}",
+                "status": "effect_policy_mismatch",
+                "authoritative_effect_class": policy.authoritative_effect_class,
+                "effect_policy": policy.policy_id,
+            }
+        if not request_id or not correlation_id or not idempotency_key:
+            return {
+                "ok": False,
+                "error": "sync dispatch requires request, correlation and idempotency binding",
+                "status": "operation_binding_required",
+            }
+        if supplied_payload_digest != expected_payload_digest:
+            return {
+                "ok": False,
+                "error": "payload digest mismatch",
+                "status": "payload_digest_mismatch",
+            }
+        if not policy.sync_allowed:
+            return {
+                "ok": False,
+                "error": policy.reason,
+                "status": "sync_write_denied"
+                if policy.authoritative_effect_class
+                else "effect_policy_unavailable",
+                "authoritative_effect_class": policy.authoritative_effect_class,
+                "effect_policy": policy.policy_id,
+            }
+        if policy.authoritative_effect_class != READ_ONLY_EFFECT:
+            return {
+                "ok": False,
+                "error": "sync dispatch is restricted to READ_ONLY effect_class",
+                "status": "effect_class_mismatch",
+            }
+        if verdict_token:
             check = verify_verdict(
                 verdict_token,
                 expected_node_id=node_id,
                 expected_capability=capability,
+                expected_risk_class=risk_class,
+                expected_request_id=request_id,
+                expected_correlation_id=correlation_id,
+                expected_candidate_sha=candidate_sha,
+                expected_effect_class=declared_effect,
+                expected_authoritative_effect_class=policy.authoritative_effect_class,
+                expected_effect_policy=policy.policy_id,
+                expected_payload_digest=expected_payload_digest if supplied_payload_digest else "",
+                expected_idempotency_key=idempotency_key,
             )
             if not check.valid:
                 logger.error(
@@ -1127,13 +2111,20 @@ class NodeMeshServer:
         if node.ws is None:
             return {"ok": False, "error": f"node {node_id} has no WS connection"}
 
-        req_id = uuid4().hex
+        req_id = request_id or uuid4().hex
         rpc_msg = json.dumps(
             {
                 "jsonrpc": "2.0",
                 "method": "capability.execute",
                 "params": {
                     "request_id": req_id,
+                    "correlation_id": correlation_id,
+                    "candidate_sha": candidate_sha,
+                    "effect_class": declared_effect,
+                    "authoritative_effect_class": policy.authoritative_effect_class,
+                    "effect_policy": policy.policy_id,
+                    "idempotency_key": idempotency_key,
+                    "payload_digest": expected_payload_digest,
                     "capability_name": capability,
                     "params": params,
                     "risk_class": risk_class,

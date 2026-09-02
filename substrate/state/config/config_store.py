@@ -18,12 +18,14 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable
+
+from substrate.state.runtime_paths import runtime_state_dir
 
 logger = logging.getLogger(__name__)
 
 _ROOT = os.environ.get("UMH_ROOT", "/opt/OS")
-_CONFIG_DIR = Path(_ROOT) / "data" / "umh" / "config"
+_CONFIG_DIR = runtime_state_dir("config", create=False)
 
 LAYERS = ("system", "user", "venture", "channel")
 

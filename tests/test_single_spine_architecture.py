@@ -79,7 +79,8 @@ _RIVAL_GUARD_SITES = {
 
 def test_governed_work_runtime_gates_execution_behind_canonical_routing():
     """GovernedWorkRuntime.execute_work must consult the canonical routing guard
-    before dispatching to the coordinator/executor."""
+    and FAIL CLOSED — Wave 2 removed the silent coordinator dispatch fallback, so
+    execute_work must contain NO dispatch_next() call at all."""
     src = _read("substrate/organism/governed_work_runtime.py")
     assert "canonical_runtime_routing_enabled" in src, (
         "governed_work_runtime must import/consult the canonical routing guard"
@@ -89,15 +90,37 @@ def test_governed_work_runtime_gates_execution_behind_canonical_routing():
     execute_work = _find_function(tree, "execute_work")
     assert execute_work is not None, "execute_work method not found"
 
-    # Within execute_work, the guard must be referenced before any
-    # dispatch_next() call (the executor-reaching step).
+    # The guard must be consulted.
     guard_line = _first_ref_line(execute_work, "canonical_runtime_routing_enabled")
-    dispatch_line = _first_call_attr_line(execute_work, "dispatch_next")
     assert guard_line is not None, "execute_work does not consult the routing guard"
-    if dispatch_line is not None:
-        assert guard_line < dispatch_line, (
-            "routing guard must be consulted before dispatch_next() reaches an executor"
-        )
+
+    # Wave 2 fail-closed: there is NO dispatch_next() fallback inside execute_work.
+    dispatch_line = _first_call_attr_line(execute_work, "dispatch_next")
+    assert dispatch_line is None, (
+        "execute_work must NOT call dispatch_next() — the silent coordinator "
+        "fallback was removed (Wave 2 fail-closed)"
+    )
+
+
+def test_execute_work_fails_closed_without_canonical_router():
+    """When no MutationRouter is wired (canonical routing unavailable),
+    execute_work returns a rejected receipt and never reaches an executor."""
+    from substrate.organism.governed_work_runtime import GovernedWorkRuntime
+
+    rt = GovernedWorkRuntime()  # no mutation_router, no coordinator wired
+
+    class _Plan:
+        approval_state = "approved"
+        execution_plan_id = "expl-test"
+        status = "approved"
+        target_executor = ""
+
+    rt._find_plan_for_work = lambda work_id: _Plan()  # type: ignore[method-assign]
+    receipt = rt.execute_work("wp-x")
+    assert receipt.status == "rejected", (
+        f"expected fail-closed rejected receipt, got {receipt.status!r}: {receipt.error!r}"
+    )
+    assert "fail closed" in (receipt.error or "").lower()
 
 
 def test_command_runtime_declares_canonical_subordination():

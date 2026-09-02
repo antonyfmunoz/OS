@@ -16,6 +16,7 @@ import type { SuggestedAction } from '../stores/chatStore'
 import { useCockpitStore, type Panel } from '../stores/cockpitStore'
 import { useExecutionSummaryStore } from '../stores/executionSummaryStore'
 import { PlanSummaryCard, asObjectivePlanMetadata } from './cards/PlanSummaryCard'
+import { ChatExecutionCard, asExecutionMetadata } from './cards/ChatExecutionCard'
 import { useObjectivePlanStore } from '../stores/objectivePlanStore'
 
 
@@ -352,7 +353,7 @@ function OperatorBubble({ msg }: { msg: ChatMessage }) {
   )
 }
 
-function MessageBubble({ msg, aiName, onAction, onOpenPlan, conversationId }: { msg: ChatMessage; aiName: string; onAction?: (a: SuggestedAction) => void; onOpenPlan?: (planRecordId: string, conversationId?: string) => void; conversationId?: string }) {
+function MessageBubble({ msg, aiName, onAction, onOpenPlan, onOpenExecution, conversationId }: { msg: ChatMessage; aiName: string; onAction?: (a: SuggestedAction) => void; onOpenPlan?: (planRecordId: string, conversationId?: string) => void; onOpenExecution?: () => void; conversationId?: string }) {
   if (msg.sender === 'operator') {
     return <OperatorBubble msg={msg} />
   }
@@ -361,6 +362,9 @@ function MessageBubble({ msg, aiName, onAction, onOpenPlan, conversationId }: { 
   // Additive: when the assistant turn carries an objective-plan surface, render
   // the compact plan control card inside the bubble (below the prose).
   const planMeta = asObjectivePlanMetadata(msg.metadata)
+  // Additive: when the turn carries an execution_status surface, render the
+  // STATUS-ONLY execution card (no decision controls — those are HUD-only).
+  const execMeta = asExecutionMetadata(msg.metadata)
 
   return (
     <div className="px-2 py-2 rounded text-[11px] bg-surface-raised text-text-secondary mr-4">
@@ -425,6 +429,13 @@ function MessageBubble({ msg, aiName, onAction, onOpenPlan, conversationId }: { 
           metadata={planMeta}
           conversationId={conversationId}
           onOpenPlan={() => onOpenPlan?.(planMeta.plan_record_id)}
+        />
+      )}
+      {execMeta && (
+        <ChatExecutionCard
+          metadata={execMeta}
+          onOpenExecution={() => onOpenExecution?.()}
+          onOpenTask={() => execMeta.plan_record_id && onOpenPlan?.(execMeta.plan_record_id)}
         />
       )}
       {msg.attachment && <AttachmentLink attachment={msg.attachment} />}
@@ -973,6 +984,12 @@ function ChatSection() {
     setPanel('objectiveplan')
   }, [selectObjectivePlan, fetchObjectivePlan, setPanel])
 
+  const handleOpenExecution = useCallback(() => {
+    // Open the one canonical Execution surface. Chat never authorizes — the
+    // execution decision itself lives in the Top HUD.
+    setPanel('execution')
+  }, [setPanel])
+
   const commitName = () => {
     const trimmed = nameInput.trim()
     if (trimmed && trimmed !== aiName) {
@@ -1043,7 +1060,7 @@ function ChatSection() {
       )}
       <div ref={scrollRef} className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden space-y-2 mb-2">
         {messages.map((m) => (
-          <MessageBubble key={m.id} msg={m} aiName={aiName} onAction={handleSuggestedAction} onOpenPlan={handleOpenPlan} conversationId={conversationId} />
+          <MessageBubble key={m.id} msg={m} aiName={aiName} onAction={handleSuggestedAction} onOpenPlan={handleOpenPlan} onOpenExecution={handleOpenExecution} conversationId={conversationId} />
         ))}
         <VoiceDraftCards />
         {draftMessage && (

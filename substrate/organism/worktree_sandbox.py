@@ -15,7 +15,6 @@ UMH substrate subsystem. Instance-agnostic.
 """
 
 from __future__ import annotations
-from substrate.execution.cpu_gate import gated_subprocess_run, gated_popen
 
 import json
 import logging
@@ -27,6 +26,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 from uuid import uuid4
+
+from substrate.execution.cpu_gate import gated_subprocess_run
 
 logger = logging.getLogger(__name__)
 
@@ -108,11 +109,23 @@ class WorktreeSandbox:
     head_commit: str = ""
     error: str = ""
     completed_at: float = 0.0
+    # Set when this sandbox's slot was released with its branch DELIBERATELY
+    # preserved (a verified commit could not be retained and must stay
+    # reachable). It is STICKY and PERSISTED: once true, no later cleanup may
+    # delete the branch. Without it, the documented operator recovery action —
+    # revoking the withheld lease — ran an ordinary `cleanup_sandbox` on the same
+    # sandbox_id and destroyed the very commit the withhold protected. Measured.
+    branch_preserved: bool = False
+    # Set by ``emergency_free_slot`` to record that git worktree administrative
+    # metadata is stale and requires a deferred ``git worktree prune``.
+    needs_worktree_prune: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "sandbox_id": self.sandbox_id,
             "branch_name": self.branch_name,
+            "branch_preserved": self.branch_preserved,
+            "needs_worktree_prune": self.needs_worktree_prune,
             "worktree_path": self.worktree_path,
             "base_commit": self.base_commit,
             "head_commit": self.head_commit,
@@ -139,14 +152,32 @@ def make_branch_name(candidate_slug: str, short_id: str) -> str:
     return f"auto/low-risk/{slug}-{short_id[:8]}"
 
 
+class CpuGatedGitError(RuntimeError):
+    """Raised when a git subprocess is refused by the CPU gate (host overloaded).
+
+    ``gated_subprocess_run`` returns ``None`` when the CPU gate blocks (CPU Gate
+    Law: "the gated wrappers return None when CPU is overloaded — handle
+    gracefully"). Every caller here immediately reads ``result.returncode``, so a
+    None silently became ``'NoneType' object has no attribute 'returncode'`` — an
+    opaque crash that a caller could not distinguish from a real git failure. A
+    worktree/lease acquisition that hits this is TRANSIENT and RETRYABLE (retry
+    when load drops), NOT a permanent failure. Callers that create leases catch
+    this and mark the attempt CPU-blocked (recoverable) rather than failed."""
+
+
 def _run_git(args: list[str], cwd: str | None = None) -> subprocess.CompletedProcess:
-    return gated_subprocess_run(
+    result = gated_subprocess_run(
         ["git"] + args,
         cwd=cwd or _REPO_ROOT,
         capture_output=True,
         text=True,
         timeout=30,
     )
+    if result is None:
+        # CPU gate refused the subprocess — surface a clear, catchable signal
+        # instead of letting the caller crash on result.returncode (CPU Gate Law).
+        raise CpuGatedGitError(f"git {' '.join(args)} refused by CPU gate (host overloaded)")
+    return result
 
 
 class SandboxManager:
@@ -191,13 +222,16 @@ class SandboxManager:
                     created_at=entry.get("created_at", 0),
                     status=SandboxStatus(entry.get("status", "created")),
                     affected_files=entry.get("affected_files", []),
-                    cleanup_policy=SandboxCleanupPolicy(
-                        entry.get("cleanup_policy", "on_merge")
-                    ),
+                    cleanup_policy=SandboxCleanupPolicy(entry.get("cleanup_policy", "on_merge")),
                     pr_url=entry.get("pr_url", ""),
                     pr_number=entry.get("pr_number", 0),
                     error=entry.get("error", ""),
                     completed_at=entry.get("completed_at", 0),
+                    # Must survive restart: a preserved branch protects a verified
+                    # commit, and a restart that forgot the flag would let the
+                    # next cleanup delete it.
+                    branch_preserved=bool(entry.get("branch_preserved", False)),
+                    needs_worktree_prune=bool(entry.get("needs_worktree_prune", False)),
                 )
                 self._sandboxes[sb.sandbox_id] = sb
                 for fp in sb.affected_files:
@@ -229,10 +263,7 @@ class SandboxManager:
             SandboxStatus.VALIDATED,
             SandboxStatus.PR_CREATED,
         }
-        return [
-            sb for sb in self._sandboxes.values()
-            if sb.status in active_statuses
-        ]
+        return [sb for sb in self._sandboxes.values() if sb.status in active_statuses]
 
     @property
     def all_sandboxes(self) -> list[WorktreeSandbox]:
@@ -263,7 +294,24 @@ class SandboxManager:
         agent_type: str = "developer_agent",
         affected_files: list[str] | None = None,
         cleanup_policy: SandboxCleanupPolicy = SandboxCleanupPolicy.ON_MERGE,
+        base_commit: str = "",
     ) -> WorktreeSandbox:
+        """Create one worktree sandbox.
+
+        ``base_commit`` is the TRUSTED EXPLICIT BASE. Omitted (the default), the
+        sandbox branches from the repository's current ``HEAD`` — the historical
+        behaviour, unchanged. Supplied, the sandbox branches from exactly that
+        commit, which is how a dependent Task receives the verified content of
+        its predecessors (a retained commit or a composition commit) instead of a
+        stale HEAD that predates them.
+
+        The base is never worker-selectable: it reaches here only from trusted
+        control-plane code that resolved it from the protected ref namespace. It
+        is validated to be a real commit in THIS repository and the created
+        worktree is PROVEN to sit on it before the sandbox is returned — a
+        recorded base that differs from the launched base is precisely the
+        divergence a Proof must never attest to.
+        """
         if len(self.active_sandboxes) >= self._max_parallel:
             raise RuntimeError(
                 f"Max parallel sandboxes ({self._max_parallel}) reached. "
@@ -273,27 +321,57 @@ class SandboxManager:
         affected = affected_files or []
         conflicts = self.check_file_conflicts(affected)
         if conflicts:
-            raise RuntimeError(
-                f"File lock conflict on: {', '.join(conflicts[:5])}"
-            )
+            raise RuntimeError(f"File lock conflict on: {', '.join(conflicts[:5])}")
 
         short_id = uuid4().hex[:8]
         sandbox_id = f"sb-{short_id}"
         branch_name = make_branch_name(candidate_slug, short_id)
         worktree_path = os.path.join(self._worktree_base, f"auto-{short_id}")
 
-        result = _run_git(["rev-parse", "HEAD"], cwd=self._repo_root)
-        if result.returncode != 0:
-            raise RuntimeError(f"git rev-parse failed: {result.stderr}")
-        base_commit = result.stdout.strip()
+        requested_base = str(base_commit or "").strip()
+        if requested_base:
+            # Fail CLOSED on a base that is missing, stale, or not a commit in
+            # this repository. Branching from an unresolvable base would silently
+            # fall back to HEAD — the exact defect this parameter exists to fix.
+            probe = _run_git(
+                ["rev-parse", "--verify", "--quiet", f"{requested_base}^{{commit}}"],
+                cwd=self._repo_root,
+            )
+            resolved = probe.stdout.strip()
+            if probe.returncode != 0 or not resolved:
+                raise RuntimeError(
+                    f"explicit base {requested_base!r} does not resolve to a commit in "
+                    f"{self._repo_root} — refusing to fall back to HEAD"
+                )
+            base_commit = resolved
+        else:
+            result = _run_git(["rev-parse", "HEAD"], cwd=self._repo_root)
+            if result.returncode != 0:
+                raise RuntimeError(f"git rev-parse failed: {result.stderr}")
+            base_commit = result.stdout.strip()
 
         os.makedirs(self._worktree_base, exist_ok=True)
-        result = _run_git(
-            ["worktree", "add", "-b", branch_name, worktree_path],
-            cwd=self._repo_root,
-        )
+        add_args = ["worktree", "add", "-b", branch_name, worktree_path]
+        if requested_base:
+            add_args.append(base_commit)
+        result = _run_git(add_args, cwd=self._repo_root)
         if result.returncode != 0:
             raise RuntimeError(f"git worktree add failed: {result.stderr}")
+
+        # PROVE the worktree actually sits on the recorded base. Recording one
+        # base while launching from another is a mutation-listed defect: the
+        # verifier diffs against the recorded base, so a divergence here would
+        # make every scope verdict meaningless.
+        check = _run_git(["rev-parse", "HEAD"], cwd=worktree_path)
+        actual = check.stdout.strip()
+        if check.returncode != 0 or actual != base_commit:
+            _run_git(["worktree", "remove", "--force", worktree_path], cwd=self._repo_root)
+            _run_git(["branch", "-D", branch_name], cwd=self._repo_root)
+            raise RuntimeError(
+                f"worktree {worktree_path} is on {actual[:12] or '?'} but the sandbox "
+                f"records base {base_commit[:12]} — refusing a sandbox whose recorded "
+                f"base is not its launched base"
+            )
 
         sandbox = WorktreeSandbox(
             sandbox_id=sandbox_id,
@@ -316,7 +394,9 @@ class SandboxManager:
         self._persist()
         logger.info(
             "Created sandbox %s on branch %s at %s",
-            sandbox_id, branch_name, worktree_path,
+            sandbox_id,
+            branch_name,
+            worktree_path,
         )
         return sandbox
 
@@ -357,16 +437,36 @@ class SandboxManager:
         self._persist()
         return sb
 
-    def add_validation_result(
-        self, sandbox_id: str, result: SandboxValidationResult
-    ) -> None:
+    def add_validation_result(self, sandbox_id: str, result: SandboxValidationResult) -> None:
         sb = self._sandboxes.get(sandbox_id)
         if not sb:
             raise KeyError(f"Unknown sandbox: {sandbox_id}")
         sb.validation_results.append(result)
         self._persist()
 
-    def cleanup_sandbox(self, sandbox_id: str) -> bool:
+    def cleanup_sandbox(self, sandbox_id: str, *, preserve_branch: bool = False) -> bool:
+        """Free the sandbox slot. Deletes the branch unless ``preserve_branch``.
+
+        ``preserve_branch=True`` removes the worktree and frees the concurrency
+        slot but leaves the branch ref intact, so every commit on it stays
+        REACHABLE (and therefore survives ``git gc``). It exists for exactly one
+        caller: terminalization deliberately withholding a lease because the
+        verified commit could not be retained. Without it, a withheld lease holds
+        its slot forever — at the production ``max_parallel=2`` two withholds
+        halt the WHOLE run, not just the affected Task, and ``expire_stale``
+        clears the leases but never the slots. Measured before this parameter
+        existed.
+
+        Preservation is STICKY and PERSISTED (``WorktreeSandbox.branch_preserved``):
+        once a branch has been preserved, EVERY later cleanup of that sandbox
+        refuses to delete it, including a call that passes the default. Without
+        that, the documented operator recovery — revoking the withheld lease —
+        ran an ordinary cleanup on the same ``sandbox_id`` and destroyed the
+        commit the withhold existed to protect. Measured.
+
+        The default is unchanged for every sandbox that was never preserved:
+        branch deleted, historical behaviour.
+        """
         sb = self._sandboxes.get(sandbox_id)
         if not sb:
             return False
@@ -382,11 +482,30 @@ class SandboxManager:
                 except OSError as e:
                     logger.warning("Worktree cleanup failed for %s: %s", sandbox_id, e)
                     return False
+                # `worktree remove` failed but the directory is gone: git still
+                # holds the administrative registration, which keeps the branch
+                # checked out and makes it undeletable/unreusable. Prune it.
+                _run_git(["worktree", "prune"], cwd=self._repo_root)
 
-        if sb.branch_name:
+        # STICKY. Once a branch has been preserved, no later cleanup may delete
+        # it — not an operator revoke, not a teardown sweep, not a second call
+        # with the default argument. Measured before this flag existed: after a
+        # withhold, `LeaseManager.revoke()` (the documented operator recovery)
+        # ran an ordinary cleanup on the same sandbox_id, deleted the branch, and
+        # the verified commit did not survive `git gc`.
+        if preserve_branch and not sb.branch_preserved:
+            sb.branch_preserved = True
+
+        if sb.branch_name and not sb.branch_preserved:
             _run_git(
                 ["branch", "-D", sb.branch_name],
                 cwd=self._repo_root,
+            )
+        elif sb.branch_name:
+            logger.info(
+                "Preserving branch %s for sandbox %s (slot freed, commits kept reachable)",
+                sb.branch_name,
+                sandbox_id,
             )
 
         for fp in sb.affected_files:
@@ -397,6 +516,85 @@ class SandboxManager:
         sb.completed_at = time.time()
         self._persist()
         logger.info("Cleaned sandbox %s", sandbox_id)
+        return True
+
+    def emergency_free_slot(self, sandbox_id: str) -> bool:
+        """Filesystem-only slot release for the withhold path — NO git subprocesses.
+
+        Called only when the CPU gate is refusing and the normal
+        ``cleanup_sandbox`` path is unreachable. Removes the worktree directory
+        with ``shutil.rmtree`` (reducing load, not increasing it) and frees the
+        concurrency slot. The branch ref is preserved so the verified commit
+        stays reachable. Git worktree administrative metadata is left stale and
+        must be cleaned by a later ``git worktree prune`` when the host recovers.
+
+        Safety checks (fail closed on ANY doubt):
+        1. The sandbox must exist in the registry.
+        2. The worktree path must be a real directory (not a symlink).
+        3. The path must be strictly beneath the managed worktree root.
+        4. The path must not be the repository root.
+        5. No path component may escape the managed root (symlink traversal).
+
+        Returns True if the slot was freed, False if safety checks prevented it.
+        """
+        sb = self._sandboxes.get(sandbox_id)
+        if not sb:
+            return False
+
+        wt = sb.worktree_path
+        if not wt or not os.path.isdir(wt):
+            # Already gone — mark it cleaned so the slot returns.
+            if not sb.branch_preserved:
+                sb.branch_preserved = True
+            sb.needs_worktree_prune = True
+            sb.status = SandboxStatus.CLEANED
+            sb.completed_at = time.time()
+            for fp in sb.affected_files:
+                if self._file_locks.get(fp) == sandbox_id:
+                    del self._file_locks[fp]
+            self._persist()
+            return True
+
+        # --- safety checks ---
+        real_wt = os.path.realpath(wt)
+        real_root = os.path.realpath(self._worktree_base)
+        real_repo = os.path.realpath(self._repo_root)
+
+        if os.path.islink(wt):
+            logger.error("emergency_free_slot: %s is a symlink — refusing", wt)
+            return False
+        if real_wt == real_repo:
+            logger.error("emergency_free_slot: %s is the repo root — refusing", wt)
+            return False
+        if not real_wt.startswith(real_root + os.sep):
+            logger.error(
+                "emergency_free_slot: %s (real: %s) not under managed root %s — refusing",
+                wt, real_wt, real_root,
+            )
+            return False
+
+        try:
+            shutil.rmtree(wt)
+        except OSError as exc:
+            logger.error("emergency_free_slot: rmtree(%s) failed: %s", wt, exc)
+            return False
+
+        # Mark preservation STICKY before updating status.
+        if not sb.branch_preserved:
+            sb.branch_preserved = True
+        sb.needs_worktree_prune = True
+
+        for fp in sb.affected_files:
+            if self._file_locks.get(fp) == sandbox_id:
+                del self._file_locks[fp]
+
+        sb.status = SandboxStatus.CLEANED
+        sb.completed_at = time.time()
+        self._persist()
+        logger.info(
+            "emergency_free_slot: slot %s freed (filesystem only, branch preserved, prune deferred)",
+            sandbox_id,
+        )
         return True
 
     def cleanup_expired(self) -> list[str]:
@@ -435,15 +633,11 @@ class SandboxManager:
         result = _run_git(["rev-parse", "HEAD"], cwd=self._repo_root)
         main_commit = result.stdout.strip() if result.returncode == 0 else "unknown"
 
-        result = _run_git(
-            ["log", "--oneline", "-1", "main"], cwd=self._repo_root
-        )
+        result = _run_git(["log", "--oneline", "-1", "main"], cwd=self._repo_root)
         main_log = result.stdout.strip() if result.returncode == 0 else "unknown"
 
         pending_prs = [
-            sb.to_dict()
-            for sb in self._sandboxes.values()
-            if sb.status == SandboxStatus.PR_CREATED
+            sb.to_dict() for sb in self._sandboxes.values() if sb.status == SandboxStatus.PR_CREATED
         ]
 
         return {

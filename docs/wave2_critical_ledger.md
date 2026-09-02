@@ -1,0 +1,590 @@
+# Wave 2 — Exact Critical Ledger
+
+One row per CRITICAL. **No finding may disappear or be downgraded without a
+written adjudication recorded here.**
+
+## Accounting reconciliation
+
+An earlier status report said "nine new CRITICALs, three fixed, five open" —
+which sums to eight. The omission was **SEC-C1** (teardown never destroys
+`worker-homes/`): it was described in prose but left out of the open count. The
+correct accounting is below and is now the authority.
+
+| Round | Count | IDs |
+|---|---|---|
+| Round 1 (pre-repair) | 7 | C1, C2, C3, C4, SEC-C1(evidence), SEC-C2(shared home), SEC-C3(readiness exit) |
+| Round 2 (post-repair review) | 9 | C-1…C-5, SEC-C1…SEC-C4 |
+| **Round 2 status** | **9 = 9 fixed + 0 open** | fixed: SEC-C1, SEC-C2, SEC-C3, SEC-C4, C-1, C-2, C-3, C-4, C-5 |
+| Round 3 (requalification independent review) | 2 HIGH + 2 MED + 2 LOW | RV-HIGH-1, RV-HIGH-2, RV-MED-1, RV-MED-2(dormant), RV-LOW-1, RV-LOW-2 |
+| **Round 3 status** | **HIGH+MED fixed; LOW recorded** | fixed: RV-HIGH-1, RV-HIGH-2, RV-MED-1; recorded: RV-MED-2 (preview_pid pid-reuse — no preview process exists today), RV-LOW-1 (SoD skipped when worker_identity=="" — structurally unreachable), RV-LOW-2 (worker builder non-bwrap branches — runner startup preflight fails closed for any non-bwrap primitive) |
+
+## Round 3 — requalification independent adversarial review (repair range 4e506f9f4..01c53f524)
+
+Three fresh-context reviewers, 12-point checklist. 0 CRITICAL.
+
+- **RV-HIGH-1 — durable-evidence validator unwired from the completion gate — FIXED.**
+  `_assert_durable_proof` validated only outer proof lineage (attempt_id/work_id);
+  a post-persistence tamper of a proof's `verifier_confined_run` evidence (edited
+  `zero_diff`/`tests_ok` with a stale `evidence_sha256`) still completed the
+  attempt. `validate_evidence_binding` is now invoked in the completion gate:
+  whenever a confined-verifier record is present it recomputes the digest and
+  re-binds to THIS attempt/task. Context-only/harness AttemptProofs (no record —
+  by design, `verification.py`) and PlanExecutionProofs are exempt. **Bounded
+  residual (NOT closed by this gate):** a store-tamperer DELETING the entire
+  evidence record to mimic a context-only proof — bounded by the host-only,
+  append-only-under-lock durable store, mint-time `passed=all(checks)`, and the
+  field path never producing an evidence-less AttemptProof. Recorded here, not
+  silently ignored.
+- **RV-HIGH-2 — lease-release fault re-created the C-2 deadlock — FIXED.**
+  `register_resource(kind="lease")` had zero callers and the run-sweep lease path
+  ran without a `lease_manager`. The poller now re-drives `revoke()` on
+  `lease_released=False` at the authoritative terminal transition (retry
+  unblocked); leases are registered in the run manifest at dispatch as a
+  crash-recovery backstop. Runtime lease release is the poller's authority; the
+  sweep releases only when explicitly given a `lease_manager`.
+- **RV-MED-1 — terminalize residue scoping substring bug — FIXED.**
+  `home_path in p` mis-attributed a sibling's residue when one attempt-id was a
+  prefix of another (`att1` vs `att11`). Now a path-boundary match
+  (`== or startswith(home_path + os.sep)`).
+- **RV-MED-2 — preview_pid SIGTERM pid-reuse — RECORDED (dormant).** No live path
+  registers a `preview_pid` (the fixture runs as a Docker container torn down by
+  name), so the sweep's preview loop is a documented no-op today. Flagged for
+  whoever wires the first real host preview process.
+- **RV-LOW-1 / RV-LOW-2 — RECORDED (not live).** The verifier SoD identity check
+  is skipped when `worker_identity==""` (structurally unreachable: verifier id is
+  `verifier:<role>:<attempt>`, worker id is `worker:*`). The worker isolation
+  builder retains systemd-run/nsjail branches, but the runner's startup
+  `preflight_isolation` fails closed for any non-bwrap primitive, so no worker
+  runs unconfined.
+
+Each RV fix is mutation/regression-tested; the false-green history and its
+generator-hardening are recorded in the requalification commits.
+
+Round-1 and Round-2 IDs are namespaced by round; they are different findings that
+happen to share numbering. Round 1 is closed (all 7 repaired in R1–R3). This
+ledger tracks Round 2.
+
+---
+
+## Round 2 — the nine
+
+### SEC-C3 — ambient env bypass disabled the entire Proof gate — **FIXED**
+
+- **Root cause:** `lifecycle._assert_durable_proof` began with
+  `if os.environ.get("UMH_W2_ALLOW_NONDURABLE_PROOF") == "1": return`.
+- **Authority violated:** governed completion (Amendment v1 clause 6) — no Task
+  completes without independent durable Proof.
+- **Exploit path:** the runner is launched via
+  `bash -c "exec env ... python ..."`, which **inherits the operator's full
+  environment**. Any stale export in a shell profile, tmux pane, or prior test
+  session silently converts the completion guarantee into a no-op, unlogged, on a
+  live billed run. Verified: with the var set, a **nonexistent** `proof_id`
+  completed an attempt.
+- **Status:** FIXED — hatch deleted, no replacement bypass. The three lifecycle
+  test files that used it now mint REAL durable Proofs.
+- **Commit:** R4b. **Test:** `test_no_proof_bypass_exists_in_the_tree`.
+- **Independent-review disposition:** raised by security review; verified
+  independently before fixing.
+- **Residual risk:** none. A source-level test asserts the string appears nowhere
+  in `substrate/` or `scripts/`.
+
+### SEC-C2 — Proof lineage failed OPEN on absent binding — **FIXED**
+
+- **Root cause:** both binding checks were guarded by truthiness
+  (`if recorded_attempt and recorded_attempt != ...`), so a Proof whose `action`
+  carried no `attempt_id` satisfied the gate for **every** attempt.
+- **Authority violated:** Proof-to-attempt binding; a Proof may only complete the
+  attempt it proves.
+- **Exploit path:** the plan-execution path mints proofs without `attempt_id`.
+  Verified: a durable Proof with an empty `attempt_id` completed an unrelated
+  attempt on the same task — so a stray proof could complete a *failed* retry.
+- **Status:** FIXED — both checks are equality, absent lineage is a rejection.
+- **Commit:** R4b. **Test:** `test_proof_with_absent_lineage_is_rejected`,
+  `test_proof_for_another_attempt_is_rejected`.
+- **Residual risk:** none for attempt proofs. Plan-execution proofs are bound by
+  `work_id` + classification and are never used to complete an attempt.
+
+### SEC-C4 — non-bwrap primitives exempted from the isolation gate — **FIXED**
+
+- **Root cause:** `preflight_isolation` returned `(True, "not probe-verified")`
+  for `systemd-run`/`nsjail`, and both call sites used
+  `if not ok and prim == "bwrap"` / `ok or prim != "bwrap"` — so a non-bwrap
+  primitive **could never fail** the gate.
+- **Authority violated:** Amendment v1 clause 4 (enforced host isolation).
+- **Exploit path:** `systemd-run` creates no mount namespace (`/opt/OS`, all
+  credentials, every other run's state readable); `nsjail --chroot /` is the
+  whole filesystem. Neither propagates `CLAUDE_CONFIG_DIR`/`TMPDIR`/`XDG_*`, so
+  the per-attempt credential boundary collapses to the real `~/.claude` —
+  reinstating the shared-home defect while reporting `isolation_ok: true`.
+- **Status:** FIXED — unprovable primitives return `False`; both gates use
+  `if not ok`. Wave 2 hard-requires bwrap.
+- **Commit:** R4b. **Test:** `test_non_bwrap_primitive_cannot_qualify`,
+  `test_isolation_gates_fail_closed_for_every_primitive`.
+- **Residual risk:** the run cannot proceed on a host without bwrap. Intended.
+
+### C-1 — `diff_scope` is a structural no-op — **FIXED**
+
+Closed in three stages; the first two were incomplete and are recorded here
+because "the repair needed repairing twice" is the finding.
+
+- **Root cause:** `LeaseManager.acquire` always sets
+  `writable_paths=[worktree_path]`; verification normalized that single absolute
+  entry to `"."` → `whole_worktree=True` → `scope_ok=True` unconditionally, and
+  the computed `outside` list was discarded.
+- **Authority violated:** diff-scope containment; the packet's declared paths.
+- **Failure path:** a worker that rewrites the fixture's own tests earns a valid
+  AttemptProof.
+- **Stage 1 (`dab9045f5`):** scope sourced from canonical WorkPacket, computed
+  from git (tracked + untracked) against the lease base, unsafe policies
+  rejected, verdict fails before Proof creation.
+- **Stage 2 (`7ece70194`) — owner correction, BINDING:** stage 1 resolved scope
+  through plan-node lineage, which reads `source_evidence`. That made
+  *descriptive provenance* control *execution permission* — editing an evidence
+  entry could widen what a worker may write. `EvidenceRef` states the rule
+  verbatim: "Evidence is provenance — it can never be a mutation authority."
+  Authority moved to first-class typed `WorkRequirements.writable_path_scope` +
+  `scope_declared`. Evidence still resolves IDENTITY (which packet is "the
+  backend Task"), never permission.
+- **Stage 3 (this commit) — snapshot-bound diff:** `base = snapshot_ref or
+  "HEAD"` was a *deterministic* false green, not an edge case. Real workers
+  COMMIT, so after the commit HEAD **is** the worker's commit and
+  `git diff HEAD` returns exactly nothing. Measured:
+  `vs REAL base: 'tests/test_api.py'` / `vs HEAD: ''`. No fallback remains; a
+  lease with no snapshot_ref fails closed.
+- **Same defect found on the WORKER side while closing stage 3:**
+  `worker_claude_cli` captured artifacts as `<base>..HEAD` with the same `or
+  "HEAD"` fallback, and `wave2_attempt_runner` built its lease with
+  `snapshot_ref = ""`. The real field range was therefore `HEAD..HEAD` — empty
+  by definition — so **every** attempt would have reported zero files and zero
+  commits and failed the `artifacts` check on genuinely successful work. The
+  dispatch envelope carried no base at all. `DispatchEnvelope.base_commit` added
+  (covered by the HMAC via `asdict`), threaded through the runner, and the
+  worker now refuses an unanchored lease.
+- **Commits:** dab9045f5, 7ece70194, this one.
+- **Tests:** `tests/test_wave2_diff_scope_authority.py` (37) — every rejection
+  paired with a control so a reject-everything check cannot masquerade as
+  correct. Mutation-verified at each stage: re-injecting the whole-worktree pass
+  fails 5; re-injecting evidence-derived scope fails 2; restoring the HEAD
+  fallback fails 3 (verifier) + 2 (worker chain).
+- **Residual risk:** the fixture defaults are a seeding input at materialization
+  only. A Task that reaches verification with no declared scope BLOCKS.
+
+### C-2 — the lease is never released; retry deadlocks — **FIXED**
+
+- **Root cause:** `LeaseManager.release()` had **zero production callers**;
+  cleanup was scattered (acquire-rollback, revoke, and the worker's own
+  `finally`) with nothing tying lease release to home destruction to retry
+  admission.
+- **Authority violated:** one-active-lease-per-task; retry-as-new-attempt.
+- **Failure path:** A1 fails → its lease stays ACTIVE → scheduler mints A2 →
+  `acquire()` raises `LeaseError` → A2 BLOCKED → re-READY → BLOCKED forever,
+  producing the exact "A failed, C blocked, no false Proof" shape the
+  qualification expects for entirely the wrong reason.
+- **Fix:** ONE idempotent authority `substrate/execution/attempts/
+  terminalization.py::terminalize`. Strict order: verify terminal → release/
+  revoke lease → destroy attempt-private home + credential material → reconcile
+  spool → retry admissible only after the prior lease is inactive. Covers all
+  eleven terminal reasons. Cleanup failure RAISES (blocking security condition),
+  never a warning. Refuses to terminalize a still-live attempt. `retry_admissible`
+  is the structural gate.
+- **Wired:** the control-plane poller terminalizes on EVERY terminal transition
+  (SUCCEEDED + verification_rejected) through the SAME `LeaseManager` the
+  scheduler acquires with (shared instance in `FieldControlPlaneDriver`).
+- **Commit:** this one. **Tests:** `tests/test_wave2_terminalization.py` (21) +
+  the field-pipeline recovery assertion in
+  `test_failure_qualification_rehearsal`. MUTATION-VERIFIED: skipping lease
+  release fails the deadlock tests; dropping the residue scan fails the security
+  test; removing the poller's terminalize call fails the pipeline recovery test.
+- **Microfix (owner, binding):** the first cut of `TerminalizationResult.ok`
+  failed OPEN — it returned True unless a SECURITY-prefixed error or credential
+  residue was present, so a lease-release failure reported ok=True and the run
+  would pass while the lease stayed ACTIVE. Corrected: `ok` is False for ANY
+  error (release/revoke failure, missing LeaseManager with a lease_id, missing
+  run_root, residue, spool-reconcile failure, unknown reason). A supplied spool
+  with no `drop_inflight_for_attempt` hook is now an explicit failure, not a
+  "ledger is truth" no-op. `DispatchSpool.drop_inflight_for_attempt` implemented:
+  exact-attempt-id match on the VERIFIED envelope (never a filename), atomic move
+  to quarantine, fail-closed on unreadable/tampered envelopes, idempotent, never
+  touches a sibling attempt. +12 mutation-verified tests.
+- **Wiring truth (order §6):** the authority SUPPORTS eleven reasons; the live
+  pipeline WIRES exactly TWO — the poller's `succeeded` and
+  `verification_rejected` transitions, the only terminal transitions the
+  run-scoped pipeline performs on an attempt. Cancellation / revocation / expiry
+  / abandonment / crash / teardown / security-failure are supported but their
+  production call sites (a grant-level REVOKED cascade, a teardown sweep) are
+  Wave 2 follow-ons — NOT claimed as wired. Pinned by
+  `test_poller_wires_exactly_succeeded_and_verification_rejected` and the
+  scheduler-docstring truthfulness test (the scheduler docstring previously
+  overclaimed a revoke cascade it has no code for; corrected).
+- **Residual risk:** teardown-level "zero worker homes across the whole run" is
+  SEC-C1's scope (order §8); the cancel/revoke/expiry cascade wiring is a stated
+  Wave 2 follow-on, tracked here not hidden.
+
+### C-3 — `scenario_map.json` has no field writer — **FIXED**
+
+- **Root cause:** `write_scenario_map` had ONE non-test occurrence — inside a
+  remediation *string*. The real pipeline never wrote the map, so
+  `inject-failure` read `{}` → `armed:False` → exit 3, and the failure pass was
+  unrunnable. An operator hitting exit 3 would hand-write the map with guessed
+  ids or delete the check — restoring the original defect.
+- **Authority violated:** failure-injection targeting.
+- **Fix:** new field consumer `substrate/execution/attempts/field_scenario_map.py`
+  + `write-scenario-map` field subcommand. It reads the ACTUAL materialized
+  plan + WorkPacket records from candidate state, resolves each semantic role to
+  its exact `wp-<hex12>` through plan-node lineage (`resolve_scenario_map`, no
+  title/regex/id-shape guess), and writes a map BOUND to run_id +
+  plan_record_id + plan_version + a digest over the resolved ids.
+- **Consumed:** `inject-failure` now calls `arming_is_valid_for_run`, which
+  validates the persisted map against the LIVE plan+packets and the authorized
+  frontier before arming. The chain: real records → exact ids → bound map →
+  reread at arming → target by exact equality → injection fires on the backend
+  packet's FIRST attempt only → retry (attempt 2) unrevoked → recover.
+- **Fails qualification on all C-3 modes** (each pinned by a test): absent map,
+  stale map (plan superseded / digest recompute mismatch), wrong-run binding,
+  nonexistent task, target outside the authorized frontier, ambiguous role
+  (two nodes same title), unknown variant, and `injection_fired`==False
+  (configured-but-never-observed). A sibling task is never revoked.
+- **Architectural guard (C-1 applied to C-3):** the map carries task IDENTITIES
+  + binding ONLY — never allowed tools, writable scope, or execution
+  constraints. Those stay on the canonical WorkPacket requirements. Pinned by
+  `test_scenario_map_is_identity_only_never_writable_scope` and an AST-level
+  no-shape-guessing test.
+- **Commit:** this one. **Tests:** `tests/test_wave2_scenario_map_field.py` (16).
+  MUTATION-VERIFIED: skipping the staleness recompute fails the stale-map test.
+- **Microfix (owner, binding):** the first cut left three fail-open shortcuts.
+  (1) A plan node's `workpacket_id` was treated as PROOF a packet exists —
+  `build_from_records` synthesized packet records from plan nodes. Removed: for
+  every role the lineage must close on a REAL persisted WorkPacket record whose
+  `source_evidence` names the node AND whose `packet_id == node.workpacket_id`
+  (fails on ghost packet, mismatched lineage, id disagreement). (2) Run selection
+  fell back to "latest plan" via a run-tag substring — a run could adopt
+  another's plan. Removed: `select_plan` requires an EXACT `(plan_record_id,
+  plan_version)`; zero or multiple matches fail. (3) The "authorized frontier"
+  was "all packets I can find". Replaced by `resolve_authorized_frontier`, which
+  reads the ONE ACTIVE execution-authorization grant's `task_frontier` for the
+  exact plan version — no grant / multiple grants / non-ACTIVE / expired / empty
+  frontier / wrong-version all fail closed, and an unrelated packet never enters
+  the frontier. The map persists `execution_authorization_ref` but authority is
+  REREAD from the canonical stores at arming — never delegated to the map. Field
+  callers derive the exact plan+authorization from the single ACTIVE grant in
+  candidate state; the all-packets `_authorized_frontier` helper is deleted.
+- **FINAL run-binding microfix (owner, binding):** the prior cut still resolved
+  the target through "the ONE ACTIVE grant in all candidate state" — NOT a run
+  binding. A legitimate ACTIVE grant left by a prior/parallel run breaks it (0 or
+  2 matches), and it discarded identifiers already on `ExecutionAuthorizationGrant`
+  (grant_id, decision_ref, conversation_id, correlation_id, tenant/principal/
+  membership). Fixed in five parts:
+  (1) **Capture the exact field-journey binding.** `write-scenario-map` now writes
+  `<targets>/<run-id>/execution_binding.json` (identifiers + observed versions
+  ONLY: run_id, candidate_sha, plan_record_id, plan_version, grant_id,
+  decision_ref, tenant/principal/membership/conversation/correlation), populated
+  from the grant THIS run's journey produced — matched by EXACT `correlation_id`
+  (`w2-<run_id>`, stamped by the collector), never a blob substring
+  (`run-1` ⊂ `opr-run-1`) and never "the only active grant".
+  (2) **Deleted global-singleton inference.** `_active_grant_binding` is removed;
+  `_capture_execution_binding` replaces it. Both `write-scenario-map` and
+  `inject-failure` load `execution_binding.json`; other ACTIVE grants are
+  irrelevant and never block the exact match.
+  (3) **Centralized canonical grant resolution.** ONE resolver
+  `resolve_canonical_grant(records, binding)` used by BOTH map writing and arming:
+  requires exact match on all nine binding fields; status ACTIVE; not_before
+  satisfied; not expired; non-empty task_frontier; the exact Plan version exists
+  and is a live accepted version (not draft/rejected/cancelled/superseded); every
+  frontier id a persisted canonical WorkPacket of that Plan and tenant. No second
+  weaker preselection helper.
+  (4) **The map's authorization binding is REAL, not asserted.** The digest now
+  covers the full binding (`binding_digest`). At arming, `validate_against_run`
+  rereads `execution_binding.json` + the canonical grant, requires persisted
+  `execution_authorization_ref == grant.decision_ref` and persisted
+  `grant_id == grant.grant_id`, recomputes the binding digest, and rejects any
+  mismatch — authority is never delegated to the map.
+  (5) **Tests A–N** (`tests/test_wave2_scenario_map_field.py`, 48): two unrelated
+  ACTIVE grants → exact selection; prior-pass grant doesn't shadow; other tenant /
+  wrong conversation / correlation / grant_id / tampered ref / missing binding /
+  duplicate exact binding / non-ACTIVE / expired / not-yet-valid / draft-or-
+  superseded plan / frontier packet outside plan or tenant — all fail closed.
+  MUTATION-VERIFIED: restoring "the only active grant" selection kills B/C/D/E/F;
+  dropping the decision_ref comparison kills the tampered-ref test; a static
+  build-time `binding_digest` kills the persisted-content-digest test.
+- **CLOSURE CORRECTION (owner, binding):** three discrepancies still blocked
+  truthful closure. All prior exact-run-binding work is preserved.
+  (1) **`resolve_canonical_grant` is now the ACTUAL single authority for map
+  creation.** `build_from_records` previously captured a binding and built the
+  payload WITHOUT calling the resolver — contradicting the "same resolver governs
+  writing and arming" invariant. It now calls
+  `resolve_canonical_grant(records, binding, now=now)` BEFORE producing any
+  payload, so map creation fails closed on zero/multiple exact grants, non-ACTIVE
+  status, unmet not_before, elapsed expires_at, empty frontier, absent/non-live
+  Plan version, and any invalid first-class frontier ownership. No second reduced
+  validator: an expired or not-yet-valid grant cannot even produce
+  `scenario_map.json` (proven by `test_corr_B`/`test_corr_C`, not merely later
+  arming rejection).
+  (2) **Packet ownership validated through FIRST-CLASS contracts.** WorkPacket has
+  no canonical top-level `tenant_id`; the permissive `packet.get("tenant_id")` +
+  empty-value handling is replaced by `_validate_frontier_packet_ownership`, which
+  reads the authoritative fields: `work_scope.tenant_id` (non-empty AND ==
+  grant.tenant_id), `lineage.plan_record_id` == grant.plan_record_id,
+  `lineage.objective_id` == Plan.objective_id, `packet_id` ∈ Plan.workpacket_ids,
+  exactly one corresponding Plan node whose `workpacket_id` == packet_id, and
+  `source_evidence` resolving to that same node. Missing scope, missing lineage,
+  empty tenant, a fake top-level tenant_id, absent node correspondence, or any
+  mismatch fails closed (`test_corr_D`–`test_corr_L`).
+  (3) **Removed the non-canonical `run_tag` match escape.**
+  `_capture_execution_binding` now selects ONLY on the exact canonical
+  `correlation_id` (`w2-<run_id>`); the `run_tag`/base-tag (pre-`-p`) fallback is
+  gone — `run_tag` is not part of the grant identity contract. Test fixtures
+  populate `correlation_id`, not `run_tag`. Proven by
+  `test_M_capture_rejects_run_tag_and_base_tag_selection`.
+  Suite now 61 tests. MUTATION-VERIFIED: removing the resolver call from map
+  creation kills corr_A/B/C; honoring a fake top-level tenant kills corr_E;
+  restoring run_tag/base-tag selection kills the capture-rejection test.
+- **FINAL fail-closed microfix (owner, binding):** three residual fail-open
+  conditions in `resolve_canonical_grant`, all preserving the C-3 architecture.
+  (1) **Exact APPROVED plan status — allowlist, not denylist.** The denylist
+  (`_PLAN_NONLIVE = {draft,rejected,cancelled,superseded}`) let AWAITING_APPROVAL
+  and unknown/malformed statuses pass as "live accepted". Replaced with
+  `plan_status != ObjectivePlanStatus.APPROVED.value` (imported from the canonical
+  planning-records home — no duplicated literal). `awaiting_approval`, empty, and
+  unknown statuses now all fail closed.
+  (2) **Nonempty exact Plan materialization set.** The old
+  `if plan_packet_ids and tid not in ...` failed open when `workpacket_ids` was
+  absent/empty. New `_validate_plan_materialization_set` requires
+  `workpacket_ids` to be a list, nonempty, with unique nonempty ids, each
+  resolving to exactly one persisted canonical WorkPacket of the same Plan+tenant;
+  the frontier-membership check is now UNCONDITIONAL. The set is NEVER inferred
+  from nodes (correspondence records) — `ObjectivePlanRecord.workpacket_ids` is
+  the first-class materialization record.
+  (3) **Nonempty canonical objective identity.** Before comparing, `plan.objective_id`,
+  `grant.plan_record_id`, `lineage.objective_id`, and `lineage.plan_record_id`
+  must ALL be nonempty — equality of two empty strings is never valid
+  correspondence.
+  Suite now 80 tests. MUTATION-VERIFIED: restoring the denylist kills the
+  non-APPROVED status cases; restoring `if plan_packet_ids and ...` (fail-open)
+  kills the empty-set + unconditional-check tests; allowing empty-string objective
+  correspondence kills the objective-identity tests.
+- **IDENTITY-CARDINALITY microfix (owner, binding):** `_validate_plan_materialization_set`
+  claimed "exactly one persisted WorkPacket per id" but `resolve_canonical_grant`
+  first built a LOSSY `packets_by_id = {pid: packet for p in ...}` that collapsed
+  duplicate packet_id records by record order (last-write-wins). The WorkPacket
+  JSONL can carry multiple current-truth records with the same packet_id, so
+  cardinality must be PROVEN before selecting.
+  New `_index_packet_records` builds a cardinality-preserving
+  `packet_id → [all records]` index; `_exactly_one_packet` enforces the exact-one
+  rule (0 → fail, 1 → return, >1 → fail as canonical identity ambiguity). BOTH
+  byte-identical and conflicting duplicates fail — a duplicate current-truth
+  identity is corruption even when payloads match. Order-invariant (reversing
+  duplicate rows yields the same rejection, never selects another record). The one
+  resolved record is threaded forward (materialization → frontier ownership) so no
+  downstream code rebuilds a lossy dict. Bounded to the ids this run trusts (Plan
+  materialization set ∪ frontier); unrelated duplicates elsewhere do not block.
+  `resolve_scenario_map`'s `by_node` tightened to reject ANY second record for a
+  node_id (including byte-identical). Suite now 88 tests. MUTATION-VERIFIED:
+  restoring the lossy comprehension makes the duplicate tests (C/D/E/F) stop
+  failing and trips the AST guard (H).
+- **Residual risk:** the end-to-end injection→A1-fail→C-blocked→A2-recover graph
+  mechanics are proven in `test_failure_qualification_rehearsal` (no quota); the
+  live field pass requires a candidate deploy (C7, owner-gated).
+
+### C-4 — the verifier executes worker-authored code unconfined — **FIXED**
+
+- **Root cause:** `_independent_checks_for` ran `pytest` with
+  `cwd=<lease worktree>` via `gated_subprocess_run` — no `build_isolated_command`,
+  no bwrap, no `scrub_worker_env`, full host environment.
+- **Authority violated:** Amendment v1 clause 4; the entire R1 credential
+  boundary.
+- **Exploit path:** the worker's job is to write files in that worktree,
+  including test modules. A `conftest.py` there is arbitrary Python that pytest
+  imports and executes as the runner user with the runner's environment
+  (including `CLAUDE_CODE_OAUTH_TOKEN`). The runner refuses to start without
+  bwrap and then ran adversary-influenced code unconfined a few frames later.
+- **Fix:** one canonical verifier-isolation seam
+  `substrate/execution/attempts/verifier_isolation.py::run_confined_verifier_checks`
+  is the ONLY path that runs worker-authored code, consumed by the real poller via
+  `field_control_plane._independent_checks_for` (which no longer builds a host
+  pytest argv). Per run it:
+  - mints a DISTINCT `VerifierLease` (verifier_lease_id, attempt/task ids, verifier
+    identity/role, verified commit) with a CREDENTIAL-FREE private home under
+    `verifier-homes/` (never `worker-homes/`), private HOME/XDG_CONFIG/CACHE/DATA
+    + TMPDIR (`open_verifier_home`), zero worker-home/credential/dispatch-secret
+    reuse;
+  - runs ONLY inside bwrap (`build_isolated_verifier_command`, argv list, never
+    `shell=True`): bwrap absent / non-bwrap primitive / preflight unproven each
+    FAIL CLOSED — no unconfined fallback, no "available but unproven";
+  - namespace exposes the integration source READ-ONLY (`--ro-bind`), a
+    credential-free HOME + private tmpfs as the ONLY writable mounts; `/opt/OS`,
+    `/root/.claude`, worker homes, the dispatch secret file, candidate state are
+    simply not bound; `/proc` fresh, `/dev` minimal, `/tmp` a tmpfs;
+  - UNSHARES the network for worker code (`--unshare-all`); trusted HTTP/browser
+    checks stay on the separate collector path that never executes worker code;
+  - strips every credential from the subprocess env (`scrub_verifier_env`:
+    OAuth token, dispatch secret, API keys, mesh/Fly/GitHub/1Password, worker
+    `CLAUDE_CONFIG_DIR`) — a mechanical pytest/diff verifier receives NO model
+    credential;
+  - proves ZERO source mutation PARENT-SIDE (pre/post file-hash map + `HEAD`
+    rev-parse + `status --porcelain`) — a verifier diff fails verification even if
+    the tests "passed"; never trusts the subprocess to self-report;
+  - persists hashed, name-only `VerifierEvidence` (lease identity, verified commit,
+    bwrap argv, env var NAMES, mount policy, isolation probe, source pre/post
+    hashes, zero-diff, test result, timestamps) bound to the AttemptProof lineage;
+  - destroys the verifier lease/home/tmp on EVERY terminal path (`finally`);
+    cleanup failure surfaces a failed check AND re-raises — a blocking security
+    failure, never a warning.
+  SoD preserved: `verifier_identity != worker_identity` (collision → raise);
+  poller still requires a durable Proof for the transition; the worker can never
+  invoke the success transition.
+- **Tests:** `tests/test_wave2_verifier_isolation.py` (15) incl. an adversarial
+  `conftest.py` (through the production seam) whose token/dispatch/`/opt/OS`/
+  `/root/.claude`/source-write/network probes are ALL denied while a legitimate
+  test still runs. MUTATION-VERIFIED: restoring the host `pytest cwd=worktree`,
+  allowing a bwrap host fallback, dropping the parent-side after-hash check, and
+  downgrading cleanup-failure to a warning each fail the suite.
+- **Live-verified:** a real bwrap run on this host confirms the boundaries
+  (token/dispatch env absent, `/opt/OS` unbound, network unshared, source
+  read-only, zero-diff, verifier home destroyed).
+- **C-4a — durable evidence + exact-commit binding (owner, binding):** C-4
+  confinement was accepted; closure was blocked until the evidence chain proved
+  what ran, which commit it verified, and which durable Proof contains it. Three
+  defects closed:
+  (1) **Durable, in-Proof evidence.** `_last_verifier_evidence` is deleted as an
+  authority. `run_confined_verifier_checks` returns `(checks, VerifierEvidence)`;
+  the evidence is threaded run_confined_verifier_checks → `verify_attempt` →
+  `_persist_proof` and persisted INSIDE the exact AttemptProof as ONE typed
+  `ProofEvidence` (`verifier_confined_run`). A reread from disk
+  (`ProofRuntime.reread_durable`) reconstructs the full binding — verifier lease
+  id, attempt/task/assignment, verifier + worker identity, package hash, base +
+  verified commits, source pre/post hash map, zero-diff, isolation probe, mount
+  policy, env var NAMES, bwrap argv + digest, test verdict, timestamps, trusted
+  process identity, `verifier_evidence_sha256` — with NO in-memory field.
+  (2) **Exact commit binding.** `base_commit` (lease.snapshot_ref, the authorized
+  diff base) and `verified_commit` (the ACTUAL worktree HEAD) are DISTINCT fields.
+  `verified_commit` is read PARENT-SIDE via `git rev-parse HEAD` (full 40-hex SHA
+  required), must equal an `expected_result_commit` when supplied, and must be
+  unchanged after the run — HEAD movement fails closed. `snapshot_ref` never
+  occupies `verified_commit`.
+  (3) **Full-payload digest + real process identity.** `finalize()` hashes the
+  COMPLETE canonical payload incl. `started_at`/`ended_at`, both commits, all
+  lineage ids, and the process identity — and never hashes `evidence_sha256` into
+  itself. A parent-controlled wrapper writes a trusted process-identity record
+  (PID + start time + argv0 + parent-generated nonce) BEFORE exec; `verifier_pid`
+  is the real child PID (never 0 on success), nonce-validated so a payload cannot
+  forge it. No trusted pid → fail closed.
+  Exactly-one binding: `evidence_from_proof` fails closed on zero / multiple
+  verifier evidence records or a digest that does not recompute;
+  `validate_evidence_binding` additionally rejects attempt/task/assignment/
+  verifier/verified-commit/package-hash mismatch, an empty verified commit, and an
+  untrusted process identity.
+  **Live-proven:** the real confined seam through `verify_attempt` mints a durable
+  Proof; after destroying all runtime objects a FRESH `ProofRuntime` rereads it
+  from disk, `validate_evidence_binding` confirms `verified_commit`==worker HEAD
+  (≠ base), a real PID, a recomputing digest, and exactly-one evidence — and a
+  Proof claiming the base-as-verified is rejected on reread. Tests:
+  `tests/test_wave2_verifier_evidence.py` (17) — exact-commit, expected-mismatch,
+  HEAD-movement, real pid, digest coverage, durable reread, base-as-verified
+  rejection, exactly-one, tamper, concurrency (two attempts → distinct bound
+  evidence, no cross-substitution). MUTATION-VERIFIED: snapshot_ref-as-verified,
+  timestamps-omitted-from-digest, pid-forced-0, evidence-omitted-from-Proof,
+  reread-digest-validation-removed each fail the suite.
+
+### C-5 — `reconcile`/`teardown` exit 0 on failure — **FIXED**
+
+- **Root cause:** `_result_declares_failure` checked
+  `("deploy_ok","started","armed","ok","ready")`; `reconcile` returns
+  `all_passed`, `teardown` returns no verdict key at all — neither was inspected.
+- **Authority violated:** readiness/verdict exit semantics (the SEC-C3 class from
+  round 1), in the scoring command.
+- **Failure path (before):** a reconciliation scoring 0.0 — or scoring **zero
+  passes** — exited 0. A driver chaining `deploy → run → reconcile` by exit code
+  treated a failed or empty reconciliation as success. `teardown` failing to
+  shred the run secret also exited 0.
+- **Fix (one typed authority):** `QualificationVerdict` — a frozen dataclass
+  computed once by `qualification_verdict(command, out)` and BOTH embedded in the
+  command's JSON report (`qualification_verdict` key) AND consumed for the process
+  exit status, so the report can never disagree with the exit code. Per-command
+  mandatory predicates:
+  - `reconcile`: `passes` must be nonempty (zero passes = failure); every pass
+    `passed` must be True (below-threshold `passed=False` from
+    `score>=0.90 and not orphan_5xx and all_gating_matched` fails here); the
+    `all_passed` flag must be exactly True — a lying `all_passed=True` over a
+    failed pass CANNOT override the per-pass gate.
+  - `teardown`: `run_secret_shredded` must not be False; `serve_restored` must
+    not be False. Teardown still runs on the failure path (main() invokes it
+    after a failed run) but its verdict is graded per-command, so a clean
+    teardown can never greenwash a prior failed reconcile.
+  - generic gates (`deploy_ok/started/armed/ok/ready` False, `refused`,
+    `invalid_reason`, `results[].ok` False) preserved. `dry_run` never graded.
+  - `armed` False (an armed injection that did not validly arm) fails via the
+    generic `armed` gate + `invalid_reason`.
+- **Nested-layer preservation:** `main()` returns `3` on `not verdict.ok`; the
+  code is the process exit — callers must not `|| true` it.
+- **Verification:** `tests/test_wave2_qualification_verdict.py` (28 tests) pins
+  every predicate and MUTATION-TESTS each fail-open behaviour — reverting the
+  reconcile-nonempty gate, the teardown-shred gate, and the all-passed-override
+  guard each independently turns the suite red; restored → green. Back-compat:
+  `_result_declares_failure(out, command)` retained as a thin wrapper equal to
+  `not verdict.ok` (pinned).
+- **Status:** FIXED — locally observed (not CI-verified; head has no attached
+  GitHub Actions run).
+
+### SEC-C1 — teardown never destroys `worker-homes/`; residue assert is dead — **FIXED**
+
+- **Root cause:** `assert_no_credential_residue` was defined, exported and tested
+  but **called from nowhere in production**; `teardown()` contained zero
+  references to `worker-homes`; the runner installed **no signal handler**.
+- **Authority violated:** credential lifetime (the incident this campaign opened
+  with).
+- **Exploit path (before):** `stop_runner` sends SIGTERM; the runner installed no
+  handler, so the default disposition terminated it with no unwinding — the
+  `finally` that destroys the attempt home never ran and the operator's real
+  OAuth credential survived on disk indefinitely. The cleanup guarantee held only
+  on the graceful path.
+- **Fix — one run-level teardown authority** (`substrate/execution/attempts/run_teardown.py`):
+  - **`sweep_run(run_root)`** destroys worker homes + verifier homes (by
+    directory), manifest-recorded leases + worktrees, spool residue, preview pids,
+    and the run secret, then PROVES zero residue. Returns a typed `RunSweepResult`
+    whose `.ok` is False on ANY residue or unsafe-path refusal — idempotent, so
+    every exit path converges on it.
+  - **Signal convergence:** the runner installs a SIGTERM/SIGINT handler that
+    raises `_Shutdown` (a BaseException so the loop's `except Exception` can't
+    swallow it), unwinding into ONE `finally` that calls `sweep_run`. No second
+    cleanup implementation. Proven by a REAL SIGTERM integration test that
+    launches the runner subprocess, plants an OAuth sentinel in a worker home,
+    SIGTERMs it mid-run, and asserts the credential + home are gone (exit 143,
+    teardown log `ok=True homes=1 residue_cred=0`).
+  - **Durable registration:** `register_resource(run_root, kind, ident)` appends
+    to `<run_root>/run_manifest.jsonl` the instant each home/lease/worktree/owner
+    is created, so a partially-started run that dies is reconstructible.
+  - **Scope-safe deletion:** `_safe_run_descendant` realpath-validates every
+    delete target is a true descendant of the exact run root; symlinks, `..`, `/`,
+    empty paths and anything outside FAIL CLOSED. A symlinked homes root pointing
+    outside the tree is refused and the outside dir survives (tested).
+  - **Crash recovery:** `recover_stale_runs(runs_root)` sweeps prior dead runs'
+    residue at next startup keyed on the `run_owner` pid, and REFUSES any run
+    whose owner is still alive. No SIGKILL overclaim — the honest guarantee is
+    next-start recovery.
+  - **Verdict integration (C-5):** dispatch `teardown()` runs the authoritative
+    `sweep_run` and returns `homes_swept`; `qualification_verdict` adds a
+    mandatory `teardown:homes_swept` gate, so home residue makes teardown exit
+    non-zero even when execution/verification otherwise succeeded (closure bar §5).
+- **Verification:** `tests/test_wave2_run_teardown.py` (23 tests incl. the real
+  SIGTERM integration test) + 2 new C-5 teardown-residue tests. MUTATION-TESTS
+  cover: no-home-destruction → residue caught; unsafe-delete guard bypass →
+  outside survives only WITH the guard; false-success-after-residue → `.ok`
+  tracks residue; stale-recovery-disabled → home survives until recovery runs.
+- **Status:** FIXED — locally observed (not CI-verified; head has no attached
+  GitHub Actions run).
+
+---
+
+## Warnings from round 2 (non-critical, tracked)
+
+W-1 double proof record; W-2 `reread_durable` substring fast-path; W-3 CPU-gate
+fallback to worker self-report; W-4 concurrency test never exercises `run_loop`;
+W-5 three independent `2` caps + CPU gate denies the second worker; W-6 Bash
+revocation semantics; W-7 no VERIFYING recovery; W-8 nonce replay on recovery;
+SEC-W1 finalization not idempotent; SEC-W2 dispatch secret unmatched by typed
+patterns; SEC-W3 residue raise inside `finally` strands the claim; SEC-W4
+`_safe_component` not injective; SEC-W5 launch log outside the evidence tree;
+SEC-W6 over-redaction of URLs/base64; SEC-W7 memory read cost; SEC-W8 detached
+manifest hash is not out-of-band.
+
+Disposition recorded per item in `docs/wave2_repair_ledger.md` as each is closed.

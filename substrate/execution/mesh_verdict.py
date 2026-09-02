@@ -42,6 +42,45 @@ _VERDICT_SECRET_ENV = "UMH_MESH_VERDICT_SECRET"
 # an unknown / unrecognized risk class is treated as write-class, never as
 # read-only).
 _READ_ONLY_CLASSES = frozenset({"read_only", "readonly", "read"})
+READ_ONLY_EFFECT = "READ_ONLY"
+CONSEQUENTIAL_WRITE_EFFECT = "CONSEQUENTIAL_WRITE"
+_EFFECT_CLASSES = frozenset({READ_ONLY_EFFECT, CONSEQUENTIAL_WRITE_EFFECT})
+UNKNOWN_EFFECT = ""
+
+_SYNC_EFFECT_POLICY_ID = "umh-sync-effect-policy:v1"
+_SYNC_READ_ONLY_CAPABILITIES = frozenset(
+    {
+        "terminal.capture",
+        "terminal.list",
+        "terminal.shells",
+        "broadcast.health",
+        "broadcast.status",
+    }
+)
+_CANONICAL_CONSEQUENTIAL_PREFIXES = frozenset({"shell"})
+_CANONICAL_CONSEQUENTIAL_CAPABILITIES = frozenset(
+    {
+        "terminal.create",
+        "terminal.execute",
+        "terminal.send",
+        "terminal.send_key",
+        "terminal.destroy",
+        "broadcast.start",
+        "broadcast.stop",
+    }
+)
+
+
+@dataclass(frozen=True)
+class EffectPolicy:
+    """UMH-owned sync execution policy for a capability operation."""
+
+    capability: str
+    authoritative_effect_class: str
+    declared_effect_class: str
+    policy_id: str
+    sync_allowed: bool
+    reason: str
 
 
 def get_verdict_secret() -> str:
@@ -49,7 +88,7 @@ def get_verdict_secret() -> str:
 
     Empty string when unset — callers MUST treat empty as fail-closed.
     """
-    return os.environ.get(_VERDICT_SECRET_ENV, "")
+    return os.environ.get(_VERDICT_SECRET_ENV, "").strip()
 
 
 def is_write_class(risk_class: str | None) -> bool:
@@ -63,6 +102,90 @@ def is_write_class(risk_class: str | None) -> bool:
     return risk_class.strip().lower() not in _READ_ONLY_CLASSES
 
 
+def normalize_effect_class(effect_class: str | None) -> str:
+    """Normalize a sync mesh effect class.
+
+    Unknown / blank effects remain unknown and must fail closed at sync
+    execution boundaries. Only READ_ONLY is allowed through synchronous
+    capability.execute; consequential writes belong to DurableRemote.
+    """
+    normalized = str(effect_class or "").strip().upper()
+    return normalized if normalized in _EFFECT_CLASSES else UNKNOWN_EFFECT
+
+
+def effect_policy_id() -> str:
+    """Deterministic identifier for the sync effect policy in this module."""
+    return _SYNC_EFFECT_POLICY_ID
+
+
+def canonical_sync_effect_policy(
+    capability: str | None,
+    *,
+    declared_effect_class: str | None = None,
+) -> EffectPolicy:
+    """Resolve authoritative sync policy from UMH-owned capability metadata.
+
+    The request envelope may declare its effect for provenance, but it cannot
+    make an operation sync-safe. Only this positive allowlist can authorize
+    synchronous execution. Generic shell is never classified by command text;
+    it is consequential unless routed through DurableRemote.
+    """
+    cap = str(capability or "").strip()
+    base = cap.split(".", 1)[0] if cap else ""
+    declared = normalize_effect_class(declared_effect_class)
+    if cap in _SYNC_READ_ONLY_CAPABILITIES:
+        authoritative = READ_ONLY_EFFECT
+        return EffectPolicy(
+            capability=cap,
+            authoritative_effect_class=authoritative,
+            declared_effect_class=declared,
+            policy_id=_SYNC_EFFECT_POLICY_ID,
+            sync_allowed=declared == authoritative,
+            reason=(
+                "sync read-only policy matched"
+                if declared == authoritative
+                else "declared effect does not match canonical READ_ONLY policy"
+            ),
+        )
+    if base in _CANONICAL_CONSEQUENTIAL_PREFIXES or cap in _CANONICAL_CONSEQUENTIAL_CAPABILITIES:
+        authoritative = CONSEQUENTIAL_WRITE_EFFECT
+        return EffectPolicy(
+            capability=cap,
+            authoritative_effect_class=authoritative,
+            declared_effect_class=declared,
+            policy_id=_SYNC_EFFECT_POLICY_ID,
+            sync_allowed=False,
+            reason=(
+                "consequential capability must use DurableRemote"
+                if declared == authoritative
+                else "declared effect does not match canonical CONSEQUENTIAL_WRITE policy"
+            ),
+        )
+    return EffectPolicy(
+        capability=cap,
+        authoritative_effect_class=UNKNOWN_EFFECT,
+        declared_effect_class=declared,
+        policy_id=_SYNC_EFFECT_POLICY_ID,
+        sync_allowed=False,
+        reason="canonical sync effect policy unavailable",
+    )
+
+
+def sync_effect_allows_execution(effect_class: str | None, risk_class: str | None) -> bool:
+    """True only for explicitly read-only synchronous mesh execution."""
+    return normalize_effect_class(effect_class) == READ_ONLY_EFFECT and not is_write_class(risk_class)
+
+
+def canonical_sync_allows_execution(
+    capability: str | None, declared_effect_class: str | None
+) -> bool:
+    """True only when UMH-owned policy classifies the operation as sync-safe."""
+    return canonical_sync_effect_policy(
+        capability,
+        declared_effect_class=declared_effect_class,
+    ).sync_allowed
+
+
 @dataclass(frozen=True)
 class VerdictCheck:
     """Result of verifying a mesh verdict token."""
@@ -73,6 +196,14 @@ class VerdictCheck:
     node_id: str = ""
     capability: str = ""
     risk_class: str = ""
+    request_id: str = ""
+    correlation_id: str = ""
+    candidate_sha: str = ""
+    effect_class: str = ""
+    authoritative_effect_class: str = ""
+    effect_policy: str = ""
+    payload_digest: str = ""
+    idempotency_key: str = ""
 
 
 def _b64e(raw: bytes) -> str:
@@ -89,6 +220,12 @@ def _sign_payload(payload_b64: str, secret: str) -> str:
     return mac.hexdigest()
 
 
+def canonical_payload_digest(params: Any) -> str:
+    """Stable digest for operation params carried by a mesh verdict."""
+    raw = json.dumps(params, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
 def sign_verdict(
     *,
     verdict_id: str,
@@ -96,6 +233,14 @@ def sign_verdict(
     capability: str,
     risk_class: str,
     ttl_seconds: int = 600,
+    request_id: str = "",
+    correlation_id: str = "",
+    candidate_sha: str = "",
+    effect_class: str = "",
+    authoritative_effect_class: str = "",
+    effect_policy: str = "",
+    payload_digest: str = "",
+    idempotency_key: str = "",
     secret: str | None = None,
     now: float | None = None,
 ) -> str:
@@ -107,7 +252,7 @@ def sign_verdict(
     Raises ValueError when no secret is configured — signing must never proceed
     without a secret (fail-closed).
     """
-    secret = secret if secret is not None else get_verdict_secret()
+    secret = secret.strip() if secret is not None else get_verdict_secret()
     if not secret:
         raise ValueError("cannot sign mesh verdict: UMH_MESH_VERDICT_SECRET is not configured")
     if not verdict_id or not node_id or not capability:
@@ -122,6 +267,20 @@ def sign_verdict(
         "iat": int(issued),
         "exp": int(issued + max(1, int(ttl_seconds))),
     }
+    optional = {
+        "rid": request_id,
+        "cid": correlation_id,
+        "sha": candidate_sha,
+        "eff": effect_class,
+        "aeff": authoritative_effect_class,
+        "epol": effect_policy,
+        "pd": payload_digest,
+        "idem": idempotency_key,
+    }
+    for key, value in optional.items():
+        normalized = str(value or "").strip()
+        if normalized:
+            payload[key] = normalized
     payload_b64 = _b64e(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode())
     sig = _sign_payload(payload_b64, secret)
     return f"{_TOKEN_VERSION}.{payload_b64}.{sig}"
@@ -132,6 +291,15 @@ def verify_verdict(
     *,
     expected_node_id: str,
     expected_capability: str,
+    expected_risk_class: str = "",
+    expected_request_id: str = "",
+    expected_correlation_id: str = "",
+    expected_candidate_sha: str = "",
+    expected_effect_class: str = "",
+    expected_authoritative_effect_class: str = "",
+    expected_effect_policy: str = "",
+    expected_payload_digest: str = "",
+    expected_idempotency_key: str = "",
     secret: str | None = None,
     now: float | None = None,
 ) -> VerdictCheck:
@@ -141,7 +309,7 @@ def verify_verdict(
     a malformed token, a bad signature, an expired token, or a node/capability
     mismatch. Only a fully-valid token yields valid=True.
     """
-    secret = secret if secret is not None else get_verdict_secret()
+    secret = secret.strip() if secret is not None else get_verdict_secret()
     if not secret:
         return VerdictCheck(False, "no verdict secret configured (fail-closed)")
     if not token or not isinstance(token, str):
@@ -167,18 +335,39 @@ def verify_verdict(
     nid = str(payload.get("nid", ""))
     cap = str(payload.get("cap", ""))
     rc = str(payload.get("rc", ""))
+    rid = str(payload.get("rid", ""))
+    cid = str(payload.get("cid", ""))
+    sha = str(payload.get("sha", ""))
+    eff = str(payload.get("eff", ""))
+    aeff = str(payload.get("aeff", ""))
+    epol = str(payload.get("epol", ""))
+    pd = str(payload.get("pd", ""))
+    idem = str(payload.get("idem", ""))
     exp = payload.get("exp", 0)
 
     cur = float(now if now is not None else time.time())
     try:
         if cur > float(exp):
-            return VerdictCheck(False, "verdict expired", vid, nid, cap, rc)
+            return VerdictCheck(False, "verdict expired", vid, nid, cap, rc, rid, cid, sha, eff, aeff, epol, pd, idem)
     except (TypeError, ValueError):
-        return VerdictCheck(False, "invalid expiry", vid, nid, cap, rc)
+        return VerdictCheck(False, "invalid expiry", vid, nid, cap, rc, rid, cid, sha, eff, aeff, epol, pd, idem)
 
     if nid != expected_node_id:
         return VerdictCheck(
-            False, f"node mismatch: token={nid} expected={expected_node_id}", vid, nid, cap, rc
+            False,
+            f"node mismatch: token={nid} expected={expected_node_id}",
+            vid,
+            nid,
+            cap,
+            rc,
+            rid,
+            cid,
+            sha,
+            eff,
+            aeff,
+            epol,
+            pd,
+            idem,
         )
     if cap != expected_capability:
         return VerdictCheck(
@@ -188,6 +377,62 @@ def verify_verdict(
             nid,
             cap,
             rc,
+            rid,
+            cid,
+            sha,
+            eff,
+            aeff,
+            epol,
+            pd,
+            idem,
+        )
+    normalized_risk = str(expected_risk_class or "").strip()
+    if normalized_risk and rc != normalized_risk:
+        return VerdictCheck(
+            False,
+            f"risk_class mismatch: token={rc} expected={normalized_risk}",
+            vid,
+            nid,
+            cap,
+            rc,
+            rid,
+            cid,
+            sha,
+            eff,
+            aeff,
+            epol,
+            pd,
+            idem,
         )
 
-    return VerdictCheck(True, "ok", vid, nid, cap, rc)
+    expected_bindings = {
+        "request_id": (expected_request_id, rid),
+        "correlation_id": (expected_correlation_id, cid),
+        "candidate_sha": (expected_candidate_sha, sha),
+        "effect_class": (expected_effect_class, eff),
+        "authoritative_effect_class": (expected_authoritative_effect_class, aeff),
+        "effect_policy": (expected_effect_policy, epol),
+        "payload_digest": (expected_payload_digest, pd),
+        "idempotency_key": (expected_idempotency_key, idem),
+    }
+    for label, (expected, actual) in expected_bindings.items():
+        normalized_expected = str(expected or "").strip()
+        if normalized_expected and actual != normalized_expected:
+            return VerdictCheck(
+                False,
+                f"{label} mismatch: token={actual} expected={normalized_expected}",
+                vid,
+                nid,
+                cap,
+                rc,
+                rid,
+                cid,
+                sha,
+                eff,
+                aeff,
+                epol,
+                pd,
+                idem,
+            )
+
+    return VerdictCheck(True, "ok", vid, nid, cap, rc, rid, cid, sha, eff, aeff, epol, pd, idem)

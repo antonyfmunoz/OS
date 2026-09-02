@@ -221,27 +221,37 @@ def _substrate_native_governed_mutation(
     source: str = "intent_loop",
     metadata: dict[str, Any] | None = None,
 ) -> Any:
-    """Substrate-native governed submission — the fail-closed canonical gate.
+    """Substrate-native governed submission — canonical spine when live, else fail-closed.
 
-    Routes through ``substrate.organism.mutation_router.route_mutation_degraded``,
-    the in-substrate choke point that governs a mutation when no live daemon
-    router is injected. It rejects any non-eligible mutation (fail-closed) and
-    only executes low-risk / LOCAL / degraded-opted-in specs, always with a
-    mandatory audit record. Keeping this in substrate preserves the
-    dependency-direction law (substrate never imports transports); the transport
-    route may still inject the full daemon-backed ``governed_mutation`` for the
-    live spine path.
+    Delegates to ``substrate.organism.mutation_router.route_mutation_governed``,
+    the in-substrate choke point that routes through the full daemon-backed
+    spine when a live organism daemon is registered on the canonical organism
+    port, and falls back to the fail-closed ``route_mutation_degraded`` gate when
+    it is not.
+
+    This loop asks for governed routing; it never assembles a mutation runtime of
+    its own (no parallel mutation runtime inside the loop), and it imports only
+    substrate modules — the dependency-direction law is preserved.
+
+    Before governed routing existed here, the native runner ALWAYS degraded, so
+    every substrate-native governed mutation degraded even with the daemon
+    running — fail-closing ``execution_authorization_decision`` and leaving the
+    grant stuck in ACTIVATING (observed field run 20260725T175325Z-p1: HUD
+    approve 200, grant never ACTIVE, no worker ran). The transport shim's daemon
+    runner is only injected on some call paths; the decision source under
+    UnifiedApprovalRuntime uses this native path, so the daemon must be reachable
+    HERE too.
     """
-    from substrate.organism.mutation_router import MutationRequest, route_mutation_degraded
+    import substrate.organism.mutation_router as _mr
 
-    request = MutationRequest(
+    request = _mr.MutationRequest(
         mutation_name=mutation_name,
         intent=intent,
         execute_fn=execute_fn,
         source=source,
         metadata=metadata or {},
     )
-    return route_mutation_degraded(request)
+    return _mr.route_mutation_governed(request)
 
 
 class IntentLoop:

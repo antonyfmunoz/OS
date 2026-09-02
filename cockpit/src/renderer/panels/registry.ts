@@ -72,6 +72,12 @@ export const PANEL_ALIASES: Readonly<Record<string, string>> = {
   // pre-existing redirects (migrated from cockpitStore.setPanel)
   dashboard: 'commandcenter',
   runtime: 'execution',
+  // Wave 2 execution-cluster convergence — one canonical Execution surface.
+  unifiedexecution: 'execution',
+  executor: 'execution',
+  distributedruntime: 'execution',
+  execcoord: 'execution',
+  agentfleet: 'execution',
   skills: 'knowledge',
   infrastructure: 'organismmap',
   agents: 'canvas',

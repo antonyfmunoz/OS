@@ -638,7 +638,6 @@ async def _remote_write_file(request: Request) -> dict[str, Any]:
     body = await request.json()
     node: str = body.get("node", "windows")
     path: str = body.get("path", "")
-    content: str = body.get("content", "")
     if not path:
         return {"ok": False, "error": "path required"}
     if node != "windows":
@@ -646,27 +645,12 @@ async def _remote_write_file(request: Request) -> dict[str, Any]:
     err = _validate_windows_path(path)
     if err:
         return {"ok": False, "error": err, "path": path}
-
-    def _do_remote_write():
-        import base64
-
-        encoded = base64.b64encode(content.encode("utf-8")).decode("ascii")
-        safe_path = path.replace("'", "''")
-        ok, output = _ssh_cmd(
-            f'powershell -Command "[System.IO.File]::WriteAllBytes('
-            f"'{safe_path}', [Convert]::FromBase64String('{encoded}'))\""
-        )
-        if not ok:
-            return output[:500], False
-        return f"remote file written: {path}", True
-
-    resp = governed_mutation(
-        mutation_name="filesystem_write",
-        intent=f"write remote file: {node}:{path}",
-        execute_fn=_do_remote_write,
-        source="cockpit",
-    )
-    return resp.to_http_dict()
+    return {
+        "ok": False,
+        "error": "remote write requires DurableRemote idempotent execution",
+        "path": path,
+        "source_env": "windows",
+    }
 
 
 def _mesh_nodes_status(request: Request) -> dict[str, Any]:

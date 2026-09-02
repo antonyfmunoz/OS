@@ -87,6 +87,7 @@ class ConnectedNode:
     daemon_version: str
     tailscale_ip: str
     ws: Any
+    connection_id: str = ""
     connected_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     last_heartbeat: float = field(default_factory=time.monotonic)
     status: str = "connected"
@@ -99,7 +100,6 @@ class ConnectedNode:
 
     @property
     def last_heartbeat_iso(self) -> str:
-        age = time.monotonic() - self.last_heartbeat
         dt = datetime.now(timezone.utc)
         return dt.isoformat()
 

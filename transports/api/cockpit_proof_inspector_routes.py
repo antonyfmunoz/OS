@@ -29,13 +29,97 @@ def configure(require_operator_dep: Any) -> None:
     proof_inspector_router = _build_router(require_operator_dep)
 
 
+class _CanonicalProofSource:
+    """Read source for the inspector: canonical execution proofs by id.
+
+    The governed execution system (poller, verifier, field control plane)
+    persists proofs through ``ProofRuntime`` into the runtime state dir
+    (``UMH_STATE_DIR``). The legacy organism ``ProofStore`` reads a different
+    file under ``UMH_ROOT/data/runtime`` — inside a candidate container that
+    file does not exist, so execution proofs were invisible to this surface
+    (Wave 2 invocation #53, w16).
+
+    Exposure is deliberately asymmetric:
+      - ``get(proof_id)`` consults the canonical runtime FIRST, then the
+        legacy store — callers that hold a proof_id (the field collector's
+        w16 composition check, attempt detail views) resolve execution
+        proofs.
+      - ``query``/``summary`` remain LEGACY-ONLY. The two package classes
+        have disjoint wire shapes (``status``/``created_at`` vs
+        ``outcome``/``timestamp``); merging them corrupts the cockpit panel
+        (Invalid Date, unfilterable rows, irreconcilable totals).
+      - ``approve``/``reject`` stay on the legacy store — execution proofs
+        are verifier-attested, immutable evidence, not operator-reviewed
+        here.
+    """
+
+    def __init__(self, runtime: Any, legacy: Any) -> None:
+        self._runtime = runtime
+        self._legacy = legacy
+
+    def get(self, proof_id: str) -> Any:
+        if self._runtime is not None:
+            pkg = self._runtime.get(proof_id)
+            if pkg is not None:
+                return pkg
+        if self._legacy is not None:
+            return self._legacy.get(proof_id)
+        return None
+
+    def query(self, status: str = "", limit: int = 50, offset: int = 0) -> list[Any]:
+        if self._legacy is None:
+            return []
+        return self._legacy.query(status=status, limit=limit, offset=offset)
+
+    def summary(self) -> dict[str, Any]:
+        if self._legacy is None:
+            return {"total": 0, "by_status": {}}
+        return self._legacy.summary()
+
+    def approve(self, proof_id: str, notes: str = "", reviewer: str = "operator") -> Any:
+        if self._legacy is None:
+            return None
+        return self._legacy.approve(proof_id, notes=notes, reviewer=reviewer)
+
+    def reject(self, proof_id: str, notes: str = "", reviewer: str = "operator") -> Any:
+        if self._legacy is None:
+            return None
+        return self._legacy.reject(proof_id, notes=notes, reviewer=reviewer)
+
+
 def _get_proof_store() -> Any:
+    # A fresh ProofRuntime per call re-reads the durable JSONL, so proofs
+    # written by other processes (workers, control plane) are visible without
+    # a restart. The legacy store keeps its module singleton.
+    runtime: Any = None
+    try:
+        from substrate.organism.proof_runtime import ProofRuntime
+        from substrate.state.runtime_paths import runtime_state_path
+
+        # create_parent=False: this is a READ surface and must never write.
+        # ProofRuntime()'s default path resolution mkdirs the state dir; a
+        # failed mkdir (read-only mount, uid mismatch) would silently degrade
+        # this source to legacy-only — the exact invocation-#53 failure shape.
+        store_path = runtime_state_path("organism", "proof_packages.jsonl", create_parent=False)
+        runtime = ProofRuntime(store_path=str(store_path))
+    except Exception as exc:
+        # warning, not debug: losing the canonical source reproduces the w16
+        # 404 defect and must be visible in production logs.
+        logger.warning(
+            "Canonical ProofRuntime unavailable for proof inspector — "
+            "execution proofs will 404 (legacy store only): %s",
+            exc,
+        )
+    legacy: Any = None
     try:
         from substrate.organism.proof_store import get_proof_store
 
-        return get_proof_store()
-    except Exception:
+        legacy = get_proof_store()
+    except Exception as exc:
+        logger.warning("Legacy proof store unavailable for proof inspector: %s", exc)
+    if runtime is None and legacy is None:
         return None
+    return _CanonicalProofSource(runtime, legacy)
 
 
 def _get_obs_proof_store() -> Any:
@@ -134,11 +218,12 @@ async def _package_timeline(request: Request) -> dict[str, Any]:
     if pkg is None:
         raise HTTPException(status_code=404, detail=f"Proof {proof_id} not found")
 
+    execution_id = getattr(pkg, "execution_id", "")
     journal = _get_journal()
     timeline: list[dict[str, Any]] = []
-    if journal and pkg.execution_id:
+    if journal and execution_id:
         try:
-            entries = journal.entries_for(pkg.execution_id)
+            entries = journal.entries_for(execution_id)
             timeline = [
                 {
                     "phase": getattr(e, "phase", "unknown"),
@@ -153,7 +238,7 @@ async def _package_timeline(request: Request) -> dict[str, Any]:
 
     return {
         "proof_id": proof_id,
-        "execution_id": pkg.execution_id,
+        "execution_id": execution_id,
         "timeline": timeline,
     }
 
@@ -171,8 +256,8 @@ async def _package_evidence(request: Request) -> dict[str, Any]:
     return {
         "proof_id": proof_id,
         "evidence_files": _list_evidence_files(pkg),
-        "browser_evidence": pkg.browser_evidence,
-        "verification_results": pkg.verification_results,
+        "browser_evidence": getattr(pkg, "browser_evidence", []),
+        "verification_results": getattr(pkg, "verification_results", []),
     }
 
 
@@ -259,8 +344,10 @@ async def _reject(request: Request) -> dict[str, Any]:
 
 
 def _list_evidence_files(pkg: Any) -> list[dict[str, Any]]:
-    evidence_dir = pkg.evidence_dir
-    if not evidence_dir.exists():
+    # Runtime execution proofs carry inline evidence (in to_dict) and have no
+    # on-disk evidence dir; only legacy proof packages expose one.
+    evidence_dir = getattr(pkg, "evidence_dir", None)
+    if evidence_dir is None or not evidence_dir.exists():
         return []
     files: list[dict[str, Any]] = []
     try:

@@ -412,8 +412,48 @@ class WorkGraph:
     def failed_work(self) -> list[WorkGraphNode]:
         return [n for n in self._collect_all() if _is_failed(n.status, n.node_type)]
 
-    def dependencies_of(self, node_id: str) -> list[WorkGraphNode]:
-        all_nodes = {n.node_id: n for n in self._collect_all()}
+    def operation_snapshot(self) -> dict[str, WorkGraphNode]:
+        """One immutable point-in-time view for the duration of ONE operation.
+
+        This is NOT a cache. Nothing is retained on the instance, nothing is
+        shared between calls, and nothing survives the caller's stack frame —
+        the caller owns the returned mapping and drops it when its operation
+        ends. WorkGraph itself keeps no local state, exactly as its class
+        contract requires.
+
+        It exists because a batch operation that classifies N nodes must not
+        re-read every source store N times. Reading once per OPERATION is the
+        difference between O(N) and O(N^2) full-store parses; at ~1,100 packets
+        over a 2.8 MB store the quadratic form does not finish, which is what
+        blocked whole-tree validation.
+
+        Operation-scoped consistency is also the correct SEMANTICS, not merely
+        the fast path: ``assess_all()`` already freezes its active node list
+        once per pass, so letting each node's dependency lookup observe a
+        different store generation would produce a mixed-time result in which
+        node A is judged against one snapshot and node B against another.
+        Admission and governance decisions must be internally coherent.
+
+        Writes committed during a pass are deliberately NOT folded into that
+        pass; they become visible to the next public operation, which reads
+        fresh state again.
+        """
+        return {n.node_id: n for n in self._collect_all()}
+
+    def dependencies_of(
+        self,
+        node_id: str,
+        snapshot: dict[str, WorkGraphNode] | None = None,
+    ) -> list[WorkGraphNode]:
+        """Dependencies of one node.
+
+        Called WITHOUT ``snapshot`` (the default for every independent caller)
+        this reads fresh live state exactly as before — the uncached contract is
+        unchanged. Called WITH an explicit operation snapshot, it resolves
+        against that immutable view so one batch operation performs one
+        collection instead of one per node.
+        """
+        all_nodes = snapshot if snapshot is not None else self.operation_snapshot()
         target = all_nodes.get(node_id)
         if not target:
             return []

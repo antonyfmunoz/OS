@@ -52,9 +52,24 @@ def _get_router() -> MutationRouter | None:
         return _router_cache
 
     try:
-        from transports.api.cockpit_spine_router import _get_organism
+        # Prefer the CANONICAL substrate organism port (populated by whichever
+        # entrypoint started the daemon — operator_api registers it at startup).
+        # Fall back to the cockpit_spine_router accessor for entrypoints that
+        # configure() that router instead. Consulting only the latter meant an
+        # entrypoint that registered the canonical port but never called
+        # cockpit_spine_router.configure() (operator_api) saw NO organism, so the
+        # governed path degraded every mutation and fail-closed HIGH decisions.
+        daemon = None
+        try:
+            from substrate.sockets.organism_port import get_organism as _canonical_get_organism
 
-        daemon = _get_organism()
+            daemon = _canonical_get_organism()
+        except Exception:  # noqa: BLE001 — fall back below
+            daemon = None
+        if daemon is None:
+            from transports.api.cockpit_spine_router import _get_organism
+
+            daemon = _get_organism()
         if daemon is None:
             return None
         _router_cache = MutationRouter(
