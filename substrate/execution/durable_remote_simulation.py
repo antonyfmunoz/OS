@@ -136,6 +136,9 @@ class SimState:
     terminal_admissibility_rejected: bool = False
     positive_no_execution_proof: bool = False
     resume_observation: str = ""
+    suspend_state: str = "UNKNOWN"
+    suspend_observation_success: bool = False
+    resume_result: str = "NOT_ATTEMPTED"
     ack_exchange_id: int = 1
     incoming_ack_exchange_id: int = 1
     stale_ack_rejected: bool = False
@@ -174,6 +177,11 @@ class SimState:
         if self.terminal_admissibility_rejected:
             assert self.terminal_admissibility_checked, self.log
             assert self.lifecycle == "RECONCILIATION_REQUIRED", self.log
+        if not self.suspend_observation_success:
+            assert self.suspend_state == "UNKNOWN", self.log
+        if self.suspend_state == "UNKNOWN" and self.resume_result != "NOT_ATTEMPTED":
+            assert self.lifecycle != "FAILED", self.log
+            assert self.lifecycle != "CANCELLED", self.log
         assert not (self.connection_a_active and self.connection_b_active), self.log
         assert not (self.pump_a_active and self.pump_b_active), self.log
         if self.cancelled and not self.running_announced:
@@ -2380,6 +2388,9 @@ def _sol_governed_immutable_runner_attests(state: SimState) -> None:
 
 def _resume_zero_observes_running_process(state: SimState) -> None:
     state.resume_observation = "already_runnable_before_umh_resume"
+    state.resume_result = "UNEXPECTED"
+    state.suspend_state = "PROVEN_RESUMED"
+    state.suspend_observation_success = True
     state.shell_process_created = True
     state.shell_launch_attempted = True
     state.lifecycle = "RUNNING"
@@ -2388,6 +2399,7 @@ def _resume_zero_observes_running_process(state: SimState) -> None:
 
 def _resume_failure_sentinel_reconciles(state: SimState) -> None:
     state.resume_observation = "ambiguous_failure_sentinel"
+    state.resume_result = "FAILURE"
     state.shell_process_created = True
     state.shell_launch_attempted = True
     state.shell_launch_state = "LAUNCH_OUTCOME_UNCERTAIN"
@@ -2398,6 +2410,9 @@ def _resume_failure_sentinel_reconciles(state: SimState) -> None:
 
 def _resume_multiple_suspend_count_fails_after_cleanup(state: SimState) -> None:
     state.resume_observation = "proven_still_suspended"
+    state.resume_result = "UNEXPECTED"
+    state.suspend_state = "PROVEN_SUSPENDED"
+    state.suspend_observation_success = True
     state.shell_process_created = True
     state.shell_launch_attempted = True
     state.lifecycle = "FAILED"
@@ -2406,10 +2421,100 @@ def _resume_multiple_suspend_count_fails_after_cleanup(state: SimState) -> None:
 
 def _resume_ambiguous_but_process_running_observes_outcome(state: SimState) -> None:
     state.resume_observation = "independently_proven_running"
+    state.resume_result = "UNEXPECTED"
+    state.suspend_state = "PROVEN_RESUMED"
+    state.suspend_observation_success = True
     state.shell_process_created = True
     state.shell_launch_attempted = True
     state.lifecycle = "RUNNING"
     state.record("resume_ambiguity_resolved_by_process_observation")
+
+
+def _snapshot_failure_is_unknown(state: SimState) -> None:
+    state.shell_launch_attempted = True
+    state.shell_process_created = True
+    state.resume_observation = "snapshot_failure"
+    state.resume_result = "FAILURE"
+    state.shell_launch_state = "LAUNCH_OUTCOME_UNCERTAIN"
+    state.shell_duplicate_launch_fenced = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("snapshot_failure_unknown_not_suspended")
+
+
+def _open_thread_failure_is_unknown(state: SimState) -> None:
+    state.shell_launch_attempted = True
+    state.shell_process_created = True
+    state.resume_observation = "open_thread_failure"
+    state.resume_result = "FAILURE"
+    state.shell_launch_state = "LAUNCH_OUTCOME_UNCERTAIN"
+    state.shell_duplicate_launch_fenced = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("open_thread_failure_unknown_not_suspended")
+
+
+def _expected_resume_one_progresses(state: SimState) -> None:
+    state.shell_launch_attempted = True
+    state.shell_process_created = True
+    state.resume_result = "EXPECTED"
+    state.suspend_state = "PROVEN_RESUMED"
+    state.suspend_observation_success = True
+    state.lifecycle = "RUNNING"
+    state.record("resume_one_expected_progress")
+
+
+def _unexpected_resume_zero_does_not_directly_run(state: SimState) -> None:
+    state.shell_launch_attempted = True
+    state.shell_process_created = True
+    state.resume_result = "UNEXPECTED"
+    state.shell_launch_state = "LAUNCH_OUTCOME_UNCERTAIN"
+    state.shell_duplicate_launch_fenced = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("resume_zero_requires_independent_observation")
+
+
+def _unexpected_resume_multiple_proves_suspended(state: SimState) -> None:
+    state.shell_launch_attempted = True
+    state.shell_process_created = True
+    state.resume_result = "UNEXPECTED"
+    state.suspend_state = "PROVEN_SUSPENDED"
+    state.suspend_observation_success = True
+    state.lifecycle = "FAILED"
+    state.record("resume_multiple_positive_suspended_cleanup")
+
+
+def _resume_failure_is_unknown(state: SimState) -> None:
+    _resume_failure_sentinel_reconciles(state)
+    state.record("resume_failure_unknown")
+
+
+def _unexpected_resume_existing_process_running(state: SimState) -> None:
+    _resume_zero_observes_running_process(state)
+    state.record("unexpected_resume_existing_process_observed")
+
+
+def _unexpected_resume_existing_process_suspended(state: SimState) -> None:
+    _resume_multiple_suspend_count_fails_after_cleanup(state)
+    state.record("unexpected_resume_suspended_cleanup_complete")
+
+
+def _unknown_resume_state_reconciles(state: SimState) -> None:
+    state.shell_launch_attempted = True
+    state.shell_process_created = True
+    state.resume_result = "FAILURE"
+    state.shell_launch_state = "LAUNCH_OUTCOME_UNCERTAIN"
+    state.shell_duplicate_launch_fenced = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("unknown_resume_state_reconciliation")
+
+
+def _unexpected_resume_never_relaunches(state: SimState) -> None:
+    state.shell_launch_attempted = True
+    state.shell_process_created = True
+    state.resume_result = "UNEXPECTED"
+    state.shell_launch_state = "LAUNCH_OUTCOME_UNCERTAIN"
+    state.shell_duplicate_launch_fenced = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("unexpected_resume_duplicate_launch_fenced")
 
 
 def _ack_old_exchange_cannot_prove_new_exchange(state: SimState) -> None:
@@ -2456,6 +2561,18 @@ SCENARIOS: dict[str, Scenario] = {
     "shell_resume_ambiguous_running_observes_outcome": (
         _resume_ambiguous_but_process_running_observes_outcome
     ),
+    "shell_snapshot_failure_is_unknown": _snapshot_failure_is_unknown,
+    "shell_open_thread_failure_is_unknown": _open_thread_failure_is_unknown,
+    "shell_resume_expected_one_progresses": _expected_resume_one_progresses,
+    "shell_resume_zero_requires_observation": _unexpected_resume_zero_does_not_directly_run,
+    "shell_resume_multiple_proves_suspended": _unexpected_resume_multiple_proves_suspended,
+    "shell_resume_failure_is_unknown": _resume_failure_is_unknown,
+    "shell_unexpected_resume_existing_running": _unexpected_resume_existing_process_running,
+    "shell_unexpected_resume_existing_suspended": (
+        _unexpected_resume_existing_process_suspended
+    ),
+    "shell_unknown_resume_state_reconciles": _unknown_resume_state_reconciles,
+    "shell_unexpected_resume_never_relaunches": _unexpected_resume_never_relaunches,
     "authority_ack_old_exchange_cannot_prove_new": (
         _ack_old_exchange_cannot_prove_new_exchange
     ),

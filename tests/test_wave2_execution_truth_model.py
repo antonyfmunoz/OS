@@ -228,6 +228,35 @@ def test_model_shell_launch_uncertainty_is_reachable_and_fences_execution() -> N
     assert "UncertainShellLaunchCannotExecuteOrRelaunch" in source
 
 
+def test_model_encodes_positive_suspend_observation_and_resume_contract() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    config = CFG.read_text(encoding="utf-8")
+    for state in ("UnknownSuspendState", "SuspendedState", "ResumedState", "ExitedState"):
+        assert state in source
+    for action in (
+        "ObserveSnapshotFailure",
+        "ObserveOpenThreadFailure",
+        "ObserveUnexpectedResumeZero",
+        "ObserveUnexpectedResumeMultiple",
+        "ObserveResumeFailure",
+        "ObserveExistingRunningAfterUnexpectedResume",
+        "ReconcileUnknownResume",
+    ):
+        assert f"{action} ==" in source
+    for invariant in (
+        "ObservationFailureCannotProveSuspended",
+        "UnexpectedResumeCannotEstablishRunning",
+        "UnknownLaunchStateCannotTerminalizeFailed",
+        "UnknownLaunchStateCannotTerminalizeCancelled",
+        "ExpectedResumeAfterProvenSuspendedMayProgress",
+        "UnexpectedResumeCannotCauseRelaunch",
+        "AtMostOneProcessCreation",
+        "CentralTerminalizationRequiresKnownLaunchTruth",
+    ):
+        assert f"{invariant} ==" in source
+        assert f"INVARIANT {invariant}" in config
+
+
 def test_model_prelaunch_cancel_guards_process_creation_and_connection_loss_preserves_execution() -> None:
     source = TLA.read_text(encoding="utf-8")
     create = _action(source, "CreateShellProcess", "PersistShellProcessIdentity")

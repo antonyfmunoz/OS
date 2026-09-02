@@ -27,6 +27,14 @@ WITNESSES = (
     "NewExchangePending",
     "ResumeAmbiguous",
     "CleanupIncomplete",
+    "SnapshotFailureUnknown",
+    "OpenThreadFailureUnknown",
+    "ResumeExpected",
+    "ResumeUnexpectedZero",
+    "ResumeUnexpectedMultiple",
+    "ResumeFailure",
+    "UnexpectedResumeExistingRunning",
+    "UnknownResumeReconciliation",
 )
 
 CONSTANTS = """\
@@ -44,6 +52,11 @@ EnforceAckExchangeBinding = TRUE
 EnforcePreLaunchCancellation = TRUE
 EnforceTerminalCleanup = TRUE
 EnforceLaunchUncertaintyTerminalGuard = TRUE
+EnforceSnapshotObservationTruth = TRUE
+EnforceOpenThreadObservationTruth = TRUE
+EnforceResumeResultContract = TRUE
+EnforceUnexpectedResumeNoRelaunch = TRUE
+EnforceUnknownSuspendTerminalGuard = TRUE
 """
 
 
@@ -136,6 +149,31 @@ def main() -> int:
             "EnforceLaunchUncertaintyTerminalGuard",
             "LaunchUncertaintyCannotTerminalize",
             "launch uncertainty terminal guard",
+        ),
+        (
+            "EnforceSnapshotObservationTruth",
+            "ObservationFailureCannotProveSuspended",
+            "snapshot failure remains unknown",
+        ),
+        (
+            "EnforceOpenThreadObservationTruth",
+            "ObservationFailureCannotProveSuspended",
+            "OpenThread failure remains unknown",
+        ),
+        (
+            "EnforceResumeResultContract",
+            "UnexpectedResumeCannotEstablishRunning",
+            "unexpected resume cannot establish running",
+        ),
+        (
+            "EnforceUnexpectedResumeNoRelaunch",
+            "AtMostOneProcessCreation",
+            "unexpected resume cannot relaunch",
+        ),
+        (
+            "EnforceUnknownSuspendTerminalGuard",
+            "UnknownLaunchStateCannotTerminalizeFailed",
+            "unknown suspend state terminal guard",
         ),
     ):
         mutant = CONSTANTS.replace(f"{constant} = TRUE", f"{constant} = FALSE")

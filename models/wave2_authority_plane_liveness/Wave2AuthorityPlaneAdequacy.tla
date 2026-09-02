@@ -30,6 +30,29 @@ WitnessResumeAmbiguous ==
 WitnessCleanupIncomplete ==
     result.terminalAdmissibilityRejected /\ ~result.retained /\
     result.launchReconciliation
+WitnessSnapshotFailureUnknown ==
+    result.suspendObservation = SnapshotFailureObservation /\
+    result.suspendState = UnknownSuspendState
+WitnessOpenThreadFailureUnknown ==
+    result.suspendObservation = OpenThreadFailureObservation /\
+    result.suspendState = UnknownSuspendState
+WitnessResumeExpected ==
+    result.resumeResult = ExpectedResumeResult /\ result.processResumed
+WitnessResumeUnexpectedZero ==
+    result.suspendObservation = UnexpectedZeroObservation /\
+    result.resumeResult = UnexpectedResumeResult
+WitnessResumeUnexpectedMultiple ==
+    result.suspendObservation = UnexpectedMultipleObservation /\
+    result.suspendState = SuspendedState
+WitnessResumeFailure ==
+    result.suspendObservation = ResumeFailureObservation /\
+    result.suspendState = UnknownSuspendState
+WitnessUnexpectedResumeExistingRunning ==
+    result.suspendObservation = ExistingRunningObservation /\
+    result.suspendState = ResumedState /\ result.processResumed
+WitnessUnknownResumeReconciliation ==
+    result.suspendState = UnknownSuspendState /\ result.launchReconciliation /\
+    result.outcome = ReconciliationOutcome
 
 NotWitnessPreLaunchCancel == ~WitnessPreLaunchCancel
 NotWitnessCancelDuringLaunch == ~WitnessCancelDuringLaunch
@@ -49,5 +72,13 @@ NotWitnessPumpAActive == ~WitnessPumpAActive
 NotWitnessNewExchangePending == ~WitnessNewExchangePending
 NotWitnessResumeAmbiguous == ~WitnessResumeAmbiguous
 NotWitnessCleanupIncomplete == ~WitnessCleanupIncomplete
+NotWitnessSnapshotFailureUnknown == ~WitnessSnapshotFailureUnknown
+NotWitnessOpenThreadFailureUnknown == ~WitnessOpenThreadFailureUnknown
+NotWitnessResumeExpected == ~WitnessResumeExpected
+NotWitnessResumeUnexpectedZero == ~WitnessResumeUnexpectedZero
+NotWitnessResumeUnexpectedMultiple == ~WitnessResumeUnexpectedMultiple
+NotWitnessResumeFailure == ~WitnessResumeFailure
+NotWitnessUnexpectedResumeExistingRunning == ~WitnessUnexpectedResumeExistingRunning
+NotWitnessUnknownResumeReconciliation == ~WitnessUnknownResumeReconciliation
 
 ====

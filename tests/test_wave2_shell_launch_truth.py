@@ -314,116 +314,47 @@ def test_empty_residue_without_complete_positive_cleanup_proof_reconciles(tmp_pa
     assert server._durable_store.result_for(req.request_id) is None
 
 
-def test_resume_thread_zero_records_already_runnable_without_second_resume():
-    class _Ctypes:
-        @staticmethod
-        def c_void_p(value):
-            return SimpleNamespace(value=value)
+@pytest.mark.parametrize("terminal_state", ["FAILED", "CANCELLED"])
+def test_unknown_suspend_evidence_cannot_terminalize(tmp_path, terminal_state):
+    server = _durable_mesh_server(tmp_path)
+    req = server._durable_store.put_request(_durable_request())
+    claim_id = "claim-unknown-suspend"
+    server._durable_store.mark_claimed(req.request_id, claim_id=claim_id)
+    server._durable_store.mark_running(
+        req.request_id,
+        claim_id=claim_id,
+        process_tree={
+            "root_pid": 123,
+            "suspend_state_evidence": {
+                "state": client_mod._SUSPEND_STATE_UNKNOWN,
+                "observation_success": False,
+                "launch_intent_id": "launch-123",
+                "logical_execution_id": "execution-123",
+            },
+        },
+    )
 
-        @staticmethod
-        def byref(value):
-            return SimpleNamespace(_obj=value)
+    current = server._durable_store.publish_result(
+        req.request_id,
+        claim_id=claim_id,
+        state=terminal_state,
+        result={"success": False, "error": "resume state unknown"},
+        cleanup={
+            "cleanup_verified": True,
+            "enumeration_performed": True,
+            "enumeration_complete": True,
+            "ownership_validated": True,
+            "post_termination_enumeration_complete": True,
+            "residue_count": 0,
+            "process_residue": [],
+        },
+    )
 
-        @staticmethod
-        def sizeof(_value):
-            return 1
-
-    class _Kernel:
-        def CreateToolhelp32Snapshot(self, *_args):
-            return 1
-
-        def Thread32First(self, _snapshot, entry_ref):
-            entry = entry_ref._obj
-            entry.th32OwnerProcessID = 42
-            entry.th32ThreadID = 7
-            return 1
-
-        def Thread32Next(self, *_args):
-            return 0
-
-        def OpenThread(self, *_args):
-            return 2
-
-        def ResumeThread(self, _thread):
-            return 0
-
-        def CloseHandle(self, _handle):
-            return 1
-
-    job = object.__new__(client_mod._WindowsDurableJob)
-    job._kernel32 = _Kernel()
-    job._ctypes = _Ctypes()
-
-    class _Entry:
-        dwSize = 0
-        th32OwnerProcessID = 0
-        th32ThreadID = 0
-
-    job._ThreadEntry = _Entry
-
-    observed = job.resume_suspended_process(SimpleNamespace(pid=42))
-
-    assert observed == {
-        "previous_suspend_count": 0,
-        "state": "already_runnable_before_umh_resume",
-        "qualified_expected_count": False,
-    }
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert server._durable_store.result_for(req.request_id) is None
 
 
-def test_resume_thread_rejects_multiple_suspend_count():
-    class _Ctypes:
-        @staticmethod
-        def c_void_p(value):
-            return SimpleNamespace(value=value)
-
-        @staticmethod
-        def byref(value):
-            return SimpleNamespace(_obj=value)
-
-        @staticmethod
-        def sizeof(_value):
-            return 1
-
-    class _Kernel:
-        def CreateToolhelp32Snapshot(self, *_args):
-            return 1
-
-        def Thread32First(self, _snapshot, entry_ref):
-            entry = entry_ref._obj
-            entry.th32OwnerProcessID = 42
-            entry.th32ThreadID = 7
-            return 1
-
-        def Thread32Next(self, *_args):
-            return 0
-
-        def OpenThread(self, *_args):
-            return 2
-
-        def ResumeThread(self, _thread):
-            return 2
-
-        def CloseHandle(self, _handle):
-            return 1
-
-    job = object.__new__(client_mod._WindowsDurableJob)
-    job._kernel32 = _Kernel()
-    job._ctypes = _Ctypes()
-
-    class _Entry:
-        dwSize = 0
-        th32OwnerProcessID = 0
-        th32ThreadID = 0
-
-    job._ThreadEntry = _Entry
-
-    with pytest.raises(client_mod._DurableResumeStateUncertain) as caught:
-        job.resume_suspended_process(SimpleNamespace(pid=42))
-    assert caught.value.previous_suspend_count == 2
-    assert caught.value.proven_still_suspended is True
-
-
-def test_resume_thread_failure_sentinel_preserves_ambiguous_launch_truth():
+def _resume_test_job(*, resume_result=1, snapshot=1, open_thread=2, win32_error=5):
     class _Ctypes:
         @staticmethod
         def c_void_p(value):
@@ -439,25 +370,26 @@ def test_resume_thread_failure_sentinel_preserves_ambiguous_launch_truth():
 
         @staticmethod
         def get_last_error():
-            return 5
+            return win32_error
 
     class _Kernel:
         def CreateToolhelp32Snapshot(self, *_args):
-            return 1
+            return snapshot
 
         def Thread32First(self, _snapshot, entry_ref):
-            entry_ref._obj.th32OwnerProcessID = 42
-            entry_ref._obj.th32ThreadID = 7
+            entry = entry_ref._obj
+            entry.th32OwnerProcessID = 42
+            entry.th32ThreadID = 7
             return 1
 
         def Thread32Next(self, *_args):
             return 0
 
         def OpenThread(self, *_args):
-            return 2
+            return open_thread
 
         def ResumeThread(self, _thread):
-            return 0xFFFFFFFF
+            return resume_result
 
         def CloseHandle(self, _handle):
             return 1
@@ -472,11 +404,133 @@ def test_resume_thread_failure_sentinel_preserves_ambiguous_launch_truth():
         th32ThreadID = 0
 
     job._ThreadEntry = _Entry
+    return job
+
+
+def _resume(job, proc=None):
+    return job.resume_suspended_process(
+        proc or SimpleNamespace(pid=42),
+        launch_intent_id="launch-42",
+        logical_execution_id="execution-42",
+    )
+
+
+def test_resume_thread_expected_one_is_the_only_normal_result():
+    evidence = _resume(_resume_test_job(resume_result=1))
+
+    assert evidence.state == client_mod._SUSPEND_STATE_PROVEN_RESUMED
+    assert evidence.resume_result == client_mod._RESUME_RESULT_EXPECTED
+    assert evidence.previous_suspend_count == 1
+    assert evidence.observation_success is True
+    assert evidence.launch_intent_id == "launch-42"
+    assert evidence.logical_execution_id == "execution-42"
+
+
+def test_resume_thread_zero_is_unexpected_and_requires_independent_observation():
+    with pytest.raises(client_mod._DurableResumeStateUncertain) as caught:
+        _resume(_resume_test_job(resume_result=0))
+
+    evidence = caught.value.evidence
+    assert evidence.state == client_mod._SUSPEND_STATE_UNKNOWN
+    assert evidence.resume_result == client_mod._RESUME_RESULT_UNEXPECTED
+    assert evidence.previous_suspend_count == 0
+    assert evidence.observation_success is False
+
+    observed = client_mod._durable_observe_process_after_unexpected_resume(
+        SimpleNamespace(pid=42, poll=lambda: None),
+        evidence=evidence,
+    )
+    assert observed.state == client_mod._SUSPEND_STATE_PROVEN_RESUMED
+    assert observed.observation_method == "process_handle_poll_after_unexpected_resume"
+
+
+def test_resume_thread_zero_with_unknown_process_observation_reconciles():
+    with pytest.raises(client_mod._DurableResumeStateUncertain) as caught:
+        _resume(_resume_test_job(resume_result=0))
+
+    observed = client_mod._durable_observe_process_after_unexpected_resume(
+        SimpleNamespace(pid=42, poll=lambda: (_ for _ in ()).throw(OSError("unknown"))),
+        evidence=caught.value.evidence,
+    )
+    assert observed.state == client_mod._SUSPEND_STATE_UNKNOWN
+    assert observed.observation_success is False
+
+
+def test_unexpected_resume_with_exited_process_recovers_actual_exit_state():
+    with pytest.raises(client_mod._DurableResumeStateUncertain) as caught:
+        _resume(_resume_test_job(resume_result=0))
+
+    observed = client_mod._durable_observe_process_after_unexpected_resume(
+        SimpleNamespace(pid=42, poll=lambda: 7),
+        evidence=caught.value.evidence,
+    )
+    assert observed.state == client_mod._SUSPEND_STATE_PROVEN_EXITED
+    assert observed.observation_success is True
+
+
+def test_multiple_suspend_count_is_positive_suspended_proof_without_retry():
+    calls = 0
+
+    class _Proc:
+        pid = 42
+
+        def poll(self):
+            nonlocal calls
+            calls += 1
+            return None
 
     with pytest.raises(client_mod._DurableResumeStateUncertain) as caught:
-        job.resume_suspended_process(SimpleNamespace(pid=42))
-    assert caught.value.previous_suspend_count is None
-    assert caught.value.proven_still_suspended is False
+        _resume(_resume_test_job(resume_result=2), _Proc())
+    observed = client_mod._durable_observe_process_after_unexpected_resume(
+        _Proc(), evidence=caught.value.evidence
+    )
+    assert observed.state == client_mod._SUSPEND_STATE_PROVEN_SUSPENDED
+    assert observed.observation_success is True
+    assert calls == 0
+
+def test_resume_thread_rejects_multiple_suspend_count():
+    with pytest.raises(client_mod._DurableResumeStateUncertain) as caught:
+        _resume(_resume_test_job(resume_result=2))
+    assert caught.value.evidence.previous_suspend_count == 2
+    assert caught.value.evidence.state == client_mod._SUSPEND_STATE_PROVEN_SUSPENDED
+    assert caught.value.evidence.observation_success is True
+
+
+def test_resume_thread_failure_sentinel_preserves_ambiguous_launch_truth():
+    with pytest.raises(client_mod._DurableResumeStateUncertain) as caught:
+        _resume(_resume_test_job(resume_result=0xFFFFFFFF))
+    assert caught.value.evidence.previous_suspend_count is None
+    assert caught.value.evidence.state == client_mod._SUSPEND_STATE_UNKNOWN
+    assert caught.value.evidence.resume_result == client_mod._RESUME_RESULT_FAILURE
+    assert caught.value.evidence.observation_success is False
+
+
+@pytest.mark.parametrize(
+    ("snapshot", "open_thread", "method"),
+    ((0, 2, "CreateToolhelp32Snapshot"), (1, 0, "OpenThread")),
+)
+def test_failed_windows_observation_is_unknown(snapshot, open_thread, method):
+    with pytest.raises(client_mod._DurableResumeStateUncertain) as caught:
+        _resume(_resume_test_job(snapshot=snapshot, open_thread=open_thread))
+    evidence = caught.value.evidence
+    assert evidence.state == client_mod._SUSPEND_STATE_UNKNOWN
+    assert evidence.observation_success is False
+    assert evidence.observation_method == method
+
+
+def test_failed_observation_cannot_construct_positive_suspend_evidence():
+    with pytest.raises(ValueError, match="failed observation"):
+        client_mod._SuspendStateEvidence(
+            state=client_mod._SUSPEND_STATE_PROVEN_SUSPENDED,
+            process_id=42,
+            thread_id=7,
+            observation_method="OpenThread",
+            observation_success=False,
+            win32_error=5,
+            observed_at=1.0,
+            launch_intent_id="launch-42",
+            logical_execution_id="execution-42",
+        )
 
 
 def test_delivered_cancel_preserves_local_launch_uncertainty_and_reconciles(tmp_path):
@@ -535,13 +589,21 @@ def test_windows_process_is_contained_and_identified_before_resume(tmp_path, mon
         def pids(self):
             return [4242]
 
-        def resume_suspended_process(self, _proc):
+        def resume_suspended_process(self, _proc, **_identity):
             events.append("resume")
-            return {
-                "previous_suspend_count": 1,
-                "state": "resumed_by_umh",
-                "qualified_expected_count": True,
-            }
+            return client_mod._SuspendStateEvidence(
+                state=client_mod._SUSPEND_STATE_PROVEN_RESUMED,
+                process_id=4242,
+                thread_id=7,
+                observation_method="ResumeThread",
+                observation_success=True,
+                win32_error=None,
+                observed_at=1.0,
+                launch_intent_id=_identity["launch_intent_id"],
+                logical_execution_id=_identity["logical_execution_id"],
+                previous_suspend_count=1,
+                resume_result=client_mod._RESUME_RESULT_EXPECTED,
+            )
 
         def close(self):
             events.append("close")
@@ -643,10 +705,21 @@ def test_ambiguous_resume_from_shell_executor_fences_duplicate_resume_and_launch
         def pids(self):
             return [4343]
 
-        def resume_suspended_process(self, _proc):
+        def resume_suspended_process(self, _proc, **_identity):
             raise client_mod._DurableResumeStateUncertain(
                 "ambiguous ResumeThread API failure",
-                previous_suspend_count=None,
+                evidence=client_mod._SuspendStateEvidence(
+                    state=client_mod._SUSPEND_STATE_UNKNOWN,
+                    process_id=4343,
+                    thread_id=7,
+                    observation_method="ResumeThread",
+                    observation_success=False,
+                    win32_error=5,
+                    observed_at=1.0,
+                    launch_intent_id=_identity["launch_intent_id"],
+                    logical_execution_id=_identity["logical_execution_id"],
+                    resume_result=client_mod._RESUME_RESULT_FAILURE,
+                ),
             )
 
         def close(self):

@@ -2861,6 +2861,16 @@ class DurableRemoteStore:
             cleanup.get("observer_missing") is True,
             cleanup.get("transport_disconnect_outcome_unknown") is True,
         )
+        suspend_evidence = dict(
+            cleanup.get("suspend_state_evidence")
+            or req.process_tree.get("suspend_state_evidence")
+            or {}
+        )
+        if suspend_evidence and (
+            suspend_evidence.get("state") == "UNKNOWN"
+            or suspend_evidence.get("observation_success") is not True
+        ):
+            return "suspend_state_not_positively_proven"
         if any(uncertainty_markers):
             return "execution_or_launch_outcome_unknown"
 

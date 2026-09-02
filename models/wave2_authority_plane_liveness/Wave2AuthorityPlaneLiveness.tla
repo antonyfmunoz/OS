@@ -39,7 +39,12 @@ CONSTANT
     EnforceAckExchangeBinding,
     EnforcePreLaunchCancellation,
     EnforceTerminalCleanup,
-    EnforceLaunchUncertaintyTerminalGuard
+    EnforceLaunchUncertaintyTerminalGuard,
+    EnforceSnapshotObservationTruth,
+    EnforceOpenThreadObservationTruth,
+    EnforceResumeResultContract,
+    EnforceUnexpectedResumeNoRelaunch,
+    EnforceUnknownSuspendTerminalGuard
 
 NoSend == "NONE"
 AuthoritySend == "AUTHORITY"
@@ -83,6 +88,42 @@ OutcomeStates == {
     FailedOutcome,
     CancelledOutcome,
     ReconciliationOutcome
+}
+
+UnknownSuspendState == "UNKNOWN"
+SuspendedState == "SUSPENDED"
+ResumedState == "RESUMED"
+ExitedState == "EXITED"
+SuspendStates == {UnknownSuspendState, SuspendedState, ResumedState, ExitedState}
+
+NoResumeResult == "NOT_ATTEMPTED"
+ExpectedResumeResult == "EXPECTED"
+UnexpectedResumeResult == "UNEXPECTED"
+FailedResumeResult == "FAILURE"
+ResumeResults == {
+    NoResumeResult,
+    ExpectedResumeResult,
+    UnexpectedResumeResult,
+    FailedResumeResult
+}
+
+NoSuspendObservation == "NONE"
+SnapshotFailureObservation == "SNAPSHOT_FAILURE"
+OpenThreadFailureObservation == "OPEN_THREAD_FAILURE"
+ExpectedResumeObservation == "EXPECTED_RESUME"
+UnexpectedZeroObservation == "UNEXPECTED_ZERO"
+UnexpectedMultipleObservation == "UNEXPECTED_MULTIPLE"
+ResumeFailureObservation == "RESUME_FAILURE"
+ExistingRunningObservation == "EXISTING_RUNNING"
+SuspendObservations == {
+    NoSuspendObservation,
+    SnapshotFailureObservation,
+    OpenThreadFailureObservation,
+    ExpectedResumeObservation,
+    UnexpectedZeroObservation,
+    UnexpectedMultipleObservation,
+    ResumeFailureObservation,
+    ExistingRunningObservation
 }
 
 NoGeneration == MaxTransportGeneration + 1
@@ -228,8 +269,12 @@ TypeOK ==
         jobAssigned: BOOLEAN,
         jobMembershipVerified: BOOLEAN,
         processIdentityPersisted: BOOLEAN,
+        processCreationCount: 0..2,
         processResumed: BOOLEAN,
         resumeAmbiguous: BOOLEAN,
+        suspendState: SuspendStates,
+        resumeResult: ResumeResults,
+        suspendObservation: SuspendObservations,
         shellRunning: BOOLEAN,
         launchReconciliation: BOOLEAN,
         duplicateLaunchRejected: BOOLEAN,
@@ -342,8 +387,12 @@ Init ==
         jobAssigned |-> FALSE,
         jobMembershipVerified |-> FALSE,
         processIdentityPersisted |-> FALSE,
+        processCreationCount |-> 0,
         processResumed |-> FALSE,
         resumeAmbiguous |-> FALSE,
+        suspendState |-> UnknownSuspendState,
+        resumeResult |-> NoResumeResult,
+        suspendObservation |-> NoSuspendObservation,
         shellRunning |-> FALSE,
         launchReconciliation |-> FALSE,
         duplicateLaunchRejected |-> FALSE,
@@ -970,7 +1019,10 @@ CreateShellProcess ==
     /\ executionCount = 0
     /\ (~EnforcePreLaunchCancellation \/
         (~cancelled /\ ~result.cancelProvenBeforeLaunch))
-    /\ result' = [result EXCEPT !.processCreated = TRUE]
+    /\ result' = [result EXCEPT
+        !.processCreated = TRUE,
+        !.processCreationCount = @ + 1
+        ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
         authorityBurst, authorityOverflow, authorityFailureVisible, claim,
@@ -1017,9 +1069,181 @@ PersistShellProcessIdentity ==
 ResumeShellProcess ==
     /\ result.processIdentityPersisted
     /\ ~result.processResumed
+    /\ result.resumeResult = NoResumeResult
     /\ ~result.launchReconciliation
     /\ ~cancelled
-    /\ result' = [result EXCEPT !.processResumed = TRUE]
+    /\ result' = [result EXCEPT
+        !.processResumed = TRUE,
+        !.suspendState = ResumedState,
+        !.resumeResult = ExpectedResumeResult,
+        !.suspendObservation = ExpectedResumeObservation
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+ObserveSnapshotFailure ==
+    /\ result.processIdentityPersisted
+    /\ result.resumeResult = NoResumeResult
+    /\ ~result.launchReconciliation
+    /\ result' = [result EXCEPT
+        !.suspendState =
+            IF EnforceSnapshotObservationTruth THEN UnknownSuspendState ELSE SuspendedState,
+        !.resumeResult = FailedResumeResult,
+        !.suspendObservation = SnapshotFailureObservation,
+        !.resumeAmbiguous = TRUE,
+        !.launchReconciliation = TRUE,
+        !.outcome = ReconciliationOutcome
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+ObserveOpenThreadFailure ==
+    /\ result.processIdentityPersisted
+    /\ result.resumeResult = NoResumeResult
+    /\ ~result.launchReconciliation
+    /\ result' = [result EXCEPT
+        !.suspendState =
+            IF EnforceOpenThreadObservationTruth THEN UnknownSuspendState ELSE SuspendedState,
+        !.resumeResult = FailedResumeResult,
+        !.suspendObservation = OpenThreadFailureObservation,
+        !.resumeAmbiguous = TRUE,
+        !.launchReconciliation = TRUE,
+        !.outcome = ReconciliationOutcome
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+ObserveUnexpectedResumeZero ==
+    /\ result.processIdentityPersisted
+    /\ result.resumeResult = NoResumeResult
+    /\ ~result.launchReconciliation
+    /\ result' = [result EXCEPT
+        !.suspendState =
+            IF EnforceResumeResultContract THEN UnknownSuspendState ELSE ResumedState,
+        !.resumeResult = UnexpectedResumeResult,
+        !.suspendObservation = UnexpectedZeroObservation,
+        !.processResumed = IF EnforceResumeResultContract THEN FALSE ELSE TRUE
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+ObserveUnexpectedResumeMultiple ==
+    /\ result.processIdentityPersisted
+    /\ result.resumeResult = NoResumeResult
+    /\ ~result.launchReconciliation
+    /\ result' = [result EXCEPT
+        !.suspendState = SuspendedState,
+        !.resumeResult = UnexpectedResumeResult,
+        !.suspendObservation = UnexpectedMultipleObservation
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+ObserveResumeFailure ==
+    /\ result.processIdentityPersisted
+    /\ result.resumeResult = NoResumeResult
+    /\ ~result.launchReconciliation
+    /\ result' = [result EXCEPT
+        !.suspendState = UnknownSuspendState,
+        !.resumeResult = FailedResumeResult,
+        !.suspendObservation = ResumeFailureObservation,
+        !.resumeAmbiguous = TRUE,
+        !.launchReconciliation = TRUE,
+        !.outcome = ReconciliationOutcome
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+ObserveExistingRunningAfterUnexpectedResume ==
+    /\ result.resumeResult = UnexpectedResumeResult
+    /\ result.suspendObservation = UnexpectedZeroObservation
+    /\ result.suspendState = UnknownSuspendState
+    /\ ~result.processResumed
+    /\ ~result.launchReconciliation
+    /\ result' = [result EXCEPT
+        !.suspendState = ResumedState,
+        !.suspendObservation = ExistingRunningObservation,
+        !.processResumed = TRUE
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+ReconcileUnknownResume ==
+    /\ result.resumeResult \in {UnexpectedResumeResult, FailedResumeResult}
+    /\ result.suspendState = UnknownSuspendState
+    /\ ~result.launchReconciliation
+    /\ result' = [result EXCEPT
+        !.resumeAmbiguous = TRUE,
+        !.launchReconciliation = TRUE,
+        !.outcome = ReconciliationOutcome
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+AttemptUnexpectedResumeRelaunch ==
+    /\ result.resumeResult = UnexpectedResumeResult
+    /\ result.processCreated
+    /\ result.processCreationCount = 1
+    /\ ~result.duplicateLaunchRejected
+    /\ result' = [result EXCEPT
+        !.duplicateLaunchRejected = EnforceUnexpectedResumeNoRelaunch,
+        !.processCreationCount =
+            IF EnforceUnexpectedResumeNoRelaunch THEN @ ELSE @ + 1
+        ]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+TerminalizeUnknownResume ==
+    /\ result.resumeResult \in {UnexpectedResumeResult, FailedResumeResult}
+    /\ result.suspendState = UnknownSuspendState
+    /\ ~result.retained
+    /\ ~result.launchReconciliation
+    /\ result' = [result EXCEPT
+        !.launchReconciliation = EnforceUnknownSuspendTerminalGuard,
+        !.outcome =
+            IF EnforceUnknownSuspendTerminalGuard
+            THEN ReconciliationOutcome ELSE FailedOutcome,
+        !.retained = IF EnforceUnknownSuspendTerminalGuard THEN FALSE ELSE TRUE,
+        !.logicalId = IF EnforceUnknownSuspendTerminalGuard THEN @ ELSE 1,
+        !.outcomeKnown = IF EnforceUnknownSuspendTerminalGuard THEN @ ELSE TRUE,
+        !.cleanupComplete = TRUE
+        ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
         authorityBurst, authorityOverflow, authorityFailureVisible, claim,
@@ -1046,6 +1270,7 @@ ObserveAmbiguousResume ==
 
 AdmitShellRunning ==
     /\ result.processResumed
+    /\ result.suspendState = ResumedState
     /\ ~result.shellRunning
     /\ ~result.launchReconciliation
     /\ result' = [result EXCEPT !.shellRunning = TRUE]
@@ -1433,7 +1658,12 @@ GenerationLifecycle ==
 ShellLaunchProgress ==
     PersistShellLaunchIntent \/ AttemptShellLaunch \/ CreateShellProcess
     \/ AssignShellJob \/ VerifyShellJobMembership
-    \/ PersistShellProcessIdentity \/ ResumeShellProcess \/ ObserveAmbiguousResume
+    \/ PersistShellProcessIdentity \/ ResumeShellProcess
+    \/ ObserveSnapshotFailure \/ ObserveOpenThreadFailure
+    \/ ObserveUnexpectedResumeZero \/ ObserveUnexpectedResumeMultiple
+    \/ ObserveResumeFailure \/ ObserveExistingRunningAfterUnexpectedResume
+    \/ ReconcileUnknownResume \/ AttemptUnexpectedResumeRelaunch
+    \/ TerminalizeUnknownResume \/ ObserveAmbiguousResume
     \/ AdmitShellRunning
     \/ CrashDuringUncertainShellLaunch \/ RejectDuplicateShellLaunch
 
@@ -1639,6 +1869,42 @@ UncertainShellLaunchCannotExecuteOrRelaunch ==
     result.launchReconciliation =>
         /\ ~result.shellRunning
         /\ executionCount = 0
+
+ObservationFailureCannotProveSuspended ==
+    result.suspendObservation \in {
+        SnapshotFailureObservation,
+        OpenThreadFailureObservation
+    } => result.suspendState = UnknownSuspendState
+
+UnexpectedResumeCannotEstablishRunning ==
+    (result.resumeResult = UnexpectedResumeResult /\ result.shellRunning) =>
+        /\ result.suspendState = ResumedState
+        /\ result.suspendObservation = ExistingRunningObservation
+
+UnknownLaunchStateCannotTerminalizeFailed ==
+    (result.resumeResult # NoResumeResult /\
+     result.suspendState = UnknownSuspendState) =>
+        ~(result.retained /\ result.outcome = FailedOutcome)
+
+UnknownLaunchStateCannotTerminalizeCancelled ==
+    (result.resumeResult # NoResumeResult /\
+     result.suspendState = UnknownSuspendState) =>
+        ~(result.retained /\ result.outcome = CancelledOutcome)
+
+ExpectedResumeAfterProvenSuspendedMayProgress ==
+    result.resumeResult = ExpectedResumeResult =>
+        /\ result.suspendState = ResumedState
+        /\ result.processResumed
+
+UnexpectedResumeCannotCauseRelaunch ==
+    result.resumeResult = UnexpectedResumeResult => result.processCreationCount = 1
+
+AtMostOneProcessCreation == result.processCreationCount <= 1
+
+CentralTerminalizationRequiresKnownLaunchTruth ==
+    (result.retained /\ result.launchAttempted /\
+     result.resumeResult # NoResumeResult) =>
+        result.suspendState # UnknownSuspendState
 
 ForeignClaimCannotMutateExecution ==
     claim.incomingLogicalAuthorityId # claim.logicalAuthorityId => ~cancelled
