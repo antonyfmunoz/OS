@@ -314,7 +314,7 @@ def test_empty_residue_without_complete_positive_cleanup_proof_reconciles(tmp_pa
     assert server._durable_store.result_for(req.request_id) is None
 
 
-def test_resume_thread_requires_positive_suspended_count():
+def test_resume_thread_zero_records_already_runnable_without_second_resume():
     class _Ctypes:
         @staticmethod
         def c_void_p(value):
@@ -361,8 +361,13 @@ def test_resume_thread_requires_positive_suspended_count():
 
     job._ThreadEntry = _Entry
 
-    with pytest.raises(RuntimeError, match="unexpected suspend count 0"):
-        job.resume_suspended_process(SimpleNamespace(pid=42))
+    observed = job.resume_suspended_process(SimpleNamespace(pid=42))
+
+    assert observed == {
+        "previous_suspend_count": 0,
+        "state": "already_runnable_before_umh_resume",
+        "qualified_expected_count": False,
+    }
 
 
 def test_resume_thread_rejects_multiple_suspend_count():
@@ -412,8 +417,66 @@ def test_resume_thread_rejects_multiple_suspend_count():
 
     job._ThreadEntry = _Entry
 
-    with pytest.raises(RuntimeError, match="unexpected suspend count 2"):
+    with pytest.raises(client_mod._DurableResumeStateUncertain) as caught:
         job.resume_suspended_process(SimpleNamespace(pid=42))
+    assert caught.value.previous_suspend_count == 2
+    assert caught.value.proven_still_suspended is True
+
+
+def test_resume_thread_failure_sentinel_preserves_ambiguous_launch_truth():
+    class _Ctypes:
+        @staticmethod
+        def c_void_p(value):
+            return SimpleNamespace(value=value)
+
+        @staticmethod
+        def byref(value):
+            return SimpleNamespace(_obj=value)
+
+        @staticmethod
+        def sizeof(_value):
+            return 1
+
+        @staticmethod
+        def get_last_error():
+            return 5
+
+    class _Kernel:
+        def CreateToolhelp32Snapshot(self, *_args):
+            return 1
+
+        def Thread32First(self, _snapshot, entry_ref):
+            entry_ref._obj.th32OwnerProcessID = 42
+            entry_ref._obj.th32ThreadID = 7
+            return 1
+
+        def Thread32Next(self, *_args):
+            return 0
+
+        def OpenThread(self, *_args):
+            return 2
+
+        def ResumeThread(self, _thread):
+            return 0xFFFFFFFF
+
+        def CloseHandle(self, _handle):
+            return 1
+
+    job = object.__new__(client_mod._WindowsDurableJob)
+    job._kernel32 = _Kernel()
+    job._ctypes = _Ctypes()
+
+    class _Entry:
+        dwSize = 0
+        th32OwnerProcessID = 0
+        th32ThreadID = 0
+
+    job._ThreadEntry = _Entry
+
+    with pytest.raises(client_mod._DurableResumeStateUncertain) as caught:
+        job.resume_suspended_process(SimpleNamespace(pid=42))
+    assert caught.value.previous_suspend_count is None
+    assert caught.value.proven_still_suspended is False
 
 
 def test_delivered_cancel_preserves_local_launch_uncertainty_and_reconciles(tmp_path):
@@ -474,6 +537,11 @@ def test_windows_process_is_contained_and_identified_before_resume(tmp_path, mon
 
         def resume_suspended_process(self, _proc):
             events.append("resume")
+            return {
+                "previous_suspend_count": 1,
+                "state": "resumed_by_umh",
+                "qualified_expected_count": True,
+            }
 
         def close(self):
             events.append("close")
@@ -552,6 +620,92 @@ def test_windows_process_is_contained_and_identified_before_resume(tmp_path, mon
     assert events.index("attach") < events.index(f"persist:{SHELL_PROCESS_IDENTITY_PERSISTED}")
     assert events.index(f"persist:{SHELL_PROCESS_IDENTITY_PERSISTED}") < events.index("resume")
     assert events.index("resume") < events.index("announce")
+
+
+def test_ambiguous_resume_from_shell_executor_fences_duplicate_resume_and_launch(
+    tmp_path, monkeypatch
+):
+    client = _durable_node_client(tmp_path)
+    req = _durable_request()
+    client._durable_store.put_request(req)
+    client._durable_store.mark_claimed(req.request_id, claim_id="claim-resume-ambiguous")
+
+    class _Proc:
+        pid = 4343
+        returncode = None
+
+        def poll(self):
+            return None
+
+    class _Containment:
+        containment_id = "launch-ambiguous"
+
+        def pids(self):
+            return [4343]
+
+        def resume_suspended_process(self, _proc):
+            raise client_mod._DurableResumeStateUncertain(
+                "ambiguous ResumeThread API failure",
+                previous_suspend_count=None,
+            )
+
+        def close(self):
+            return None
+
+    class _Collector:
+        pass
+
+    monkeypatch.setattr(client_mod.sys, "platform", "win32")
+    monkeypatch.setattr(client_mod.subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+    monkeypatch.setattr(client_mod.subprocess, "Popen", lambda *_a, **_k: _Proc())
+    monkeypatch.setattr(
+        client_mod,
+        "_durable_attach_process_containment",
+        lambda *_a, **_k: _Containment(),
+    )
+    monkeypatch.setattr(client_mod, "_DurablePipeCollector", lambda _proc: _Collector())
+    monkeypatch.setattr(
+        client_mod,
+        "_durable_process_identity",
+        lambda pid, **_kwargs: {
+            "pid": pid,
+            "start_token": "start-4343",
+            "executable": "powershell.exe",
+            "command_digest": req.payload_digest,
+        },
+    )
+
+    async def _cleanup(*_args, **_kwargs):
+        return {
+            "enumeration_performed": True,
+            "enumeration_complete": True,
+            "ownership_validated": True,
+            "matched_processes": [],
+            "termination_attempted": True,
+            "post_termination_enumeration_complete": True,
+            "residue_count": 0,
+            "cleanup_verified": True,
+            "process_residue": [],
+        }
+
+    monkeypatch.setattr(client, "_terminate_durable_process_tree", _cleanup)
+
+    result = asyncio.run(
+        client._execute_shell_for_durable(
+            req,
+            cap_name="shell",
+            cap_params={"command": "echo never-relaunch"},
+            claim_id="claim-resume-ambiguous",
+            process_tree={"node_pid": 1},
+            timeout=5.0,
+        )
+    )
+
+    assert result["success"] is False
+    assert result["execution_outcome_unresolved"] is True
+    assert result["cleanup"]["resume_state_uncertain"] is True
+    assert result["cleanup"]["duplicate_resume_fenced"] is True
+    assert result["cleanup"]["duplicate_launch_fenced"] is True
 
 
 def test_shell_execution_identity_is_complete_immutable_and_claim_bound(tmp_path):
@@ -681,6 +835,12 @@ def test_governed_sol_attestation_is_exact_attempt_bound_and_mandatory(tmp_path,
         **_codex_executable_attestation(
             str(executable.resolve()), version="codex-cli 0.test"
         ),
+        "codex_executed_object_sha256": executable_hash,
+        "codex_executable_object_identity": "object-identity-1",
+        "codex_executable_binding": "bwrap_ro_bind_data_sealed_memfd",
+        "codex_governed_launch_path": "/tmp/umh-codex-approved",
+        "post_execution_executable_sha256": executable_hash,
+        "post_execution_executable_binding_verified": True,
     }
     result = _WorkerResultView(
         {

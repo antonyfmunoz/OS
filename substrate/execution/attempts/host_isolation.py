@@ -106,7 +106,12 @@ def _default_ro_paths() -> list[str]:
     return [p for p in candidates if os.path.exists(p)]
 
 
-def build_bwrap_command(inner_cmd: list[str], profile: IsolationProfile) -> list[str]:
+def build_bwrap_command(
+    inner_cmd: list[str],
+    profile: IsolationProfile,
+    *,
+    readonly_fd_mounts: tuple[tuple[int, str], ...] = (),
+) -> list[str]:
     """Wrap ``inner_cmd`` in a bubblewrap sandbox per ``profile``.
 
     The namespace exposes ONLY the worktree (rw), the worker HOME (rw, holding
@@ -169,6 +174,14 @@ def build_bwrap_command(inner_cmd: list[str], profile: IsolationProfile) -> list
     # under a predictable name.
     if profile.tmp_path:
         cmd += ["--bind", profile.tmp_path, profile.tmp_path]
+    for fd, destination in readonly_fd_mounts:
+        if fd < 0 or not os.path.isabs(destination):
+            raise IsolationUnavailable("read-only fd mounts require a valid fd and absolute path")
+        # The producer supplies a sealed memfd.  ro-bind-data materializes
+        # those exact immutable bytes inside the private mount namespace and
+        # does not depend on the approved installation pathname remaining
+        # present between validation and exec.
+        cmd += ["--perms", "0555", "--ro-bind-data", str(fd), destination]
     # HOME plus every config/state path the selected CLI honours, so no lookup
     # escapes the attempt boundary (XDG_*, provider config dirs, TMPDIR).
     overrides = dict(profile.env_overrides or {})
@@ -180,7 +193,12 @@ def build_bwrap_command(inner_cmd: list[str], profile: IsolationProfile) -> list
     return cmd
 
 
-def build_isolated_command(inner_cmd: list[str], profile: IsolationProfile) -> list[str]:
+def build_isolated_command(
+    inner_cmd: list[str],
+    profile: IsolationProfile,
+    *,
+    readonly_fd_mounts: tuple[tuple[int, str], ...] = (),
+) -> list[str]:
     """Build the fully isolated command. Raises IsolationUnavailable if no
     primitive exists (fail closed — never run a worker unconfined)."""
     prim = isolation_primitive()
@@ -190,7 +208,15 @@ def build_isolated_command(inner_cmd: list[str], profile: IsolationProfile) -> l
             "refusing to run a worker unconfined (Amendment v1 clause 4)"
         )
     if prim == "bwrap":
-        return build_bwrap_command(inner_cmd, profile)
+        return build_bwrap_command(
+            inner_cmd,
+            profile,
+            readonly_fd_mounts=readonly_fd_mounts,
+        )
+    if readonly_fd_mounts:
+        raise IsolationUnavailable(
+            f"host-isolation primitive {prim!r} cannot bind an approved executable object by fd"
+        )
     # NO SILENT DOWNGRADE OF THE WRITE BARRIER (independent review MEDIUM-1).
     #
     # Only the bwrap branch can express per-path binds. The systemd-run and

@@ -102,10 +102,37 @@ def test_durable_remote_simulator_historical_failure_family_preserves_invariants
         "sync_stale_verdict_rejected",
         "sync_unknown_effect_fails_closed",
         "terminal_late_foreign_running",
+        "terminal_recovery_bypass_rejected",
+        "terminal_reconciliation_bypass_rejected",
+        "terminal_timeout_bypass_rejected",
+        "terminal_prelaunch_no_process_proof_admitted",
+        "sol_replaced_path_executes_approved_open_object",
+        "sol_governed_immutable_runner_attests",
+        "shell_resume_zero_observes_running_process",
+        "shell_resume_failure_sentinel_reconciles",
+        "shell_resume_multiple_count_fails_after_cleanup",
+        "shell_resume_ambiguous_running_observes_outcome",
+        "authority_ack_old_exchange_cannot_prove_new",
+        "transport_connection_overlap_attempt_guarded",
+        "transport_pump_overlap_attempt_guarded",
     }
     assert results["fallback_unavailable"]["executed"] == 0
     assert results["fallback_unavailable"]["fail_closed"] is True
     assert results["terminal_late_foreign_running"]["lifecycle"] == "SUCCEEDED"
+    assert results["terminal_recovery_bypass_rejected"]["lifecycle"] == (
+        "RECONCILIATION_REQUIRED"
+    )
+    assert results["terminal_timeout_bypass_rejected"]["lifecycle"] == (
+        "RECONCILIATION_REQUIRED"
+    )
+    assert results["terminal_prelaunch_no_process_proof_admitted"]["lifecycle"] == "FAILED"
+    assert results["sol_replaced_path_executes_approved_open_object"][
+        "codex_executable_approved"
+    ] is True
+    assert results["shell_resume_failure_sentinel_reconciles"]["lifecycle"] == (
+        "RECONCILIATION_REQUIRED"
+    )
+    assert results["authority_ack_old_exchange_cannot_prove_new"]["executed"] == 0
     assert results["sync_duplicate_consequential_denied"]["sync_side_effects"] == 0
     assert results["sync_consequential_routes_to_durable_remote"]["executed"] == 1
     assert results["sync_consequential_routes_to_durable_remote"]["sync_side_effects"] == 0

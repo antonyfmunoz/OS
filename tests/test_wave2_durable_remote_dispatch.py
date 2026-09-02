@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-from itertools import chain, repeat
+from itertools import chain, count, repeat
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -1851,6 +1851,12 @@ def test_same_claim_cancel_ack_can_recover_reconciliation_window(monkeypatch, tm
         state="CANCELLED",
         result={"success": False, "error": "cancel requested by controller"},
         cleanup={
+            "enumeration_performed": True,
+            "enumeration_complete": True,
+            "ownership_validated": True,
+            "post_termination_enumeration_complete": True,
+            "residue_count": 0,
+            "cleanup_verified": True,
             "process_residue": [],
             "cancel_reason": "cancel requested by controller",
             **current.cancellation_identity(claim_id="node-claim"),
@@ -1880,7 +1886,7 @@ def test_durable_remote_shell_reconciles_observed_reconciliation_required(
     monkeypatch.setattr(mesh_verdict, "sign_verdict", lambda **_kwargs: "signed")
     monkeypatch.setattr(durable, "DurableRemoteStore", lambda: store)
     monkeypatch.setattr(dispatch.time, "sleep", lambda _seconds: None)
-    ticks = chain([100.0] * 20, [116.0] * 20, repeat(200.0))
+    ticks = chain([100.0] * 20, [116.0] * 20, count(1000.0, 100.0))
     monkeypatch.setattr(dispatch.time, "time", lambda: next(ticks))
 
     original_put = store.put_request
@@ -1908,8 +1914,8 @@ def test_durable_remote_shell_reconciles_observed_reconciliation_required(
     )
 
     assert out["ok"] is False
-    assert out["raw_status"] == "FAILED"
-    assert "reconciliation failed closed" in out["error"]
+    assert out["raw_status"] == "RECONCILIATION_REQUIRED"
+    assert "timed out" in out["error"]
     assert store.get_request(out["request_id"]) is not None
 
 

@@ -22,6 +22,11 @@ WITNESSES = (
     "ResultSentNotAccepted",
     "ClaimSentNotPersisted",
     "JobContainedBeforeResume",
+    "ConnectionAActive",
+    "PumpAActive",
+    "NewExchangePending",
+    "ResumeAmbiguous",
+    "CleanupIncomplete",
 )
 
 CONSTANTS = """\
@@ -35,6 +40,10 @@ MaxTransportGeneration = 2
 MaxGenerationTasks = 2
 EnforceConnectionSingleton = TRUE
 EnforcePumpSingleton = TRUE
+EnforceAckExchangeBinding = TRUE
+EnforcePreLaunchCancellation = TRUE
+EnforceTerminalCleanup = TRUE
+EnforceLaunchUncertaintyTerminalGuard = TRUE
 """
 
 
@@ -43,26 +52,30 @@ def _run(jar: Path, model_dir: Path, invariant: str, constants: str = CONSTANTS)
         cfg.write(f"SPECIFICATION Spec\n\nCONSTANT\n{constants}\nINVARIANT {invariant}\n")
         cfg_path = Path(cfg.name)
     try:
-        proc = subprocess.run(
-            [
-                "java",
-                "-XX:+UseParallelGC",
-                "-cp",
-                str(jar),
-                "tlc2.TLC",
-                "-config",
-                cfg_path.name,
-                "Wave2AuthorityPlaneAdequacy.tla",
-            ],
-            cwd=model_dir,
-            text=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            check=False,
-        )
+        with tempfile.TemporaryDirectory(prefix="wave2-tlc-adequacy-") as metadir:
+            proc = subprocess.run(
+                [
+                    "java",
+                    "-XX:+UseParallelGC",
+                    "-cp",
+                    str(jar),
+                    "tlc2.TLC",
+                    "-noGenerateSpecTE",
+                    "-metadir",
+                    metadir,
+                    "-config",
+                    cfg_path.name,
+                    "Wave2AuthorityPlaneAdequacy.tla",
+                ],
+                cwd=model_dir,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                check=False,
+            )
     finally:
         cfg_path.unlink(missing_ok=True)
-    expected = f"Invariant {invariant} is violated."
+    expected = f"Invariant {invariant} is violated"
     if proc.returncode == 0 or expected not in proc.stdout:
         raise RuntimeError(
             f"adequacy check {invariant} did not produce its expected witness\n{proc.stdout[-4000:]}"
@@ -103,6 +116,31 @@ def main() -> int:
         pump_mutant,
     )
     print("PASS mutation pump singleton guard")
+    for constant, invariant, label in (
+        (
+            "EnforceAckExchangeBinding",
+            "StaleAckForNewExchangeCannotProveAuthority",
+            "ACK exchange binding",
+        ),
+        (
+            "EnforcePreLaunchCancellation",
+            "PreLaunchCancellationPreventsProcessCreation",
+            "pre-launch cancellation",
+        ),
+        (
+            "EnforceTerminalCleanup",
+            "OrdinaryTerminalRequiresAdmissibility",
+            "terminal cleanup gate",
+        ),
+        (
+            "EnforceLaunchUncertaintyTerminalGuard",
+            "LaunchUncertaintyCannotTerminalize",
+            "launch uncertainty terminal guard",
+        ),
+    ):
+        mutant = CONSTANTS.replace(f"{constant} = TRUE", f"{constant} = FALSE")
+        _run(args.jar.resolve(), args.model_dir.resolve(), invariant, mutant)
+        print(f"PASS mutation {label}")
     print("MODEL_ADEQUACY=true")
     return 0
 

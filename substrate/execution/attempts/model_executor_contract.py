@@ -55,6 +55,9 @@ class ModelInvocation:
     argv: list[str]
     stdin: str = ""
     cwd: str = ""
+    inherited_fds: tuple[int, ...] = ()
+    readonly_fd_mounts: tuple[tuple[int, str], ...] = ()
+    execution_identity: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

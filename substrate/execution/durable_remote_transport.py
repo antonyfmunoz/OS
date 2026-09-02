@@ -532,6 +532,34 @@ def durable_execution_identity(
     return identity
 
 
+_POSITIVE_CLEANUP_FIELDS = (
+    "cleanup_verified",
+    "enumeration_performed",
+    "enumeration_complete",
+    "ownership_validated",
+    "post_termination_enumeration_complete",
+)
+
+
+def _positive_cleanup_proven(cleanup: dict[str, Any]) -> bool:
+    return bool(
+        all(cleanup.get(field) is True for field in _POSITIVE_CLEANUP_FIELDS)
+        and cleanup.get("residue_count") == 0
+        and cleanup.get("process_residue") == []
+    )
+
+
+def _positive_no_execution_proven(cleanup: dict[str, Any]) -> bool:
+    """Return true only for explicit proof that no process boundary was crossed."""
+
+    return bool(
+        cleanup.get("launch_not_attempted") is True
+        and cleanup.get("process_created") is False
+        and cleanup.get("process_side_effect_possible") is False
+        and cleanup.get("process_residue") == []
+    )
+
+
 def shell_running_identity_error(
     request: DurableRemoteRequest,
     *,
@@ -2127,30 +2155,22 @@ class DurableRemoteStore:
                 }
             )
             return self._enter_reconciliation(req, reason="terminal_result_digest_mismatch")
-        if cleanup.get("process_residue"):
-            reason_by_state = {
-                "CANCELLED": "cancel_without_cleanup",
-                "FAILED": "failed_without_cleanup",
-                "SUCCEEDED": "success_without_cleanup",
-            }
-            reason = reason_by_state.get(state, "terminal_without_cleanup")
-            req.cleanup = cleanup
-            req.diagnostics[reason] = cleanup.get("process_residue")
-            return self._enter_reconciliation(req, reason=reason)
         if (
             state == "CANCELLED"
             and claim_id == "unclaimed"
             and req.lifecycle_state == "QUEUED"
             and not req.claim_id
         ):
-            req.claim_id = claim_id
-            req.lifecycle_state = state
-            req.result_digest = str(existing.get("result_digest", req.result_digest))
-            req.cleanup = cleanup
             req.diagnostics.setdefault("recovered_terminal_result", True)
             req.diagnostics.setdefault("cancelled_before_claim", True)
-            self._update_request_locked(req, "TERMINAL_RESULT_RECOVERED")
-            return req
+            return self._terminalize(
+                req,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup,
+                event="TERMINAL_RESULT_RECOVERED",
+            )
         if state == "CANCELLED":
             reason = self._cancellation_ack_rejection_reason(
                 req,
@@ -2175,12 +2195,15 @@ class DurableRemoteStore:
             return req
         if req.lifecycle_state in TERMINAL_STATES:
             return req
-        req.lifecycle_state = state
-        req.result_digest = str(existing.get("result_digest", req.result_digest))
-        req.cleanup = dict(existing.get("cleanup") or {})
         req.diagnostics.setdefault("recovered_terminal_result", True)
-        self._update_request_locked(req, "TERMINAL_RESULT_RECOVERED")
-        return req
+        return self._terminalize(
+            req,
+            claim_id=claim_id,
+            state=state,
+            result=result,
+            cleanup=cleanup,
+            event="TERMINAL_RESULT_RECOVERED",
+        )
 
     def result_was_accepted(self, request_id: str, result_digest: str) -> bool:
         existing = self.result_for(request_id)
@@ -2309,10 +2332,23 @@ class DurableRemoteStore:
                     ):
                         req = self._maybe_converge_recovery_locked(locked)
                     elif locked.lifecycle_state == "QUEUED":
-                        locked.lifecycle_state = "EXPIRED"
                         locked.diagnostics.setdefault("expired_before_claim", True)
-                        self._update_request_locked(locked, "EXPIRED")
-                        req = locked
+                        req = self._terminalize(
+                            locked,
+                            claim_id="unclaimed",
+                            state="EXPIRED",
+                            result={
+                                "success": False,
+                                "error": "durable remote request expired before claim",
+                            },
+                            cleanup={
+                                "launch_not_attempted": True,
+                                "process_created": False,
+                                "process_side_effect_possible": False,
+                                "process_residue": [],
+                            },
+                            event="EXPIRED",
+                        )
                     else:
                         locked.lifecycle_state = "CANCEL_REQUESTED"
                         if not locked.cancellation_requested_at:
@@ -2547,7 +2583,6 @@ class DurableRemoteStore:
                 return noncanonical
             req = self._maybe_converge_recovery_locked(req)
             if req.lifecycle_state == "QUEUED" and not req.claim_id:
-                req.lifecycle_state = "CANCELLED"
                 if not req.cancellation_requested_at:
                     req.cancellation_requested_at = now_s()
                 req.diagnostics.setdefault("cancelled_before_claim", True)
@@ -2559,7 +2594,12 @@ class DurableRemoteStore:
                         "success": False,
                         "error": "durable remote request cancelled before claim",
                     },
-                    cleanup={"process_residue": []},
+                    cleanup={
+                        "launch_not_attempted": True,
+                        "process_created": False,
+                        "process_side_effect_possible": False,
+                        "process_residue": [],
+                    },
                     event="CANCELLED_BEFORE_CLAIM",
                 )
             if req.lifecycle_state in RECOVERY_STATES:
@@ -2678,6 +2718,13 @@ class DurableRemoteStore:
         cleanup: dict[str, Any] | None = None,
         event: str | None = None,
     ) -> DurableRemoteRequest:
+        """The sole ordinary-terminal commit seam.
+
+        Callers may propose a terminal outcome, but only this method may commit
+        one. Unknown execution, launch, cancellation, or cleanup truth is
+        preserved as reconciliation evidence rather than converted to FAILED.
+        """
+
         existing_result = self._load_result_record(req.request_id)
         if existing_result.unavailable:
             self._write_rejected_result_record(
@@ -2694,6 +2741,66 @@ class DurableRemoteStore:
                 reason=existing_result.reason,
                 record_kind="result",
             )
+        cleanup_material = dict(cleanup or {})
+        rejection_reason = self._terminal_admissibility_rejection_reason(
+            req,
+            claim_id=claim_id,
+            state=state,
+            result=result,
+            cleanup=cleanup_material,
+        )
+        if rejection_reason:
+            digest = self._write_rejected_result_record(
+                req,
+                claim_id=claim_id,
+                state=state,
+                result=result,
+                cleanup=cleanup_material,
+                reason=rejection_reason,
+            )
+            if existing_result.valid:
+                existing = dict(existing_result.data or {})
+                if (
+                    existing.get("state") == state
+                    and existing.get("claim_id") == claim_id
+                    and existing.get("result") == result
+                    and existing.get("cleanup") == cleanup_material
+                ):
+                    # Preserve the exact bytes as rejected evidence, then remove
+                    # them from the canonical slot so the durable outbox cannot
+                    # mistake an inadmissible crash-split record for acceptance.
+                    self._result_path(req.request_id).unlink(missing_ok=True)
+            req.cleanup = cleanup_material
+            if rejection_reason == "positive_cleanup_proof_missing":
+                reason_by_state = {
+                    "CANCELLED": "cancel_without_cleanup",
+                    "FAILED": "failed_without_cleanup",
+                    "SUCCEEDED": "success_without_cleanup",
+                }
+                diagnostic_key = reason_by_state.get(state, "terminal_without_cleanup")
+                req.diagnostics[diagnostic_key] = cleanup_material.get(
+                    "process_residue"
+                ) or [
+                    {
+                        "state": (
+                            "cleanup_positive_proof_missing"
+                            if cleanup is not None
+                            else "cleanup_proof_missing"
+                        )
+                    }
+                ]
+            req.diagnostics.setdefault("terminal_admissibility_rejected", []).append(
+                {
+                    "proposed_state": state,
+                    "claim_id": claim_id,
+                    "reason": rejection_reason,
+                    "rejected_result_digest": digest,
+                }
+            )
+            return self._enter_reconciliation(
+                req,
+                reason=f"terminal_admissibility:{rejection_reason}",
+            )
         req.claim_id = claim_id
         req.lifecycle_state = state
         req.result_digest = self._write_result_record(
@@ -2709,6 +2816,79 @@ class DurableRemoteStore:
             req.cancellation_acknowledged_at = now_s()
         self._update_request_locked(req, event or state)
         return req
+
+    def _terminal_admissibility_rejection_reason(
+        self,
+        req: DurableRemoteRequest,
+        *,
+        claim_id: str,
+        state: str,
+        result: dict[str, Any],
+        cleanup: dict[str, Any],
+    ) -> str:
+        if state not in TERMINAL_STATES:
+            return "unsupported_terminal_state"
+        if not all(
+            str(value or "").strip()
+            for value in (
+                req.request_id,
+                req.correlation_id,
+                req.node_id,
+                req.candidate_sha,
+                req.payload_digest,
+            )
+        ):
+            return "incomplete_execution_identity"
+
+        no_execution = _positive_no_execution_proven(cleanup)
+        if claim_id == "unclaimed":
+            if req.claim_id or not no_execution:
+                return "unclaimed_terminal_without_no_execution_proof"
+        elif not claim_id or req.claim_id != claim_id:
+            return "terminal_claim_identity_mismatch"
+
+        expected_execution = durable_execution_identity(req, claim_id=claim_id)
+        observed_execution = dict(req.process_tree.get("execution_identity") or {})
+        if observed_execution and observed_execution != expected_execution:
+            return "terminal_execution_identity_mismatch"
+
+        uncertainty_markers = (
+            result.get("execution_outcome_unresolved") is True,
+            result.get("execution_outcome_unknown") is True,
+            cleanup.get("execution_outcome_unknown") is True,
+            cleanup.get("launch_outcome_uncertain") is True,
+            cleanup.get("resume_state_uncertain") is True,
+            cleanup.get("observer_missing") is True,
+            cleanup.get("transport_disconnect_outcome_unknown") is True,
+        )
+        if any(uncertainty_markers):
+            return "execution_or_launch_outcome_unknown"
+
+        launch_state = str(req.process_tree.get("launch_state", "") or "")
+        if launch_state == SHELL_LAUNCH_IN_PROGRESS and not no_execution:
+            return "launch_in_progress_outcome_unknown"
+
+        if not no_execution and not _positive_cleanup_proven(cleanup):
+            return "positive_cleanup_proof_missing"
+
+        success_value = result.get("success", result.get("ok"))
+        if state == "SUCCEEDED" and success_value is not True:
+            return "successful_outcome_not_proven"
+        if state in {"FAILED", "EXPIRED"} and success_value is True:
+            return "failed_outcome_conflicts_with_result"
+        if state == "FAILED" and success_value is None and not str(
+            result.get("error", "") or ""
+        ).strip():
+            return "failed_outcome_not_proven"
+        if state == "CANCELLED" and not no_execution:
+            cancellation_reason = self._cancellation_ack_rejection_reason(
+                req,
+                claim_id=claim_id,
+                cleanup=cleanup,
+            )
+            if cancellation_reason:
+                return cancellation_reason
+        return ""
 
     def publish_result(
         self,
@@ -2774,6 +2954,14 @@ class DurableRemoteStore:
             )
         req = self._maybe_converge_recovery_locked(req)
         if not req.claim_id:
+            if claim_id == "unclaimed" and _positive_no_execution_proven(dict(cleanup or {})):
+                return self._terminalize(
+                    req,
+                    claim_id=claim_id,
+                    state=state,
+                    result=result,
+                    cleanup=cleanup,
+                )
             self._write_rejected_result_record(
                 req,
                 claim_id=claim_id,
@@ -2879,38 +3067,6 @@ class DurableRemoteStore:
             )
             self._update_request_locked(req, "LATE_RESULT_REJECTED")
             return req
-        cleanup_proven = bool(
-            cleanup is not None
-            and cleanup.get("cleanup_verified") is True
-            and cleanup.get("enumeration_performed") is True
-            and cleanup.get("enumeration_complete") is True
-            and cleanup.get("ownership_validated") is True
-            and cleanup.get("post_termination_enumeration_complete") is True
-            and cleanup.get("residue_count") == 0
-            and cleanup.get("process_residue") == []
-        )
-        if state in TERMINAL_STATES and not cleanup_proven:
-            reason_by_state = {
-                "CANCELLED": "cancel_without_cleanup",
-                "FAILED": "failed_without_cleanup",
-                "SUCCEEDED": "success_without_cleanup",
-            }
-            reason = reason_by_state.get(state, "terminal_without_cleanup")
-            self._write_rejected_result_record(
-                req,
-                claim_id=claim_id,
-                state=state,
-                result=result,
-                cleanup=cleanup,
-                reason=reason,
-            )
-            req.cleanup = cleanup or {}
-            req.diagnostics[reason] = (
-                cleanup.get("process_residue") or [{"state": "cleanup_positive_proof_missing"}]
-                if cleanup is not None
-                else [{"state": "cleanup_proof_missing"}]
-            )
-            return self._enter_reconciliation(req, reason=reason)
         if state == "CANCELLED":
             reason = self._cancellation_ack_rejection_reason(
                 req,
@@ -2927,6 +3083,10 @@ class DurableRemoteStore:
                     reason=reason,
                 )
                 req.cleanup = cleanup or {}
+                if reason == "cancel_ack_without_zero_residue":
+                    req.diagnostics["cancel_without_cleanup"] = req.cleanup.get(
+                        "process_residue"
+                    ) or [{"state": "cleanup_positive_proof_missing"}]
                 req.diagnostics.setdefault("cancel_ack_rejected", []).append(
                     {"reason": reason, "claim_id": claim_id}
                 )
@@ -3038,6 +3198,7 @@ class DurableRemoteStore:
                 "success": False,
                 "error": "durable remote reconciliation failed closed",
                 "reason": reason,
+                "execution_outcome_unresolved": True,
             },
             cleanup=req.cleanup,
             event="RECONCILED_FAILED",
@@ -3077,6 +3238,7 @@ class DurableRemoteStore:
                     "success": False,
                     "error": "durable remote unresolved request failed closed",
                     "reason": reason,
+                    "execution_outcome_unresolved": True,
                 },
                 cleanup=req.cleanup,
                 event="UNRESOLVED_FAILED",

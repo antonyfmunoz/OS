@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 SUPERVISOR = ROOT / "nodes" / "windows" / "umh_node" / "task_supervisor.ps1"
 CHILD_SUPERVISOR = ROOT / "nodes" / "windows" / "umh_node" / "daemon_child.ps1"
@@ -167,8 +166,16 @@ def test_node_client_stop_drains_adapter_threads_and_executor() -> None:
     assert 'adapter.execute("camera.stream_stop", {})' in stop_body
     assert 'hasattr(adapter, "shutdown")' in stop_body
     assert 'hasattr(adapter, "stop")' in stop_body
-    assert "self._media_drain_task.cancel()" in stop_body
+    assert "await self._teardown_connection_generation(generation, ws)" in stop_body
     assert "self._camera_executor.shutdown" in stop_body
+
+    teardown_body = body.split(
+        "    async def _teardown_connection_generation", 1
+    )[1].split("    def _normalize_traffic_class", 1)[0]
+    assert "task.cancel()" in teardown_body
+    assert "await asyncio.wait(" in teardown_body
+    assert "await asyncio.gather(*done, return_exceptions=True)" in teardown_body
+    assert "TRANSPORT_GENERATION_TEARDOWN_FAILED" in teardown_body
 
 
 def test_reconciler_uses_canonical_stop_helper_not_pid_force_kill() -> None:

@@ -1555,7 +1555,15 @@ async def _duplicate_terminal_result_ack_reports_rejection(tmp_path) -> dict:
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "first"},
-        cleanup={"process_residue": []},
+        cleanup={
+            "enumeration_performed": True,
+            "enumeration_complete": True,
+            "ownership_validated": True,
+            "post_termination_enumeration_complete": True,
+            "residue_count": 0,
+            "cleanup_verified": True,
+            "process_residue": [],
+        },
     )
 
     class Ws:
@@ -1566,7 +1574,15 @@ async def _duplicate_terminal_result_ack_reports_rejection(tmp_path) -> dict:
             self.sent.append(payload)
 
     ws = Ws()
-    cleanup = {"process_residue": []}
+    cleanup = {
+        "enumeration_performed": True,
+        "enumeration_complete": True,
+        "ownership_validated": True,
+        "post_termination_enumeration_complete": True,
+        "residue_count": 0,
+        "cleanup_verified": True,
+        "process_residue": [],
+    }
     result = {"success": True, "stdout": "foreign"}
     result_digest = sha256_json(
         {

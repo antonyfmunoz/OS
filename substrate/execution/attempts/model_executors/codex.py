@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import signal
+import stat
 import subprocess
 import threading
 import time
@@ -52,7 +53,8 @@ _CODEX_TREE_KILL_SECONDS = 3.0
 _CODEX_FORCE_DRAIN_SECONDS = 3.0
 _CODEX_PHASE_CALLBACK_SECONDS = 0.05
 _CODEX_EXECUTABLE_POLICY_ENV = "UMH_CODEX_APPROVED_EXECUTABLES_JSON"
-_CODEX_EXECUTABLE_POLICY_VERSION = "codex-executable-realpath-sha256-v1"
+_CODEX_EXECUTABLE_POLICY_VERSION = "codex-executable-object-sha256-v2"
+_CODEX_GOVERNED_LAUNCH_PATH = "/tmp/umh-codex-approved"
 _CODEX_CLEANUP_MARGIN_SECONDS = (
     _CODEX_TREE_TERMINATE_SECONDS
     + _CODEX_GRACEFUL_DRAIN_SECONDS
@@ -61,9 +63,72 @@ _CODEX_CLEANUP_MARGIN_SECONDS = (
 )
 
 
+def _sealed_executable_memfd(source_fd: int) -> int:
+    """Materialize approved bytes into an immutable attempt-private object."""
+
+    if not hasattr(os, "memfd_create"):
+        raise OSError("sealed executable objects require Linux memfd_create")
+    import fcntl
+
+    flags = getattr(os, "MFD_CLOEXEC", 0x0001) | getattr(os, "MFD_ALLOW_SEALING", 0x0002)
+    target_fd = os.memfd_create("umh-codex-approved", flags=flags)
+    try:
+        os.lseek(source_fd, 0, os.SEEK_SET)
+        while chunk := os.read(source_fd, 1024 * 1024):
+            view = memoryview(chunk)
+            while view:
+                written = os.write(target_fd, view)
+                if written <= 0:
+                    raise OSError("failed to materialize approved Codex executable")
+                view = view[written:]
+        os.lseek(target_fd, 0, os.SEEK_SET)
+        required_seals = (
+            fcntl.F_SEAL_SEAL
+            | fcntl.F_SEAL_SHRINK
+            | fcntl.F_SEAL_GROW
+            | fcntl.F_SEAL_WRITE
+        )
+        fcntl.fcntl(target_fd, fcntl.F_ADD_SEALS, required_seals)
+        if fcntl.fcntl(target_fd, fcntl.F_GET_SEALS) & required_seals != required_seals:
+            raise OSError("approved Codex executable memfd seals were not applied")
+        return target_fd
+    except Exception:
+        os.close(target_fd)
+        raise
+
+
 def _resolve_codex() -> str:
     resolved = shutil.which("codex") or ""
-    return os.path.realpath(resolved) if resolved else ""
+    realpath = os.path.realpath(resolved) if resolved else ""
+    if not realpath or not realpath.endswith("/bin/codex.js"):
+        return realpath
+    package_root = Path(realpath).parent.parent
+    platform_targets = {
+        ("linux", "x86_64"): (
+            "codex-linux-x64",
+            "x86_64-unknown-linux-musl",
+        ),
+        ("linux", "aarch64"): (
+            "codex-linux-arm64",
+            "aarch64-unknown-linux-musl",
+        ),
+    }
+    machine = os.uname().machine if hasattr(os, "uname") else ""
+    selected = platform_targets.get((os.sys.platform, machine))
+    if selected is None:
+        return realpath
+    package_name, target = selected
+    native = (
+        package_root
+        / "node_modules"
+        / "@openai"
+        / package_name
+        / "vendor"
+        / target
+        / "bin"
+        / "codex"
+    )
+    return os.path.realpath(native) if native.is_file() else realpath
 
 
 def _file_sha256(path: str) -> str:
@@ -71,6 +136,18 @@ def _file_sha256(path: str) -> str:
     with Path(path).open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _fd_sha256(fd: int) -> str:
+    digest = hashlib.sha256()
+    offset = os.lseek(fd, 0, os.SEEK_CUR)
+    try:
+        os.lseek(fd, 0, os.SEEK_SET)
+        while chunk := os.read(fd, 1024 * 1024):
+            digest.update(chunk)
+    finally:
+        os.lseek(fd, offset, os.SEEK_SET)
     return digest.hexdigest()
 
 
@@ -121,16 +198,38 @@ def _codex_executable_attestation(path: str, *, version: str) -> dict[str, objec
 
 
 def validate_codex_executable_attestation(evidence: dict[str, object]) -> str:
-    """Recompute executable trust instead of trusting worker-authored booleans."""
+    """Validate the exact opened object against the governed policy snapshot."""
 
     path = str(evidence.get("codex_executable_path", "") or "")
-    version = str(evidence.get("codex_executable_version", "") or "")
-    expected = _codex_executable_attestation(path, version=version)
-    for key, expected_value in expected.items():
-        if evidence.get(key) != expected_value:
-            return f"{key} does not match the active Codex executable policy"
-    if not expected["codex_executable_approved"]:
+    digest = str(evidence.get("codex_executable_sha256", "") or "").lower()
+    executed_digest = str(evidence.get("codex_executed_object_sha256", "") or "").lower()
+    approved = _approved_codex_executables()
+    policy_identity = _json_digest(
+        {
+            "policy": _CODEX_EXECUTABLE_POLICY_VERSION,
+            "approved_executables": approved,
+        }
+    )
+    if os.path.realpath(path) != path or approved.get(path) != digest:
         return "Codex executable is not approved by realpath/hash policy"
+    if evidence.get("codex_executable_policy") != _CODEX_EXECUTABLE_POLICY_VERSION:
+        return "codex_executable_policy does not match the active Codex executable policy"
+    if evidence.get("codex_executable_policy_identity") != policy_identity:
+        return "codex_executable_policy_identity does not match the active policy"
+    if evidence.get("codex_executable_approved") is not True:
+        return "codex_executable_approved is not true"
+    if executed_digest != digest:
+        return "executed Codex object digest does not match approved executable digest"
+    if evidence.get("codex_executable_binding") != "bwrap_ro_bind_data_sealed_memfd":
+        return "Codex executable is not bound from a sealed read-only object"
+    if evidence.get("codex_governed_launch_path") != _CODEX_GOVERNED_LAUNCH_PATH:
+        return "Codex governed launch path is invalid"
+    if not str(evidence.get("codex_executable_object_identity", "") or ""):
+        return "Codex executable object identity is missing"
+    if evidence.get("post_execution_executable_binding_verified") is not True:
+        return "post-execution Codex object binding is not verified"
+    if evidence.get("post_execution_executable_sha256") != digest:
+        return "post-execution Codex object digest does not match approved digest"
     return ""
 
 
@@ -862,10 +961,51 @@ class CodexModelExecutor:
         cli = self._executable_path
         if not cli or self._active_executable_trust_error():
             return ModelInvocation(argv=[])
-
+        try:
+            source_fd = os.open(cli, os.O_RDONLY | getattr(os, "O_CLOEXEC", 0))
+            source_stat = os.fstat(source_fd)
+            if not stat.S_ISREG(source_stat.st_mode) or not (source_stat.st_mode & 0o111):
+                raise OSError("approved Codex object is not an executable regular file")
+            source_digest = _fd_sha256(source_fd)
+            if source_digest != self.executable_attestation.get("codex_executable_sha256"):
+                raise OSError("approved Codex source object changed before materialization")
+            fd = _sealed_executable_memfd(source_fd)
+            opened = os.fstat(fd)
+            opened_digest = _fd_sha256(fd)
+        except OSError:
+            if "fd" in locals():
+                os.close(fd)
+            if "source_fd" in locals():
+                os.close(source_fd)
+            return ModelInvocation(argv=[])
+        os.close(source_fd)
+        if opened_digest != self.executable_attestation.get("codex_executable_sha256"):
+            os.close(fd)
+            return ModelInvocation(argv=[])
+        object_identity = _json_digest(
+            {
+                "device": opened.st_dev,
+                "inode": opened.st_ino,
+                "size": opened.st_size,
+                "mtime_ns": opened.st_mtime_ns,
+                "sha256": opened_digest,
+            }
+        )
+        attestation = {
+            **self.executable_attestation,
+            "codex_executed_object_sha256": opened_digest,
+            "codex_executable_object_identity": object_identity,
+            "codex_executable_binding": "bwrap_ro_bind_data_sealed_memfd",
+            "codex_governed_launch_path": _CODEX_GOVERNED_LAUNCH_PATH,
+            "prelaunch_attestation_attempt_id": packet.attempt_id,
+            "prelaunch_attestation_package_hash": packet.package_hash,
+        }
+        attestation["prelaunch_attestation_identity"] = _json_digest(
+            attestation
+        )
         return ModelInvocation(
             argv=[
-                cli,
+                _CODEX_GOVERNED_LAUNCH_PATH,
                 "exec",
                 "--json",
                 "--ephemeral",
@@ -881,7 +1021,34 @@ class CodexModelExecutor:
             ],
             stdin=packet.prompt,
             cwd=packet.worktree_path,
+            inherited_fds=(fd,),
+            readonly_fd_mounts=((fd, _CODEX_GOVERNED_LAUNCH_PATH),),
+            execution_identity=attestation,
         )
+
+    def finalize_invocation_attestation(
+        self,
+        invocation: ModelInvocation,
+        packet: ModelWorkPacketInput,
+    ) -> dict[str, object]:
+        if not invocation.inherited_fds:
+            return {"post_execution_executable_binding_verified": False}
+        fd = invocation.inherited_fds[0]
+        try:
+            post_digest = _fd_sha256(fd)
+        except OSError:
+            return {"post_execution_executable_binding_verified": False}
+        expected = str(
+            invocation.execution_identity.get("codex_executed_object_sha256", "") or ""
+        )
+        return {
+            "post_execution_executable_sha256": post_digest,
+            "post_execution_executable_binding_verified": bool(
+                post_digest == expected
+                and invocation.execution_identity.get("prelaunch_attestation_attempt_id")
+                == packet.attempt_id
+            ),
+        }
 
     def collect_result(
         self, packet: ModelWorkPacketInput, completed: object | None, *, duration_seconds: float
@@ -1004,40 +1171,58 @@ class CodexModelExecutor:
                 execution_identity=dict(self.executable_attestation),
                 proof_binding=packet.proof_binding,
             )
-        start = time.monotonic()
-        timed_out = False
-        stdout = ""
-        stderr = ""
         try:
-            proc = _run_codex_process_tree(
-                invocation.argv,
-                caller="wave2_model_executor_codex",
-                timeout=packet.timeout_seconds,
-                cwd=invocation.cwd,
-                env=env,
-                input=invocation.stdin,
-                capture_output=True,
-                text=True,
+            start = time.monotonic()
+            timed_out = False
+            stdout = ""
+            stderr = ""
+            try:
+                direct_argv = list(invocation.argv)
+                if invocation.inherited_fds:
+                    direct_argv[0] = f"/proc/self/fd/{invocation.inherited_fds[0]}"
+                proc = _run_codex_process_tree(
+                    direct_argv,
+                    caller="wave2_model_executor_codex",
+                    timeout=packet.timeout_seconds,
+                    cwd=invocation.cwd,
+                    env=env,
+                    input=invocation.stdin,
+                    capture_output=True,
+                    text=True,
+                    pass_fds=invocation.inherited_fds,
+                )
+            except subprocess.TimeoutExpired as exc:
+                proc = None
+                timed_out = True
+                stdout = _sanitize(_decode_timeout_stream(getattr(exc, "output", "")))
+                stderr = _sanitize(
+                    _decode_timeout_stream(getattr(exc, "stderr", "")) or str(exc)
+                )
+            duration = time.monotonic() - start
+            if proc is None:
+                return ModelTerminalResult(
+                    ok=False,
+                    status="failed",
+                    stdout=stdout if timed_out else "",
+                    stderr=stderr if timed_out else "",
+                    timed_out=timed_out,
+                    duration_seconds=duration,
+                    retry_class=("external_transient" if timed_out else "host_backpressure"),
+                    identity=self.identity,
+                    proof_binding=packet.proof_binding,
+                )
+            terminal = self.collect_result(packet, proc, duration_seconds=duration)
+            terminal.execution_identity.update(invocation.execution_identity)
+            terminal.execution_identity.update(
+                self.finalize_invocation_attestation(invocation, packet)
             )
-        except subprocess.TimeoutExpired as exc:
-            proc = None
-            timed_out = True
-            stdout = _sanitize(_decode_timeout_stream(getattr(exc, "output", "")))
-            stderr = _sanitize(_decode_timeout_stream(getattr(exc, "stderr", "")) or str(exc))
-        duration = time.monotonic() - start
-        if proc is None:
-            return ModelTerminalResult(
-                ok=False,
-                status="failed",
-                stdout=stdout if timed_out else "",
-                stderr=stderr if timed_out else "",
-                timed_out=timed_out,
-                duration_seconds=duration,
-                retry_class="external_transient" if timed_out else "host_backpressure",
-                identity=self.identity,
-                proof_binding=packet.proof_binding,
-            )
-        return self.collect_result(packet, proc, duration_seconds=duration)
+            return terminal
+        finally:
+            for fd in invocation.inherited_fds:
+                try:
+                    os.close(fd)
+                except OSError:
+                    pass
 
     def _active_executable_trust_error(self) -> str:
         if self._prelaunch_trust_error:
@@ -1050,11 +1235,13 @@ class CodexModelExecutor:
         )
         if current != self.executable_attestation:
             return "Codex executable identity changed after pre-launch approval"
-        return validate_codex_executable_attestation(current)
+        return "" if current.get("codex_executable_approved") is True else (
+            "Codex executable is not approved by realpath/hash policy"
+        )
 
     def _invocation_argv(self, packet: ModelWorkPacketInput) -> list[str]:
         return [
-            self._executable_path,
+            _CODEX_GOVERNED_LAUNCH_PATH,
             "exec",
             "--json",
             "--ephemeral",

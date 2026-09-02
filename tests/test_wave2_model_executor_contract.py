@@ -4,11 +4,16 @@ import json
 import os
 import subprocess
 import time
+from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
 
-from substrate.execution.attempts.host_isolation import scrub_worker_env
+from substrate.execution.attempts.host_isolation import (
+    IsolationProfile,
+    build_bwrap_command,
+    scrub_worker_env,
+)
 from substrate.execution.attempts.model_executor_contract import (
     ModelExecutorIdentity,
     ModelExecutorReadiness,
@@ -23,7 +28,9 @@ from substrate.execution.attempts.model_executor_selection import (
 )
 from substrate.execution.attempts.model_executors.codex import (
     CodexModelExecutor,
+    _fd_sha256,
     _file_sha256,
+    validate_codex_executable_attestation,
 )
 from substrate.execution.attempts.model_executors.deterministic import (
     DeterministicConformanceExecutor,
@@ -175,7 +182,9 @@ def test_codex_adapter_invokes_exec_with_prompt_on_stdin(tmp_path, monkeypatch):
     result = adapter.invoke(_packet(tmp_path, prompt="secret-free prompt"), env={"CODEX_HOME": "x"})
 
     cmd, kwargs = calls[-1]
-    assert cmd[:3] == ["/usr/bin/codex", "exec", "--json"]
+    assert cmd[0].startswith("/proc/self/fd/")
+    assert cmd[1:3] == ["exec", "--json"]
+    assert kwargs["pass_fds"]
     assert "--ignore-user-config" in cmd
     assert cmd[cmd.index("--sandbox") + 1] == "danger-full-access"
     assert cmd[cmd.index("-m") + 1] == "gpt-test"
@@ -321,6 +330,268 @@ def test_governed_sol_revalidates_pinned_executable_before_invocation(tmp_path, 
     invocation = adapter.build_invocation(_packet(tmp_path))
 
     assert invocation.argv == []
+
+
+def test_governed_sol_replacement_after_open_cannot_change_executed_object(
+    tmp_path, monkeypatch
+):
+    executable = tmp_path / "codex"
+    executable.write_bytes(b"approved-object")
+    executable.chmod(0o755)
+    approved_digest = _file_sha256(str(executable))
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(executable.resolve()): approved_digest}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(executable),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_metadata_command",
+        lambda *_a, **_k: SimpleNamespace(
+            returncode=0, stdout="codex-cli approved\n", stderr=""
+        ),
+    )
+    adapter = CodexModelExecutor(model="gpt-5.6-sol")
+    invocation = adapter.build_invocation(_packet(tmp_path))
+    replacement = tmp_path / "replacement"
+    replacement.write_bytes(b"unapproved-replacement")
+    replacement.chmod(0o755)
+    replacement.replace(executable)
+    try:
+        assert _fd_sha256(invocation.inherited_fds[0]) == approved_digest
+        profile = IsolationProfile(
+            worktree_path=str(tmp_path),
+            worker_home=str(tmp_path),
+        )
+        command = build_bwrap_command(
+            invocation.argv,
+            profile,
+            readonly_fd_mounts=invocation.readonly_fd_mounts,
+        )
+        mount_index = command.index("--ro-bind-data")
+        assert command[mount_index + 1] == str(invocation.inherited_fds[0])
+        assert command[mount_index + 2] == "/tmp/umh-codex-approved"
+        assert command[mount_index - 2 : mount_index] == ["--perms", "0555"]
+        assert invocation.argv[0] == "/tmp/umh-codex-approved"
+    finally:
+        os.close(invocation.inherited_fds[0])
+
+
+def test_governed_sol_descriptor_mount_executes_opened_object_after_path_replacement(
+    tmp_path, monkeypatch
+):
+    executable = tmp_path / "codex"
+    executable.write_text("#!/bin/sh\nprintf 'approved-open-object\\n'\n", encoding="utf-8")
+    executable.chmod(0o755)
+    approved_digest = _file_sha256(str(executable))
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(executable.resolve()): approved_digest}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(executable),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_metadata_command",
+        lambda *_a, **_k: SimpleNamespace(
+            returncode=0, stdout="codex-cli approved\n", stderr=""
+        ),
+    )
+    adapter = CodexModelExecutor(model="gpt-5.6-sol")
+    invocation = adapter.build_invocation(_packet(tmp_path))
+    replacement = tmp_path / "replacement"
+    replacement.write_text("#!/bin/sh\nprintf 'replacement-path-object\\n'\n", encoding="utf-8")
+    replacement.chmod(0o755)
+    replacement.replace(executable)
+    worktree = tmp_path / "worktree"
+    worker_home = tmp_path / "worker-home"
+    worktree.mkdir()
+    worker_home.mkdir()
+    try:
+        command = build_bwrap_command(
+            invocation.argv,
+            IsolationProfile(
+                worktree_path=str(worktree),
+                worker_home=str(worker_home),
+            ),
+            readonly_fd_mounts=invocation.readonly_fd_mounts,
+        )
+        completed = subprocess.run(
+            command,
+            check=False,
+            capture_output=True,
+            text=True,
+            pass_fds=invocation.inherited_fds,
+        )
+        assert completed.returncode == 0, completed.stderr
+        assert completed.stdout == "approved-open-object\n"
+        assert "replacement-path-object" not in completed.stdout
+    finally:
+        os.close(invocation.inherited_fds[0])
+
+
+def test_governed_sol_symlink_retarget_fails_closed(tmp_path, monkeypatch):
+    first = tmp_path / "codex-v1"
+    second = tmp_path / "codex-v2"
+    link = tmp_path / "codex"
+    first.write_bytes(b"approved-v1")
+    second.write_bytes(b"unapproved-v2")
+    first.chmod(0o755)
+    second.chmod(0o755)
+    link.symlink_to(first)
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(first.resolve()): _file_sha256(str(first))}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(link),
+    )
+    adapter = CodexModelExecutor(model="gpt-5.6-sol")
+    link.unlink()
+    link.symlink_to(second)
+
+    assert adapter.build_invocation(_packet(tmp_path)).argv == []
+
+
+def test_governed_sol_materialized_object_is_sealed_against_in_place_tamper(
+    tmp_path, monkeypatch
+):
+    executable = tmp_path / "codex"
+    executable.write_bytes(b"approved")
+    executable.chmod(0o755)
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(executable.resolve()): _file_sha256(str(executable))}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(executable),
+    )
+    adapter = CodexModelExecutor(model="gpt-5.6-sol")
+    invocation = adapter.build_invocation(_packet(tmp_path))
+    try:
+        with pytest.raises(OSError):
+            os.write(invocation.inherited_fds[0], b"tampered")
+        final = adapter.finalize_invocation_attestation(invocation, _packet(tmp_path))
+        assert final["post_execution_executable_binding_verified"] is True
+    finally:
+        os.close(invocation.inherited_fds[0])
+
+
+def test_governed_sol_attestation_rejects_claimed_digest_for_different_object(
+    tmp_path, monkeypatch
+):
+    executable = tmp_path / "codex"
+    executable.write_bytes(b"approved")
+    executable.chmod(0o755)
+    digest = _file_sha256(str(executable))
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(executable.resolve()): digest}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(executable),
+    )
+    evidence = {
+        "codex_executable_path": str(executable.resolve()),
+        "codex_executable_sha256": digest,
+        "codex_executable_policy": "codex-executable-object-sha256-v2",
+        "codex_executable_policy_identity": CodexModelExecutor(
+            model="gpt-5.6-sol"
+        ).executable_attestation["codex_executable_policy_identity"],
+        "codex_executable_approved": True,
+        "codex_executed_object_sha256": "f" * 64,
+        "codex_executable_object_identity": "object-1",
+        "codex_executable_binding": "bwrap_ro_bind_data_sealed_memfd",
+        "codex_governed_launch_path": "/tmp/umh-codex-approved",
+        "post_execution_executable_sha256": "f" * 64,
+        "post_execution_executable_binding_verified": True,
+    }
+
+    assert "executed Codex object digest" in validate_codex_executable_attestation(evidence)
+
+
+def test_governed_sol_attestation_rejects_post_execution_object_mismatch(
+    tmp_path, monkeypatch
+):
+    executable = tmp_path / "codex"
+    executable.write_bytes(b"approved")
+    executable.chmod(0o755)
+    digest = _file_sha256(str(executable))
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(executable.resolve()): digest}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(executable),
+    )
+    adapter = CodexModelExecutor(model="gpt-5.6-sol")
+    evidence = {
+        **adapter.executable_attestation,
+        "codex_executed_object_sha256": digest,
+        "codex_executable_object_identity": "sealed-object-1",
+        "codex_executable_binding": "bwrap_ro_bind_data_sealed_memfd",
+        "codex_governed_launch_path": "/tmp/umh-codex-approved",
+        "post_execution_executable_sha256": "f" * 64,
+        "post_execution_executable_binding_verified": True,
+    }
+
+    assert "post-execution Codex object digest" in validate_codex_executable_attestation(evidence)
+
+
+def test_governed_sol_post_execution_binding_is_attempt_specific(tmp_path, monkeypatch):
+    executable = tmp_path / "codex"
+    executable.write_bytes(b"approved")
+    executable.chmod(0o755)
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(executable.resolve()): _file_sha256(str(executable))}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(executable),
+    )
+    adapter = CodexModelExecutor(model="gpt-5.6-sol")
+    invocation = adapter.build_invocation(_packet(tmp_path))
+    foreign_packet = replace(_packet(tmp_path), attempt_id="foreign-attempt")
+    try:
+        final = adapter.finalize_invocation_attestation(invocation, foreign_packet)
+        assert final["post_execution_executable_binding_verified"] is False
+    finally:
+        os.close(invocation.inherited_fds[0])
+
+
+def test_governed_sol_post_execution_binding_rehashes_same_object(tmp_path, monkeypatch):
+    executable = tmp_path / "codex"
+    executable.write_bytes(b"approved")
+    executable.chmod(0o755)
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(executable.resolve()): _file_sha256(str(executable))}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(executable),
+    )
+    adapter = CodexModelExecutor(model="gpt-5.6-sol")
+    packet = _packet(tmp_path)
+    invocation = adapter.build_invocation(packet)
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._fd_sha256",
+        lambda _fd: "f" * 64,
+    )
+    try:
+        final = adapter.finalize_invocation_attestation(invocation, packet)
+        assert final["post_execution_executable_binding_verified"] is False
+        assert final["post_execution_executable_sha256"] == "f" * 64
+    finally:
+        os.close(invocation.inherited_fds[0])
 
 
 def test_governed_sol_rejects_byte_identical_copy_at_unapproved_realpath(
@@ -1712,6 +1983,7 @@ def test_codex_retry_without_denial_uses_normal_writable_policy(tmp_path, monkey
 
     monkeypatch.setattr(worker, "build_model_executor", lambda provider=None: FakeExecutor())
     monkeypatch.setattr(worker, "validate_codex_executable_attestation", lambda _evidence: "")
+    monkeypatch.setattr(worker, "_governed_codex_attestation_error", lambda *_a, **_k: "")
     monkeypatch.setattr(worker, "make_lease_selfcontained", lambda path: None)
     monkeypatch.setattr(worker, "open_attempt_credential_home", lambda **kw: FakeHome())
     monkeypatch.setattr(worker, "close_attempt_credential_home", lambda home: None)

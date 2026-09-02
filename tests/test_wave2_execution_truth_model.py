@@ -125,7 +125,7 @@ def test_model_binds_ack_to_logical_authority_without_rejecting_reconnect() -> N
     stale_ack = _action(
         source,
         "StaleAckCannotSatisfyNewGeneration",
-        "ReconnectDoesNotInvalidateProvenLogicalAuthority",
+        "StaleAckForNewExchangeCannotProveAuthority",
     )
     assert "proofLogicalAuthorityId = claim.logicalAuthorityId" in stale_ack
     assert "proofGeneration = transport.generation" in stale_ack
@@ -219,7 +219,7 @@ def test_model_shell_launch_uncertainty_is_reachable_and_fences_execution() -> N
         "RejectDuplicateShellLaunch",
     )
     admit = _action(source, "AdmitShellRunning", "CrashDuringUncertainShellLaunch")
-    execute = _action(source, "Execute", "ProduceSucceededTerminalResult")
+    execute = _action(source, "Execute", "ObserveCompleteCleanup")
     assert "result.processResumed" in admit
     assert "(~result.launchIntentPersisted \\/ result.shellRunning)" in execute
     assert "result.launchAttempted" in crash
@@ -250,7 +250,7 @@ def test_model_prelaunch_cancel_guards_process_creation_and_connection_loss_pres
 
 def test_model_stale_ack_requires_exact_transport_and_exchange_generation() -> None:
     source = TLA.read_text(encoding="utf-8")
-    observe = _action(source, "ObserveClaimAck", "HttpReadback")
+    observe = _action(source, "ObserveClaimAck", "StartNewClaimExchange")
     stale = _action(source, "PresentStaleAck", "RejectStaleAck")
     reject = _action(source, "RejectStaleAck", "ConnectionFailsDuringExecution")
 
@@ -264,7 +264,7 @@ def test_model_stale_ack_requires_exact_transport_and_exchange_generation() -> N
 def test_model_job_resume_and_overlap_guards_are_mutation_visible() -> None:
     source = TLA.read_text(encoding="utf-8")
     config = CFG.read_text(encoding="utf-8")
-    resume = _action(source, "ResumeShellProcess", "AdmitShellRunning")
+    resume = _action(source, "ResumeShellProcess", "ObserveAmbiguousResume")
     connection = _action(
         source,
         "AttemptConnectionGenerationOverlap",
@@ -300,21 +300,58 @@ def test_model_adequacy_manifest_is_executable_and_complete() -> None:
         "ResultSentNotAccepted",
         "ClaimSentNotPersisted",
         "JobContainedBeforeResume",
+        "ConnectionAActive",
+        "PumpAActive",
+        "NewExchangePending",
+        "ResumeAmbiguous",
+        "CleanupIncomplete",
     ):
         assert f"Witness{witness} ==" in adequacy
         assert f'"{witness}"' in runner
     assert "MODEL_ADEQUACY=true" in runner
     assert "EnforceConnectionSingleton = FALSE" in runner
     assert "EnforcePumpSingleton = FALSE" in runner
+    for constant in (
+        "EnforceAckExchangeBinding",
+        "EnforcePreLaunchCancellation",
+        "EnforceTerminalCleanup",
+        "EnforceLaunchUncertaintyTerminalGuard",
+    ):
+        assert f'"{constant}"' in runner
+    assert 'f"{constant} = FALSE"' in runner
 
 
 def test_model_claim_ack_and_result_acceptance_have_separate_observation_stages() -> None:
     source = TLA.read_text(encoding="utf-8")
     send_ack = _action(source, "SendClaimAck", "SendDeadline")
-    observe_ack = _action(source, "ObserveClaimAck", "HttpReadback")
+    observe_ack = _action(source, "ObserveClaimAck", "StartNewClaimExchange")
     validate_result = _action(source, "ValidateResultIdentity", "AcceptCanonicalResult")
     assert "claim.persisted" in send_ack
     assert "!.ackSent = TRUE" in send_ack
     assert "claim.ackSent" in observe_ack
     assert "result.retained" in validate_result
     assert "!.identityValid = TRUE" in validate_result
+
+
+def test_model_central_terminal_gate_and_ack_exchange_are_mutation_visible() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    config = CFG.read_text(encoding="utf-8")
+    create = _action(source, "CreateShellProcess", "AssignShellJob")
+    observe = _action(source, "ObserveClaimAck", "StartNewClaimExchange")
+    reject = _action(
+        source,
+        "RejectIncompleteTerminalization",
+        "ProduceSucceededTerminalResult",
+    )
+
+    assert "EnforcePreLaunchCancellation" in create
+    assert "EnforceAckExchangeBinding" in observe
+    assert "incomingAckRequestId = claim.requestIdentityId" in observe
+    assert "incomingAckClaimId = claim.claimIdentityId" in observe
+    assert "incomingAckExecutionId = claim.executionIdentityId" in observe
+    assert "incomingAckMessageId = claim.ackMessageId" in observe
+    assert "terminalAdmissibilityRejected = TRUE" in reject
+    assert "EnforceTerminalCleanup = TRUE" in config
+    assert "INVARIANT OrdinaryTerminalRequiresAdmissibility" in config
+    assert "INVARIANT TerminalCleanupGateRejectsUnknown" in config
+    assert "INVARIANT LaunchUncertaintyCannotTerminalize" in config

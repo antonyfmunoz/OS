@@ -1469,6 +1469,7 @@ class NodeMeshServer:
             if req is None or req.node_id != node_id:
                 error = "request not found for node"
             else:
+                prior_lifecycle_state = req.lifecycle_state
                 result_identity = terminal_result_identity(
                     req,
                     {
@@ -1528,7 +1529,10 @@ class NodeMeshServer:
                     request_id, incoming_digest
                 )
                 if not ok:
-                    error = f"result rejected into {updated.lifecycle_state}"
+                    error = (
+                        f"result rejected from {prior_lifecycle_state} "
+                        f"into {updated.lifecycle_state}"
+                    )
                 else:
                     receipt = {
                         "ok": True,

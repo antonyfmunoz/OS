@@ -31,6 +31,31 @@ def _request(**overrides: object) -> DurableRemoteRequest:
     return make_request(**data)  # type: ignore[arg-type]
 
 
+def _positive_cleanup(**evidence: object) -> dict[str, object]:
+    return {
+        "enumeration_performed": True,
+        "enumeration_complete": True,
+        "ownership_validated": True,
+        "matched_processes": [],
+        "termination_attempted": False,
+        "post_termination_enumeration_complete": True,
+        "residue_count": 0,
+        "cleanup_verified": True,
+        "process_residue": [],
+        **evidence,
+    }
+
+
+def _positive_no_execution_cleanup(**evidence: object) -> dict[str, object]:
+    return {
+        "launch_not_attempted": True,
+        "process_created": False,
+        "process_side_effect_possible": False,
+        "process_residue": [],
+        **evidence,
+    }
+
+
 def test_request_is_persisted_before_delivery_and_claimed_idempotently(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
@@ -211,7 +236,7 @@ def test_late_result_cannot_legitimize_invalid_recovered_material(tmp_path) -> N
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"ok": True},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
 
     assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
@@ -730,7 +755,7 @@ def test_corrupt_result_is_not_overwritten_by_later_publication(tmp_path) -> Non
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
 
     assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
@@ -749,7 +774,7 @@ def test_result_path_content_identity_mismatch_blocks_convergence(tmp_path) -> N
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
     result_path = tmp_path / "results" / f"{req.request_id}.json"
     data = json.loads(result_path.read_text(encoding="utf-8"))
@@ -2009,7 +2034,7 @@ def test_late_running_after_succeeded_is_ignored_even_for_foreign_claim(tmp_path
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "done"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
 
     late = store.mark_running(req.request_id, claim_id="foreign-claim")
@@ -2035,7 +2060,7 @@ def test_same_claim_late_running_after_succeeded_is_ignored(tmp_path) -> None:
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "done"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
 
     late = store.mark_running(
@@ -2069,7 +2094,7 @@ def test_late_running_after_failed_cancelled_or_recovery_terminal_does_not_regre
         claim_id="claim-failed",
         state="FAILED",
         result={"success": False, "error": "boom"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
     assert store.mark_running(failed.request_id, claim_id="late").lifecycle_state == "FAILED"
 
@@ -2081,10 +2106,9 @@ def test_late_running_after_failed_cancelled_or_recovery_terminal_does_not_regre
         claim_id="claim-cancelled",
         state="CANCELLED",
         result={"success": False, "error": "cancelled"},
-        cleanup={
-            "process_residue": [],
-            **current.cancellation_identity(claim_id="claim-cancelled"),
-        },
+        cleanup=_positive_cleanup(
+            **current.cancellation_identity(claim_id="claim-cancelled")
+        ),
     )
     assert (
         store.mark_running(cancelled.request_id, claim_id="late").lifecycle_state
@@ -2114,7 +2138,7 @@ def test_success_after_cancel_request_wins_before_cancel_ack(tmp_path) -> None:
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "late"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
 
     assert final.lifecycle_state == "SUCCEEDED"
@@ -2136,10 +2160,7 @@ def test_cancel_ack_rejects_late_success_but_preserves_evidence(tmp_path) -> Non
         claim_id="claim-1",
         state="CANCELLED",
         result={"success": False, "error": "cancelled"},
-        cleanup={
-            "process_residue": [],
-            **current.cancellation_identity(claim_id="claim-1"),
-        },
+        cleanup=_positive_cleanup(**current.cancellation_identity(claim_id="claim-1")),
     )
     assert cancelled.lifecycle_state == "CANCELLED"
     request_path = store._request_path(req.request_id)
@@ -2201,7 +2222,7 @@ def test_cancel_ack_cleanup_proof_without_identity_rejected(tmp_path) -> None:
         claim_id="claim-1",
         state="CANCELLED",
         result={"success": False, "error": "cancelled"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
 
     assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
@@ -2275,6 +2296,23 @@ def test_unclaimed_result_is_rejected_and_cannot_terminalize(tmp_path) -> None:
     assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
 
 
+def test_unclaimed_marker_without_positive_no_execution_proof_is_rejected(tmp_path) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+
+    rejected = store.publish_result(
+        req.request_id,
+        claim_id="unclaimed",
+        state="FAILED",
+        result={"success": False, "error": "pre-launch failure"},
+        cleanup={"process_residue": []},
+    )
+
+    assert rejected.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert store.result_for(req.request_id) is None
+    assert rejected.diagnostics["result_without_claim"] == {"incoming": "unclaimed"}
+
+
 def test_duplicate_cancel_does_not_extend_cancellation_deadline(tmp_path, monkeypatch) -> None:
     import substrate.execution.durable_remote_transport as durable
 
@@ -2336,7 +2374,7 @@ def test_existing_terminal_result_recovers_active_request_after_crash_split(tmp_
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "ok"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
 
     recovered = store.get_request(req.request_id)
@@ -2355,7 +2393,7 @@ def test_existing_terminal_result_without_prior_claim_is_not_recovered(tmp_path)
         claim_id="claim-foreign",
         state="SUCCEEDED",
         result={"success": True, "stdout": "unclaimed"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
 
     current = store.get_request(req.request_id)
@@ -2378,7 +2416,7 @@ def test_existing_terminal_result_with_bad_digest_is_not_recovered(tmp_path) -> 
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "ok"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
     result_path = tmp_path / "results" / f"{req.request_id}.json"
     data = result_path.read_text(encoding="utf-8")
@@ -2401,7 +2439,7 @@ def test_terminal_result_with_bad_digest_enters_reconciliation(tmp_path) -> None
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "ok"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
     result_path = tmp_path / "results" / f"{req.request_id}.json"
     data = result_path.read_text(encoding="utf-8")
@@ -2475,7 +2513,7 @@ def test_cancel_before_claim_terminal_result_recovers_after_crash_split(tmp_path
         claim_id="unclaimed",
         state="CANCELLED",
         result={"success": False, "error": "durable remote request cancelled before claim"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_no_execution_cleanup(),
     )
 
     recovered = store.get_request(req.request_id)
@@ -2494,7 +2532,7 @@ def test_cancel_before_claim_crash_split_is_not_deliverable(tmp_path) -> None:
         claim_id="unclaimed",
         state="CANCELLED",
         result={"success": False, "error": "durable remote request cancelled before claim"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_no_execution_cleanup(),
     )
 
     assert store.deliverable_for_node("windows-desktop") == []
@@ -2530,7 +2568,7 @@ def test_terminal_result_is_idempotent_but_conflicting_replay_fails_closed(tmp_p
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "ok"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
     assert first.lifecycle_state == "SUCCEEDED"
     request_path = store._request_path(req.request_id)
@@ -2541,7 +2579,7 @@ def test_terminal_result_is_idempotent_but_conflicting_replay_fails_closed(tmp_p
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "ok"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
     assert same.lifecycle_state == "SUCCEEDED"
 
@@ -2565,7 +2603,7 @@ def test_remove_request_refuses_terminal_evidence_without_explicit_force(tmp_pat
         claim_id="claim-1",
         state="SUCCEEDED",
         result={"success": True, "stdout": "ok"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
 
     with pytest.raises(ValueError, match="terminal durable request"):
@@ -2621,7 +2659,7 @@ def test_expired_request_cannot_publish_success(tmp_path, monkeypatch) -> None:
     assert list((tmp_path / "results").glob(f"{req.request_id}.rejected-*.json"))
 
 
-def test_bounded_reconciliation_terminalizes_failed_with_evidence(tmp_path) -> None:
+def test_bounded_reconciliation_preserves_unknown_outcome(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
     store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
@@ -2635,12 +2673,12 @@ def test_bounded_reconciliation_terminalizes_failed_with_evidence(tmp_path) -> N
 
     reconciled = store.reconcile_request(req.request_id, reason="unit-test-bound")
 
-    assert reconciled.lifecycle_state == "FAILED"
+    assert reconciled.lifecycle_state == "RECONCILIATION_REQUIRED"
     assert reconciled.diagnostics["reconciled_fail_closed"]["reason"] == "unit-test-bound"
-    result = store.result_for(req.request_id)
-    assert result is not None
-    assert result["state"] == "FAILED"
-    assert result["result"]["error"] == "durable remote reconciliation failed closed"
+    assert store.result_for(req.request_id) is None
+    assert reconciled.diagnostics["terminal_admissibility_rejected"][-1]["proposed_state"] == (
+        "FAILED"
+    )
 
 
 def test_cancelled_with_process_residue_requires_reconciliation(tmp_path) -> None:
@@ -2864,17 +2902,16 @@ def test_cancellation_ack_recovery_requires_matching_generation_and_deadline(
         claim_id="claim-1",
         state="CANCELLED",
         result={"success": False, "error": "cancelled"},
-        cleanup={
-            "process_residue": [],
-            **cancelled.cancellation_identity(claim_id="claim-1"),
-        },
+        cleanup=_positive_cleanup(**cancelled.cancellation_identity(claim_id="claim-1")),
     )
 
     assert recovered.lifecycle_state == "CANCELLED"
     assert recovered.diagnostics["recovered_from_reconciliation_result"][0]["claim_id"] == "claim-1"
 
 
-def test_cancel_requested_eventually_fails_closed_if_not_acknowledged(tmp_path, monkeypatch) -> None:
+def test_cancel_requested_eventually_remains_reconciliation_if_not_acknowledged(
+    tmp_path, monkeypatch
+) -> None:
     import substrate.execution.durable_remote_transport as durable
 
     monkeypatch.setattr(durable, "now_s", lambda: 100.0)
@@ -2895,7 +2932,7 @@ def test_cancel_requested_eventually_fails_closed_if_not_acknowledged(tmp_path, 
     monkeypatch.setattr(durable, "now_s", lambda: 191.0)
     final = store.get_request(req.request_id)
     assert final is not None
-    assert final.lifecycle_state == "FAILED"
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
     assert final.diagnostics["reconciled_fail_closed"]["reason"] == "reconciliation_deadline_expired"
 
 
@@ -2918,11 +2955,11 @@ def test_get_request_converges_overdue_cancel_without_node_delivery(tmp_path, mo
     monkeypatch.setattr(durable, "now_s", lambda: 191.0)
     final = store.get_request(req.request_id)
     assert final is not None
-    assert final.lifecycle_state == "FAILED"
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
     assert final.diagnostics["reconciled_fail_closed"]["reason"] == "reconciliation_deadline_expired"
 
 
-def test_get_request_converges_overdue_reconciliation_without_health_sweep(
+def test_get_request_preserves_overdue_reconciliation_without_health_sweep(
     tmp_path, monkeypatch
 ) -> None:
     import substrate.execution.durable_remote_transport as durable
@@ -2938,7 +2975,7 @@ def test_get_request_converges_overdue_reconciliation_without_health_sweep(
     final = store.get_request(req.request_id)
 
     assert final is not None
-    assert final.lifecycle_state == "FAILED"
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
     assert final.diagnostics["reconciled_fail_closed"]["reason"] == "reconciliation_deadline_expired"
 
 
@@ -2962,10 +2999,10 @@ def test_reconcile_due_requests_advances_without_node_delivery(tmp_path, monkeyp
     monkeypatch.setattr(durable, "now_s", lambda: 191.0)
     updated = store.reconcile_due_requests()
 
-    assert [item.request_id for item in updated] == [req.request_id]
+    assert updated == []
     final = store.get_request(req.request_id)
     assert final is not None
-    assert final.lifecycle_state == "FAILED"
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
 
 
 def test_residue_reconciliation_reminders_are_bounded(tmp_path, monkeypatch) -> None:
@@ -3057,7 +3094,7 @@ def test_residue_reconciliation_backoff_survives_store_restart(tmp_path, monkeyp
     assert after == before + 1
 
 
-def test_fail_unresolved_request_terminalizes_and_records_evidence(tmp_path) -> None:
+def test_fail_unresolved_request_records_evidence_without_false_terminal(tmp_path) -> None:
     store = DurableRemoteStore(tmp_path)
     req = store.put_request(_request())
     store.mark_claimed(req.request_id, claim_id="claim-1", process_tree={"root_pid": 123})
@@ -3065,11 +3102,45 @@ def test_fail_unresolved_request_terminalizes_and_records_evidence(tmp_path) -> 
 
     final = store.fail_unresolved_request(req.request_id, reason="unit-timeout")
 
-    assert final.lifecycle_state == "FAILED"
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
     assert final.diagnostics["unresolved_failed_closed"]["reason"] == "unit-timeout"
-    result = store.result_for(req.request_id)
-    assert result is not None
-    assert result["state"] == "FAILED"
+    assert store.result_for(req.request_id) is None
+
+
+@pytest.mark.parametrize("proposed_state", ["FAILED", "CANCELLED"])
+def test_central_terminal_gate_rejects_launch_uncertainty_for_each_terminal_outcome(
+    tmp_path,
+    proposed_state: str,
+) -> None:
+    store = DurableRemoteStore(tmp_path)
+    req = store.put_request(_request())
+    store.mark_claimed(req.request_id, claim_id="claim-1")
+    current = store.get_request(req.request_id)
+    assert current is not None
+    current.process_tree = {
+        "launch_state": "LAUNCH_IN_PROGRESS",
+        "launch_intent_id": "launch-uncertain",
+    }
+    current.cancellation_requested_at = 100.0
+    current.cancellation_deadline_at = 130.0
+    cleanup = _positive_cleanup(
+        **current.cancellation_identity(claim_id="claim-1")
+    )
+
+    final = store._terminalize(
+        current,
+        claim_id="claim-1",
+        state=proposed_state,
+        result={"success": False, "error": "wrapper failed during uncertain launch"},
+        cleanup=cleanup,
+        event="TEST_TERMINAL_PROPOSAL",
+    )
+
+    assert final.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert final.diagnostics["terminal_admissibility_rejected"][-1]["reason"] == (
+        "launch_in_progress_outcome_unknown"
+    )
+    assert store.result_for(req.request_id) is None
 
 
 def test_terminal_replay_with_cleanup_conflict_preserves_terminal_lifecycle(tmp_path) -> None:
@@ -3084,10 +3155,7 @@ def test_terminal_replay_with_cleanup_conflict_preserves_terminal_lifecycle(tmp_
         claim_id="claim-1",
         state="CANCELLED",
         result={"success": False, "error": "cancelled"},
-        cleanup={
-            "process_residue": [],
-            **current.cancellation_identity(claim_id="claim-1"),
-        },
+        cleanup=_positive_cleanup(**current.cancellation_identity(claim_id="claim-1")),
     )
     assert first.lifecycle_state == "CANCELLED"
 

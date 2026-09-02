@@ -19,6 +19,17 @@ WitnessClaimSentNotPersisted == claim.sent /\ ~claim.persisted
 WitnessJobContainedBeforeResume ==
     result.processResumed /\ result.jobAssigned /\
     result.jobMembershipVerified /\ result.processIdentityPersisted
+WitnessConnectionAActive == transport.connectionAActive
+WitnessPumpAActive == transport.pumpAActive
+WitnessNewExchangePending ==
+    claim.ackExchangeId = 2 /\
+    claim.incomingAckExchangeId # claim.ackExchangeId /\ ~claim.proven
+WitnessResumeAmbiguous ==
+    result.resumeAmbiguous /\ result.launchReconciliation /\
+    result.outcome = ReconciliationOutcome
+WitnessCleanupIncomplete ==
+    result.terminalAdmissibilityRejected /\ ~result.retained /\
+    result.launchReconciliation
 
 NotWitnessPreLaunchCancel == ~WitnessPreLaunchCancel
 NotWitnessCancelDuringLaunch == ~WitnessCancelDuringLaunch
@@ -33,5 +44,10 @@ NotWitnessPumpOverlapAttempt == ~WitnessPumpOverlapAttempt
 NotWitnessResultSentNotAccepted == ~WitnessResultSentNotAccepted
 NotWitnessClaimSentNotPersisted == ~WitnessClaimSentNotPersisted
 NotWitnessJobContainedBeforeResume == ~WitnessJobContainedBeforeResume
+NotWitnessConnectionAActive == ~WitnessConnectionAActive
+NotWitnessPumpAActive == ~WitnessPumpAActive
+NotWitnessNewExchangePending == ~WitnessNewExchangePending
+NotWitnessResumeAmbiguous == ~WitnessResumeAmbiguous
+NotWitnessCleanupIncomplete == ~WitnessCleanupIncomplete
 
 ====

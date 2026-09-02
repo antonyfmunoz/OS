@@ -130,6 +130,21 @@ class SimState:
     governed_model_attempt_id: str = ""
     governed_model_attested: bool = False
     codex_executable_approved: bool = False
+    codex_approved_object_digest: str = ""
+    codex_executed_object_digest: str = ""
+    terminal_admissibility_checked: bool = False
+    terminal_admissibility_rejected: bool = False
+    positive_no_execution_proof: bool = False
+    resume_observation: str = ""
+    ack_exchange_id: int = 1
+    incoming_ack_exchange_id: int = 1
+    stale_ack_rejected: bool = False
+    connection_overlap_attempted: bool = False
+    connection_a_active: bool = True
+    connection_b_active: bool = False
+    pump_overlap_attempted: bool = False
+    pump_a_active: bool = True
+    pump_b_active: bool = False
     next_request_order: int = 0
     log: list[str] = field(default_factory=list)
 
@@ -155,6 +170,12 @@ class SimState:
         assert not self.unrelated_reused_process_touched, self.log
         if self.governed_model_attested:
             assert self.codex_executable_approved, self.log
+            assert self.codex_executed_object_digest == self.codex_approved_object_digest, self.log
+        if self.terminal_admissibility_rejected:
+            assert self.terminal_admissibility_checked, self.log
+            assert self.lifecycle == "RECONCILIATION_REQUIRED", self.log
+        assert not (self.connection_a_active and self.connection_b_active), self.log
+        assert not (self.pump_a_active and self.pump_b_active), self.log
         if self.cancelled and not self.running_announced:
             assert self.executed == 0, self.log
         if self.lifecycle in TERMINAL:
@@ -2307,7 +2328,139 @@ def _governed_sol_missing_or_mismatched_attestation_fails_closed(state: SimState
     state.record("governed_model_attestation_rejected")
 
 
+def _reject_terminal_without_positive_proof(state: SimState, source: str) -> None:
+    state.cleanup_verified = False
+    state.cleanup_residue_count = None
+    state.terminal_admissibility_checked = True
+    state.terminal_admissibility_rejected = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record(f"central_terminal_rejected:{source}")
+
+
+def _terminal_recovery_bypass_rejected(state: SimState) -> None:
+    _reject_terminal_without_positive_proof(state, "recovery")
+
+
+def _terminal_reconciliation_bypass_rejected(state: SimState) -> None:
+    _reject_terminal_without_positive_proof(state, "reconciliation")
+
+
+def _terminal_timeout_bypass_rejected(state: SimState) -> None:
+    _reject_terminal_without_positive_proof(state, "unresolved_timeout")
+
+
+def _terminal_prelaunch_no_process_proof_admitted(state: SimState) -> None:
+    state.cleanup_verified = False
+    state.cleanup_residue_count = None
+    state.positive_no_execution_proof = True
+    state.terminal_admissibility_checked = True
+    state.lifecycle = "FAILED"
+    state.record("central_terminal_admitted:positive_no_execution")
+
+
+def _sol_replaced_path_executes_approved_open_object(state: SimState) -> None:
+    state.codex_executable_approved = True
+    state.codex_approved_object_digest = "approved-object"
+    state.codex_executed_object_digest = "approved-object"
+    state.governed_model_resolved = "gpt-5.6-sol"
+    state.governed_model_attested = True
+    state.lifecycle = "SUCCEEDED"
+    state.record("codex_path_replaced_after_open:approved_fd_object_executed")
+
+
+def _sol_governed_immutable_runner_attests(state: SimState) -> None:
+    state.codex_executable_approved = True
+    state.codex_approved_object_digest = "approved-object"
+    state.codex_executed_object_digest = "approved-object"
+    state.governed_model_resolved = "gpt-5.6-sol"
+    state.governed_model_attested = True
+    state.lifecycle = "SUCCEEDED"
+    state.record("governed_readonly_fd_runner_exact_object_attested")
+
+
+def _resume_zero_observes_running_process(state: SimState) -> None:
+    state.resume_observation = "already_runnable_before_umh_resume"
+    state.shell_process_created = True
+    state.shell_launch_attempted = True
+    state.lifecycle = "RUNNING"
+    state.record("resume_zero_observe_real_outcome_no_relaunch")
+
+
+def _resume_failure_sentinel_reconciles(state: SimState) -> None:
+    state.resume_observation = "ambiguous_failure_sentinel"
+    state.shell_process_created = True
+    state.shell_launch_attempted = True
+    state.shell_launch_state = "LAUNCH_OUTCOME_UNCERTAIN"
+    state.shell_duplicate_launch_fenced = True
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("resume_failure_sentinel_reconciled")
+
+
+def _resume_multiple_suspend_count_fails_after_cleanup(state: SimState) -> None:
+    state.resume_observation = "proven_still_suspended"
+    state.shell_process_created = True
+    state.shell_launch_attempted = True
+    state.lifecycle = "FAILED"
+    state.record("resume_multiple_count_owned_cleanup_verified")
+
+
+def _resume_ambiguous_but_process_running_observes_outcome(state: SimState) -> None:
+    state.resume_observation = "independently_proven_running"
+    state.shell_process_created = True
+    state.shell_launch_attempted = True
+    state.lifecycle = "RUNNING"
+    state.record("resume_ambiguity_resolved_by_process_observation")
+
+
+def _ack_old_exchange_cannot_prove_new_exchange(state: SimState) -> None:
+    state.ack_exchange_id = 2
+    state.incoming_ack_exchange_id = 1
+    state.stale_ack_rejected = True
+    state.canonical_claim_proven = False
+    state.lifecycle = "RECONCILIATION_REQUIRED"
+    state.record("old_exchange_ack_rejected")
+
+
+def _connection_overlap_attempt_is_guarded(state: SimState) -> None:
+    state.connection_overlap_attempted = True
+    state.connection_a_active = True
+    state.connection_b_active = False
+    state.lifecycle = "RUNNING"
+    state.record("connection_b_activation_rejected_while_a_active")
+
+
+def _pump_overlap_attempt_is_guarded(state: SimState) -> None:
+    state.pump_overlap_attempted = True
+    state.pump_a_active = True
+    state.pump_b_active = False
+    state.lifecycle = "RUNNING"
+    state.record("pump_b_activation_rejected_while_a_active")
+
+
 SCENARIOS: dict[str, Scenario] = {
+    "terminal_recovery_bypass_rejected": _terminal_recovery_bypass_rejected,
+    "terminal_reconciliation_bypass_rejected": _terminal_reconciliation_bypass_rejected,
+    "terminal_timeout_bypass_rejected": _terminal_timeout_bypass_rejected,
+    "terminal_prelaunch_no_process_proof_admitted": (
+        _terminal_prelaunch_no_process_proof_admitted
+    ),
+    "sol_replaced_path_executes_approved_open_object": (
+        _sol_replaced_path_executes_approved_open_object
+    ),
+    "sol_governed_immutable_runner_attests": _sol_governed_immutable_runner_attests,
+    "shell_resume_zero_observes_running_process": _resume_zero_observes_running_process,
+    "shell_resume_failure_sentinel_reconciles": _resume_failure_sentinel_reconciles,
+    "shell_resume_multiple_count_fails_after_cleanup": (
+        _resume_multiple_suspend_count_fails_after_cleanup
+    ),
+    "shell_resume_ambiguous_running_observes_outcome": (
+        _resume_ambiguous_but_process_running_observes_outcome
+    ),
+    "authority_ack_old_exchange_cannot_prove_new": (
+        _ack_old_exchange_cannot_prove_new_exchange
+    ),
+    "transport_connection_overlap_attempt_guarded": _connection_overlap_attempt_is_guarded,
+    "transport_pump_overlap_attempt_guarded": _pump_overlap_attempt_is_guarded,
     "normal_success": _normal_success,
     "ambiguous_claimed_success": _ambiguous_claimed_success,
     "fallback_unavailable": _fallback_unavailable,

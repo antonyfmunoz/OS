@@ -8,11 +8,14 @@ specifics live behind :mod:`model_executor_contract`.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
 import signal
 import subprocess
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from substrate.execution.attempts.field_task_scope import (
@@ -75,6 +78,7 @@ def _run_isolated_with_tree_timeout(
     cwd: str,
     env: dict[str, str],
     input_text: str,
+    inherited_fds: tuple[int, ...] = (),
 ) -> subprocess.CompletedProcess[str] | None:
     """Run the isolated worker command with owned process-tree cancellation."""
 
@@ -90,6 +94,7 @@ def _run_isolated_with_tree_timeout(
         stderr=subprocess.PIPE,
         text=True,
         start_new_session=True,
+        pass_fds=inherited_fds,
     )
     if proc is None:
         return None
@@ -142,6 +147,36 @@ class WorkerResult:
         return d
 
 
+def _persist_prelaunch_attestation(
+    *,
+    worker_home: str,
+    packet: ModelWorkPacketInput,
+    invocation_identity: dict[str, Any],
+) -> tuple[str, str]:
+    evidence = {
+        **invocation_identity,
+        "attempt_id": packet.attempt_id,
+        "package_hash": packet.package_hash,
+        "operation_identity_digest": hashlib.sha256(
+            json.dumps(
+                packet.operation_identity,
+                sort_keys=True,
+                separators=(",", ":"),
+                default=str,
+            ).encode("utf-8")
+        ).hexdigest(),
+    }
+    blob = json.dumps(evidence, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    evidence_dir = Path(worker_home) / ".umh"
+    evidence_dir.mkdir(mode=0o700, exist_ok=True)
+    path = evidence_dir / "codex-prelaunch-attestation.json"
+    temporary = path.with_suffix(".tmp")
+    temporary.write_bytes(blob)
+    os.chmod(temporary, 0o600)
+    temporary.replace(path)
+    return str(path), hashlib.sha256(blob).hexdigest()
+
+
 def _proof_binding(package: Any, base_commit: str, provider: str) -> dict[str, Any]:
     identity = dict(getattr(package, "operation_identity", None) or {})
     return {
@@ -181,6 +216,8 @@ def _governed_codex_attestation_error(
         "credential_isolation_verified",
         "workspace_integrity_verified",
         "codex_executable_approved",
+        "prelaunch_attestation_persisted",
+        "post_execution_executable_binding_verified",
     )
     mismatches.extend(
         f"{key} is not true" for key in required_true if evidence.get(key) is not True
@@ -193,6 +230,13 @@ def _governed_codex_attestation_error(
         "codex_executable_version",
         "codex_executable_policy",
         "codex_executable_policy_identity",
+        "codex_executed_object_sha256",
+        "codex_executable_object_identity",
+        "codex_executable_binding",
+        "codex_governed_launch_path",
+        "prelaunch_attestation_identity",
+        "prelaunch_attestation_sha256",
+        "post_execution_executable_sha256",
     ):
         if not str(evidence.get(key, "") or "").strip():
             mismatches.append(f"{key} is missing")
@@ -200,6 +244,14 @@ def _governed_codex_attestation_error(
     if executable_error:
         mismatches.append(executable_error)
     return "; ".join(mismatches)
+
+
+def _close_invocation_fds(invocation: object | None) -> None:
+    for fd in getattr(invocation, "inherited_fds", ()):
+        try:
+            os.close(fd)
+        except OSError:
+            pass
 
 
 def _credential_env_key(provider: str) -> str:
@@ -448,12 +500,33 @@ def run_worker_in_lease(
             profile.worktree_readonly = True
             profile.readonly_subpaths = []
             profile.writable_subpaths = []
-        cmd = build_isolated_command(invocation.argv, profile)
+        prelaunch_path = ""
+        prelaunch_digest = ""
+        if invocation.execution_identity:
+            prelaunch_path, prelaunch_digest = _persist_prelaunch_attestation(
+                worker_home=attempt_home.home_path,
+                packet=packet,
+                invocation_identity=invocation.execution_identity,
+            )
+        if invocation.readonly_fd_mounts:
+            cmd = build_isolated_command(
+                invocation.argv,
+                profile,
+                readonly_fd_mounts=invocation.readonly_fd_mounts,
+            )
+        else:
+            cmd = build_isolated_command(invocation.argv, profile)
         isolated = True
     except IsolationUnavailable as exc:
+        _close_invocation_fds(locals().get("invocation"))
         _close_home_or_fail(attempt_home)
         return WorkerResult(error=f"host isolation unavailable: {exc}")
+    except OSError as exc:
+        _close_invocation_fds(locals().get("invocation"))
+        _close_home_or_fail(attempt_home)
+        return WorkerResult(error=f"pre-launch executable attestation unavailable: {exc}")
     except AttributeError:
+        _close_invocation_fds(locals().get("invocation"))
         _close_home_or_fail(attempt_home)
         return WorkerResult(
             error="model executor does not implement isolated invocation contract",
@@ -475,6 +548,7 @@ def run_worker_in_lease(
                 cwd=invocation.cwd or worktree_path,
                 env=env,
                 input_text=invocation.stdin,
+                inherited_fds=invocation.inherited_fds,
             )
         except TimeoutExpired:
             completed = None
@@ -487,6 +561,18 @@ def run_worker_in_lease(
         else:
             terminal = executor.collect_result(packet, completed, duration_seconds=duration)
         terminal_execution_identity = dict(terminal.execution_identity or {})
+        terminal_execution_identity.update(invocation.execution_identity)
+        if prelaunch_path:
+            terminal_execution_identity.update(
+                {
+                    "prelaunch_attestation_persisted": True,
+                    "prelaunch_attestation_path": prelaunch_path,
+                    "prelaunch_attestation_sha256": prelaunch_digest,
+                }
+            )
+        finalize = getattr(executor, "finalize_invocation_attestation", None)
+        if callable(finalize):
+            terminal_execution_identity.update(finalize(invocation, packet))
         terminal_execution_identity["credential_isolation_verified"] = bool(
             attempt_home.env_overrides().get("CODEX_HOME")
             and env.get("CODEX_HOME") == attempt_home.env_overrides().get("CODEX_HOME")
@@ -532,6 +618,7 @@ def run_worker_in_lease(
             execution_identity=terminal_execution_identity,
         )
     finally:
+        _close_invocation_fds(locals().get("invocation"))
         close_attempt_credential_home(attempt_home)
 
 
