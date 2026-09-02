@@ -81,6 +81,18 @@ def _bound_terminal_result(req, params: dict) -> dict:
     claim_id = str(params["claim_id"])
     result = dict(params.get("result") or {})
     cleanup = dict(params.get("cleanup") or {})
+    if cleanup.get("cleanup_verified") is True and cleanup.get("process_residue") == []:
+        cleanup = {
+            "enumeration_performed": True,
+            "enumeration_complete": True,
+            "ownership_validated": True,
+            "matched_processes": [],
+            "termination_attempted": False,
+            "post_termination_enumeration_complete": True,
+            "residue_count": 0,
+            **cleanup,
+        }
+        params = {**params, "cleanup": cleanup}
     result_digest = sha256_json(
         {"state": state, "claim_id": claim_id, "result": result, "cleanup": cleanup}
     )
@@ -99,6 +111,21 @@ def _bound_terminal_result(req, params: dict) -> dict:
         "candidate_sha": req.candidate_sha,
         "node_id": req.node_id,
         "result_id": identity["result_id"],
+    }
+
+
+def _positive_cleanup(**evidence) -> dict:
+    return {
+        "enumeration_performed": True,
+        "enumeration_complete": True,
+        "ownership_validated": True,
+        "matched_processes": [],
+        "termination_attempted": False,
+        "post_termination_enumeration_complete": True,
+        "residue_count": 0,
+        "cleanup_verified": True,
+        "process_residue": [],
+        **evidence,
     }
 
 
@@ -1090,7 +1117,7 @@ def test_vps_durable_result_rejects_malformed_result_before_publication(tmp_path
                 "claim_id": "claim-1",
                 "state": "SUCCEEDED",
                 "result": ["not", "an", "object"],
-                "cleanup": {"process_residue": []},
+                "cleanup": _positive_cleanup(),
             },
             "msg-2",
             ws,
@@ -1119,7 +1146,7 @@ def test_vps_durable_result_replay_is_idempotent_and_conflict_fails_closed(tmp_p
             "claim_id": "claim-1",
             "state": "SUCCEEDED",
             "result": {"success": True, "stdout": "canonical"},
-            "cleanup": {"process_residue": [], "cleanup_verified": True},
+            "cleanup": _positive_cleanup(),
         },
     )
 
@@ -1160,7 +1187,7 @@ def test_vps_rejects_result_id_mismatch_before_canonical_publication(tmp_path):
             "claim_id": "claim-identity",
             "state": "SUCCEEDED",
             "result": {"success": True, "stdout": "exact"},
-            "cleanup": {"process_residue": [], "cleanup_verified": True},
+            "cleanup": _positive_cleanup(),
         },
     )
     params["result_id"] = "0" * 64
@@ -1275,7 +1302,7 @@ def test_consequential_executor_completion_survives_transport_disconnect(tmp_pat
             return {
                 "success": True,
                 "stdout": "actual executor outcome",
-                "cleanup": {"process_residue": [], "cleanup_verified": True},
+                "cleanup": _positive_cleanup(),
             }
 
     async def run() -> tuple[str, str, int, list[str], str]:
@@ -1365,7 +1392,7 @@ def test_cancel_during_non_cancellable_executor_does_not_publish_false_cancelled
             return {
                 "success": True,
                 "stdout": "completed despite cancellation request",
-                "cleanup": {"process_residue": [], "cleanup_verified": True},
+                "cleanup": _positive_cleanup(),
             }
 
     async def run() -> tuple[str, str, int]:
@@ -1430,7 +1457,7 @@ def test_foreign_claim_cancel_cannot_mutate_active_logical_execution(tmp_path):
             return {
                 "success": True,
                 "stdout": "canonical outcome",
-                "cleanup": {"process_residue": [], "cleanup_verified": True},
+                "cleanup": _positive_cleanup(),
             }
 
     async def run() -> tuple[str, str, int, str]:
@@ -1501,7 +1528,7 @@ def test_completed_executor_outcome_cannot_be_replaced_by_interruption_failure(
             {
                 "success": True,
                 "stdout": "side effect completed",
-                "cleanup": {"process_residue": [], "cleanup_verified": True},
+                "cleanup": _positive_cleanup(),
             }
         )
         logical = {
@@ -1550,7 +1577,7 @@ def test_completed_executor_outcome_wins_exact_late_cancel_without_conflicting_r
             {
                 "success": True,
                 "stdout": "completed before cancel",
-                "cleanup": {"process_residue": [], "cleanup_verified": True},
+                "cleanup": _positive_cleanup(),
             }
         )
         client._durable_logical_executions[running.request_id] = {
@@ -2283,7 +2310,7 @@ def test_durable_same_request_redeliveries_coalesce_before_claim_settles(tmp_pat
     async def _execute(*_args, **_kwargs):
         nonlocal execute_calls
         execute_calls += 1
-        return {"success": True, "stdout": "ok", "cleanup": {"process_residue": []}}
+        return {"success": True, "stdout": "ok", "cleanup": _positive_cleanup()}
 
     monkeypatch.setattr(client, "_acquire_durable_claim", _acquire)
     monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
@@ -2634,7 +2661,7 @@ def test_durable_terminal_canonical_truth_overrides_local_fail_closed_tombstone(
         claim_id=claim_id,
         state="SUCCEEDED",
         result={"success": True, "stdout": "done"},
-        cleanup={"process_residue": []},
+        cleanup=_positive_cleanup(),
     )
     trajectory = client._durable_request_trajectory(req)
     trajectory["claim_id"] = claim_id
@@ -2709,7 +2736,7 @@ def test_durable_distinct_requests_keep_concurrent_claim_acquisition(tmp_path, m
 
     async def _execute(current, **_kwargs):
         execute_calls.append(current.request_id)
-        return {"success": True, "stdout": current.request_id, "cleanup": {"process_residue": []}}
+        return {"success": True, "stdout": current.request_id, "cleanup": _positive_cleanup()}
 
     monkeypatch.setattr(client, "_acquire_durable_claim", _acquire)
     monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
@@ -2754,7 +2781,7 @@ def test_durable_cancel_redelivery_updates_store_while_execution_gate_is_held(
         execute_calls += 1
         execute_started.set()
         await release_execute.wait()
-        return {"success": False, "error": "cancelled", "cleanup": {"process_residue": []}}
+        return {"success": False, "error": "cancelled", "cleanup": _positive_cleanup()}
 
     monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
 
@@ -3349,7 +3376,7 @@ def test_terminal_result_uses_authority_queue_ahead_of_bulk_media(tmp_path):
             claim_id="claim-1",
             state="SUCCEEDED",
             result={"success": True},
-            cleanup={"process_residue": []},
+            cleanup=_positive_cleanup(),
         )
         client._ensure_ws_writer_state()
         bulk_done = asyncio.get_running_loop().create_future()
@@ -3365,7 +3392,7 @@ def test_terminal_result_uses_authority_queue_ahead_of_bulk_media(tmp_path):
                 "claim_id": "claim-1",
                 "state": "SUCCEEDED",
                 "result": {"success": True},
-                "cleanup": {"process_residue": []},
+                "cleanup": _positive_cleanup(),
             },
         )
         await bulk_done
@@ -4524,7 +4551,7 @@ def test_durable_claim_readback_same_claim_terminal_does_not_relaunch(tmp_path, 
             claim_id=str(payload["claim_id"]),
             state="SUCCEEDED",
             result={"success": True, "stdout": "already done"},
-            cleanup={"process_residue": []},
+            cleanup=_positive_cleanup(),
         )
         return _canonical_claim_readback(client, payload)
 
@@ -4673,7 +4700,7 @@ def test_durable_same_claim_replay_executes_once_under_concurrency(tmp_path, mon
         nonlocal starts
         starts += 1
         await release.wait()
-        return {"success": True, "stdout": "ok", "cleanup": {"process_residue": []}}
+        return {"success": True, "stdout": "ok", "cleanup": _positive_cleanup()}
 
     monkeypatch.setattr(client, "_send_durable_event", _send_event)
     monkeypatch.setattr(client, "_execute_capability_for_durable", _execute)
@@ -5327,11 +5354,10 @@ def test_durable_node_replays_terminal_result_with_original_cleanup(tmp_path):
     req = client._durable_store.put_request(_durable_request())
     client._durable_store.mark_claimed(req.request_id, claim_id="claim-1")
     req = client._durable_store.request_cancel(req.request_id)
-    cleanup = {
-        "process_residue": [],
-        "cancel_reason": "unit",
+    cleanup = _positive_cleanup(
+        cancel_reason="unit",
         **req.cancellation_identity(claim_id="claim-1"),
-    }
+    )
     client._durable_store.publish_result(
         req.request_id,
         claim_id="claim-1",
@@ -5817,7 +5843,16 @@ def test_durable_shell_normal_exit_fails_closed_with_lingering_descendant(tmp_pa
     monkeypatch.setattr(client_mod, "_DurablePipeCollector", lambda _proc: _Collector())
     monkeypatch.setattr(client_mod, "_durable_owned_process_tree_pids", lambda _pid: [5151, 6161])
     monkeypatch.setattr(client_mod, "_durable_alive_pids", lambda _pids: [6161])
-    monkeypatch.setattr(client_mod, "_durable_force_exact_pids", lambda _pids: ["force failed"])
+    monkeypatch.setattr(
+        client_mod,
+        "_durable_process_identity_matches",
+        lambda stored, **_kwargs: (True, "exact", dict(stored)),
+    )
+    monkeypatch.setattr(
+        client_mod,
+        "_durable_terminate_owned_processes",
+        lambda _proc, _pids: ["force failed"],
+    )
     monkeypatch.setattr(client, "_announce_durable_running", _running_ack)
     monkeypatch.setattr(client, "_send_durable_event", _send_event)
 
@@ -6435,7 +6470,16 @@ def test_durable_shell_reader_timeout_after_root_exit_force_cleans_known_tree(
     monkeypatch.setattr(client_mod, "_DurablePipeCollector", lambda _proc: _Collector())
     monkeypatch.setattr(client_mod, "_durable_owned_process_tree_pids", lambda _pid: [4242, 4343])
     monkeypatch.setattr(client_mod, "_durable_alive_pids", _alive)
-    monkeypatch.setattr(client_mod, "_durable_force_exact_pids", _force)
+    monkeypatch.setattr(
+        client_mod,
+        "_durable_process_identity_matches",
+        lambda stored, **_kwargs: (True, "exact", dict(stored)),
+    )
+    monkeypatch.setattr(
+        client_mod,
+        "_durable_terminate_owned_processes",
+        lambda _proc, pids: _force(pids),
+    )
     monkeypatch.setattr(client, "_announce_durable_running", _running_ack)
     monkeypatch.setattr(client, "_send_durable_event", _send_event)
     monkeypatch.setattr(client, "_terminate_durable_process_tree", _terminate)

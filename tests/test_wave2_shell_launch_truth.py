@@ -292,6 +292,79 @@ def test_cancel_after_process_identity_uses_owned_cleanup_before_terminal_cancel
     assert result["cleanup"]["cleanup_verified"] is True
 
 
+def test_empty_residue_without_complete_positive_cleanup_proof_reconciles(tmp_path):
+    server = _durable_mesh_server(tmp_path)
+    req = server._durable_store.put_request(_durable_request())
+    server._durable_store.mark_claimed(req.request_id, claim_id="claim-cleanup")
+    server._durable_store.mark_running(
+        req.request_id,
+        claim_id="claim-cleanup",
+        process_tree={"root_pid": 123},
+    )
+
+    current = server._durable_store.publish_result(
+        req.request_id,
+        claim_id="claim-cleanup",
+        state="FAILED",
+        result={"success": False},
+        cleanup={"cleanup_verified": False, "process_residue": []},
+    )
+
+    assert current.lifecycle_state == "RECONCILIATION_REQUIRED"
+    assert server._durable_store.result_for(req.request_id) is None
+
+
+def test_resume_thread_requires_positive_suspended_count():
+    class _Ctypes:
+        @staticmethod
+        def c_void_p(value):
+            return SimpleNamespace(value=value)
+
+        @staticmethod
+        def byref(value):
+            return SimpleNamespace(_obj=value)
+
+        @staticmethod
+        def sizeof(_value):
+            return 1
+
+    class _Kernel:
+        def CreateToolhelp32Snapshot(self, *_args):
+            return 1
+
+        def Thread32First(self, _snapshot, entry_ref):
+            entry = entry_ref._obj
+            entry.th32OwnerProcessID = 42
+            entry.th32ThreadID = 7
+            return 1
+
+        def Thread32Next(self, *_args):
+            return 0
+
+        def OpenThread(self, *_args):
+            return 2
+
+        def ResumeThread(self, _thread):
+            return 0
+
+        def CloseHandle(self, _handle):
+            return 1
+
+    job = object.__new__(client_mod._WindowsDurableJob)
+    job._kernel32 = _Kernel()
+    job._ctypes = _Ctypes()
+
+    class _Entry:
+        dwSize = 0
+        th32OwnerProcessID = 0
+        th32ThreadID = 0
+
+    job._ThreadEntry = _Entry
+
+    with pytest.raises(RuntimeError, match="was not suspended"):
+        job.resume_suspended_process(SimpleNamespace(pid=42))
+
+
 def test_delivered_cancel_preserves_local_launch_uncertainty_and_reconciles(tmp_path):
     client = _durable_node_client(tmp_path)
     req = client._durable_store.put_request(_durable_request())

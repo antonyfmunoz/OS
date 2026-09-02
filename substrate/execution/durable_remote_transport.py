@@ -2879,7 +2879,17 @@ class DurableRemoteStore:
             )
             self._update_request_locked(req, "LATE_RESULT_REJECTED")
             return req
-        if state in TERMINAL_STATES and (cleanup is None or cleanup.get("process_residue") != []):
+        cleanup_proven = bool(
+            cleanup is not None
+            and cleanup.get("cleanup_verified") is True
+            and cleanup.get("enumeration_performed") is True
+            and cleanup.get("enumeration_complete") is True
+            and cleanup.get("ownership_validated") is True
+            and cleanup.get("post_termination_enumeration_complete") is True
+            and cleanup.get("residue_count") == 0
+            and cleanup.get("process_residue") == []
+        )
+        if state in TERMINAL_STATES and not cleanup_proven:
             reason_by_state = {
                 "CANCELLED": "cancel_without_cleanup",
                 "FAILED": "failed_without_cleanup",
@@ -2896,7 +2906,7 @@ class DurableRemoteStore:
             )
             req.cleanup = cleanup or {}
             req.diagnostics[reason] = (
-                cleanup.get("process_residue")
+                cleanup.get("process_residue") or [{"state": "cleanup_positive_proof_missing"}]
                 if cleanup is not None
                 else [{"state": "cleanup_proof_missing"}]
             )

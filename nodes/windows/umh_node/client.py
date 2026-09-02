@@ -571,6 +571,10 @@ class _WindowsDurableJob:
         ):
             raise OSError(self._ctypes.get_last_error(), "AssignProcessToJobObject failed")
 
+    def verify_root_membership(self, proc: subprocess.Popen[str]) -> None:
+        if int(proc.pid) not in self.pids():
+            raise RuntimeError(f"root pid {proc.pid} is not a member of the durable Job Object")
+
     def pids(self) -> list[int]:
         capacity = 64
         while capacity <= 4096:
@@ -619,6 +623,10 @@ class _WindowsDurableJob:
                         previous_count = self._kernel32.ResumeThread(thread)
                         if previous_count == 0xFFFFFFFF:
                             raise OSError(self._ctypes.get_last_error(), "ResumeThread failed")
+                        if previous_count < 1:
+                            raise RuntimeError(
+                                f"initial thread for pid {proc.pid} was not suspended"
+                            )
                         return
                     finally:
                         self._kernel32.CloseHandle(thread)
@@ -645,6 +653,7 @@ def _durable_attach_process_containment(
     job = _WindowsDurableJob(containment_id=containment_id)
     try:
         job.assign(proc)
+        job.verify_root_membership(proc)
     except Exception:
         job.close()
         raise
@@ -938,6 +947,23 @@ def _durable_post_exit_process_cleanup(
     cleanup["residue_count"] = len(remaining)
     cleanup["cleanup_verified"] = not remaining
     return cleanup
+
+
+def _durable_positive_no_process_cleanup(**evidence: Any) -> dict[str, Any]:
+    """Positive proof for a trajectory whose launch primitive was never invoked."""
+
+    return {
+        "enumeration_performed": True,
+        "enumeration_complete": True,
+        "ownership_validated": True,
+        "matched_processes": [],
+        "termination_attempted": False,
+        "post_termination_enumeration_complete": True,
+        "residue_count": 0,
+        "cleanup_verified": True,
+        "process_residue": [],
+        **evidence,
+    }
 
 
 class _DurablePipeCollector:
@@ -3558,12 +3584,11 @@ class NodeClient:
             )
             return True
         if launch_state == SHELL_LAUNCH_INTENT_PERSISTED:
-            cleanup = {
-                "process_residue": [],
-                "launch_not_attempted": True,
-                "launch_intent_id": req.process_tree.get("launch_intent_id", ""),
-                "execution_identity": execution_identity,
-            }
+            cleanup = _durable_positive_no_process_cleanup(
+                launch_not_attempted=True,
+                launch_intent_id=req.process_tree.get("launch_intent_id", ""),
+                execution_identity=execution_identity,
+            )
             terminal = self._durable_store.publish_result(
                 req.request_id,
                 claim_id=claim_id,
@@ -3752,6 +3777,12 @@ class NodeClient:
                 return
             state = "SUCCEEDED" if result.get("success") else "FAILED"
             cleanup = dict(result.get("cleanup") or {"process_residue": []})
+            if not self._durable_request_is_shell_backed(current):
+                cleanup = _durable_positive_no_process_cleanup(
+                    cleanup_scope="adapter_without_node_process_launch",
+                    adapter_cleanup=cleanup,
+                )
+                result["cleanup"] = cleanup
             logical = getattr(self, "_durable_logical_executions", {}).get(current.request_id)
             if logical is not None:
                 logical["outcome_state"] = state
@@ -3931,15 +3962,15 @@ class NodeClient:
         if current.lifecycle_state in {"SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"}:
             return current
 
-        cleanup = {
-            "process_residue": [],
-            "claim_acquisition_failed_closed": True,
-            "claim_id": claim_id,
-            "request_id": current.request_id,
-            "correlation_id": current.correlation_id,
-            "node_id": current.node_id,
-            "candidate_sha": current.candidate_sha,
-        }
+        cleanup = _durable_positive_no_process_cleanup(
+            cleanup_scope="claim_failed_before_execution",
+            claim_acquisition_failed_closed=True,
+            claim_id=claim_id,
+            request_id=current.request_id,
+            correlation_id=current.correlation_id,
+            node_id=current.node_id,
+            candidate_sha=current.candidate_sha,
+        )
         result: dict[str, Any] = {
             "success": False,
             "error": "durable claim acquisition failed closed",
@@ -4576,11 +4607,11 @@ class NodeClient:
             )
             return current
         proc = self._durable_processes.get(req.request_id)
-        cleanup = {
-            "process_residue": [],
-            "cancel_reason": reason,
+        cleanup = _durable_positive_no_process_cleanup(
+            cleanup_scope="cancelled_before_process_launch",
+            cancel_reason=reason,
             **req.cancellation_identity(claim_id=claim_id),
-        }
+        )
         if proc is not None and proc.poll() is None:
             cleanup = await self._terminate_durable_process_tree(proc, graceful_timeout=5.0)
             cleanup["cancel_reason"] = reason
@@ -5095,6 +5126,20 @@ class NodeClient:
                 text=True,
                 **extra,
             )
+            process_identity = _durable_process_identity(
+                proc.pid,
+                command_digest=req.payload_digest,
+            )
+            process_identity.update(
+                {
+                    "logical_execution_id": execution_identity["logical_execution_id"],
+                    "launch_intent_id": launch_intent_id,
+                    "parent_identity": {
+                        "pid": os.getpid(),
+                        "node_id": req.node_id,
+                    },
+                }
+            )
             try:
                 containment = _durable_attach_process_containment(
                     proc,
@@ -5113,20 +5158,6 @@ class NodeClient:
                 last_tree_pids = _durable_contained_pids(proc)
             except Exception:
                 last_tree_pids = [proc.pid]
-            process_identity = _durable_process_identity(
-                proc.pid,
-                command_digest=req.payload_digest,
-            )
-            process_identity.update(
-                {
-                    "logical_execution_id": execution_identity["logical_execution_id"],
-                    "launch_intent_id": launch_intent_id,
-                    "parent_identity": {
-                        "pid": os.getpid(),
-                        "node_id": req.node_id,
-                    },
-                }
-            )
             setattr(proc, "_umh_process_identity", dict(process_identity))
             setattr(proc, "_umh_owned_process_identities", {proc.pid: dict(process_identity)})
             containment_material = {

@@ -5,6 +5,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 TLA = ROOT / "models" / "wave2_authority_plane_liveness" / "Wave2AuthorityPlaneLiveness.tla"
 CFG = TLA.with_suffix(".cfg")
+ADEQUACY = TLA.with_name("Wave2AuthorityPlaneAdequacy.tla")
+ADEQUACY_RUNNER = ROOT / "scripts" / "wave2_authority_model_adequacy.py"
 
 
 def _action(source: str, name: str, next_name: str) -> str:
@@ -201,7 +203,10 @@ def test_model_shell_launch_uncertainty_is_reachable_and_fences_execution() -> N
         "PersistShellLaunchIntent",
         "AttemptShellLaunch",
         "CreateShellProcess",
+        "AssignShellJob",
+        "VerifyShellJobMembership",
         "PersistShellProcessIdentity",
+        "ResumeShellProcess",
         "AdmitShellRunning",
         "CrashDuringUncertainShellLaunch",
         "RejectDuplicateShellLaunch",
@@ -215,7 +220,7 @@ def test_model_shell_launch_uncertainty_is_reachable_and_fences_execution() -> N
     )
     admit = _action(source, "AdmitShellRunning", "CrashDuringUncertainShellLaunch")
     execute = _action(source, "Execute", "ProduceSucceededTerminalResult")
-    assert "result.processIdentityPersisted" in admit
+    assert "result.processResumed" in admit
     assert "(~result.launchIntentPersisted \\/ result.shellRunning)" in execute
     assert "result.launchAttempted" in crash
     assert "~result.processIdentityPersisted" in crash
@@ -251,8 +256,56 @@ def test_model_stale_ack_requires_exact_transport_and_exchange_generation() -> N
 
     assert "claim.sentGeneration = transport.generation" in observe
     assert "claim.incomingAckExchangeId = claim.ackExchangeId" in observe
+    assert "claim.incomingAckGeneration = transport.generation" in observe
     assert "incomingAckExchangeId" in stale
     assert "!.staleAckRejected = TRUE" in reject
+
+
+def test_model_job_resume_and_overlap_guards_are_mutation_visible() -> None:
+    source = TLA.read_text(encoding="utf-8")
+    config = CFG.read_text(encoding="utf-8")
+    resume = _action(source, "ResumeShellProcess", "AdmitShellRunning")
+    connection = _action(
+        source,
+        "AttemptConnectionGenerationOverlap",
+        "AttemptPumpGenerationOverlap",
+    )
+    pump = _action(source, "AttemptPumpGenerationOverlap", "WriterStart")
+
+    assert "result.processIdentityPersisted" in resume
+    assert "~cancelled" in resume
+    assert "EnforceConnectionSingleton" in connection
+    assert "@ + 1" in connection
+    assert "EnforcePumpSingleton" in pump
+    assert "@ + 1" in pump
+    assert "EnforceConnectionSingleton = TRUE" in config
+    assert "EnforcePumpSingleton = TRUE" in config
+    assert "INVARIANT JobContainmentPrecedesResume" in config
+
+
+def test_model_adequacy_manifest_is_executable_and_complete() -> None:
+    adequacy = ADEQUACY.read_text(encoding="utf-8")
+    runner = ADEQUACY_RUNNER.read_text(encoding="utf-8")
+    for witness in (
+        "PreLaunchCancel",
+        "CancelDuringLaunch",
+        "KnownProcessCancel",
+        "ConnectionLossDuringExecution",
+        "Failed",
+        "Cancelled",
+        "Reconciliation",
+        "StaleAck",
+        "ConnectionOverlapAttempt",
+        "PumpOverlapAttempt",
+        "ResultSentNotAccepted",
+        "ClaimSentNotPersisted",
+        "JobContainedBeforeResume",
+    ):
+        assert f"Witness{witness} ==" in adequacy
+        assert f'"{witness}"' in runner
+    assert "MODEL_ADEQUACY=true" in runner
+    assert "EnforceConnectionSingleton = FALSE" in runner
+    assert "EnforcePumpSingleton = FALSE" in runner
 
 
 def test_model_claim_ack_and_result_acceptance_have_separate_observation_stages() -> None:

@@ -17,6 +17,20 @@ from nodes.windows.umh_node.config import NodeConfig
 from substrate.execution.durable_remote_transport import DurableRemoteStore, make_request
 
 
+def _positive_cleanup() -> dict:
+    return {
+        "enumeration_performed": True,
+        "enumeration_complete": True,
+        "ownership_validated": True,
+        "matched_processes": [],
+        "termination_attempted": False,
+        "post_termination_enumeration_complete": True,
+        "residue_count": 0,
+        "cleanup_verified": True,
+        "process_residue": [],
+    }
+
+
 class _AsyncHttpResponse:
     def __init__(self, status: int, body: bytes) -> None:
         self.status = status
@@ -398,7 +412,7 @@ def test_terminal_result_is_retained_when_authority_queue_overloads(tmp_path) ->
             claim_id="claim-result",
             state="SUCCEEDED",
             result={"success": True},
-            cleanup={"process_residue": []},
+            cleanup=_positive_cleanup(),
         )
         client._ensure_ws_writer_state()
         queued = []
@@ -628,7 +642,7 @@ def test_durable_lifecycle_frames_are_explicit_authority_control(
                 claim_id="claim-classification",
                 state="FAILED",
                 result={"success": False, "error": "classification"},
-                cleanup={"process_residue": []},
+                cleanup=_positive_cleanup(),
             )
             payload = {
                 "request_id": req.request_id,

@@ -75,7 +75,17 @@ def _persist_terminal(client: NodeClient, *, suffix: str = "outbox") -> tuple[ob
         claim_id=f"claim-{suffix}",
         state="SUCCEEDED",
         result={"success": True, "stdout": "already executed"},
-        cleanup={"process_residue": [], "cleanup_verified": True},
+        cleanup={
+            "enumeration_performed": True,
+            "enumeration_complete": True,
+            "ownership_validated": True,
+            "matched_processes": [],
+            "termination_attempted": False,
+            "post_termination_enumeration_complete": True,
+            "residue_count": 0,
+            "process_residue": [],
+            "cleanup_verified": True,
+        },
     )
     result = client._durable_store.result_for(request.request_id)
     assert result is not None

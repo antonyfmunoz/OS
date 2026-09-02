@@ -15,6 +15,20 @@ from tests.wave2_script_import import load_wave2_script
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _positive_cleanup() -> dict:
+    return {
+        "enumeration_performed": True,
+        "enumeration_complete": True,
+        "ownership_validated": True,
+        "matched_processes": [],
+        "termination_attempted": False,
+        "post_termination_enumeration_complete": True,
+        "residue_count": 0,
+        "cleanup_verified": True,
+        "process_residue": [],
+    }
+
+
 def _write_dist_web(dist: Path, *, js_body: str = "console.log('candidate')\n") -> dict:
     assets = dist / "assets"
     assets.mkdir(parents=True, exist_ok=True)
@@ -1368,7 +1382,7 @@ def test_durable_remote_shell_preserves_argv_payload_shape(monkeypatch, tmp_path
             claim_id="claim-1",
             state="SUCCEEDED",
             result={"success": True, "stdout": "ok", "stderr": "", "exit_code": 0},
-            cleanup={"process_residue": []},
+            cleanup=_positive_cleanup(),
         )
 
     monkeypatch.setattr(store, "put_request", put_and_succeed)
@@ -1425,7 +1439,7 @@ def test_durable_remote_shell_omits_empty_cwd_for_default_shell_requests(
             claim_id="claim-1",
             state="SUCCEEDED",
             result={"success": True, "stdout": "ok", "stderr": "", "exit_code": 0},
-            cleanup={"process_residue": []},
+            cleanup=_positive_cleanup(),
         )
 
     monkeypatch.setattr(store, "put_request", put_and_succeed)
@@ -1486,7 +1500,7 @@ def test_mesh_read_identical_command_reuses_stable_logical_idempotency(
                     "stderr": "",
                     "exit_code": 0,
                 },
-                cleanup={"process_residue": []},
+                cleanup=_positive_cleanup(),
             )
         return admitted
 
@@ -1540,7 +1554,7 @@ def test_durable_remote_shell_replay_uses_canonical_admitted_request(
                 claim_id="claim-1",
                 state="SUCCEEDED",
                 result={"success": True, "stdout": "canonical", "stderr": "", "exit_code": 0},
-                cleanup={"process_residue": []},
+                cleanup=_positive_cleanup(),
             )
         return admitted
 
@@ -1627,7 +1641,7 @@ def test_codex_sol_probe_retry_reuses_stable_logical_idempotency(
                     "stderr": "",
                     "exit_code": 0,
                 },
-                cleanup={"process_residue": []},
+                cleanup=_positive_cleanup(),
             )
         return admitted
 
@@ -1771,7 +1785,7 @@ def test_durable_remote_shell_execution_budget_starts_after_claim(
                 claim_id="node-claim",
                 state="SUCCEEDED",
                 result={"success": True, "stdout": "ok", "stderr": "", "exit_code": 0},
-                cleanup={"process_residue": []},
+                cleanup=_positive_cleanup(),
             )
 
     monkeypatch.setattr(store, "put_request", remember_request)

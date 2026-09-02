@@ -271,6 +271,58 @@ def test_governed_sol_rejects_tampered_or_unapproved_codex_executable(tmp_path, 
     assert "not approved by realpath/hash policy" in result.stderr
 
 
+def test_governed_sol_never_invokes_unapproved_executable(tmp_path, monkeypatch):
+    executable = tmp_path / "codex"
+    executable.write_bytes(b"unapproved-wrapper")
+    executable.chmod(0o755)
+    calls: list[str] = []
+    monkeypatch.setenv("UMH_CODEX_APPROVED_EXECUTABLES_JSON", "{}")
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(executable),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_metadata_command",
+        lambda *_args, **_kwargs: calls.append("metadata"),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
+        lambda *_args, **_kwargs: calls.append("process"),
+    )
+
+    result = CodexModelExecutor(model="gpt-5.6-sol").invoke(_packet(tmp_path), env={})
+
+    assert result.ok is False
+    assert calls == []
+    assert "before launch" in result.stderr
+
+
+def test_governed_sol_revalidates_pinned_executable_before_invocation(tmp_path, monkeypatch):
+    executable = tmp_path / "codex"
+    executable.write_bytes(b"approved")
+    executable.chmod(0o755)
+    monkeypatch.setenv(
+        "UMH_CODEX_APPROVED_EXECUTABLES_JSON",
+        json.dumps({str(executable.resolve()): _file_sha256(str(executable))}),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._resolve_codex",
+        lambda: str(executable),
+    )
+    monkeypatch.setattr(
+        "substrate.execution.attempts.model_executors.codex._run_codex_metadata_command",
+        lambda *_args, **_kwargs: SimpleNamespace(
+            returncode=0, stdout="codex-cli approved\n", stderr=""
+        ),
+    )
+    adapter = CodexModelExecutor(model="gpt-5.6-sol")
+    executable.write_bytes(b"changed-after-approval")
+
+    invocation = adapter.build_invocation(_packet(tmp_path))
+
+    assert invocation.argv == []
+
+
 def test_governed_sol_rejects_byte_identical_copy_at_unapproved_realpath(
     tmp_path, monkeypatch
 ):

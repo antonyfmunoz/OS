@@ -33,7 +33,9 @@ CONSTANT
     SendBound,
     MaxReconChecks,
     MaxTransportGeneration,
-    MaxGenerationTasks
+    MaxGenerationTasks,
+    EnforceConnectionSingleton,
+    EnforcePumpSingleton
 
 NoSend == "NONE"
 AuthoritySend == "AUTHORITY"
@@ -164,6 +166,7 @@ TypeOK ==
         proofLogicalAuthorityId: 0..2,
         ackExchangeId: 1..2,
         incomingAckExchangeId: 1..2,
+        incomingAckGeneration: Generations,
         proofExchangeId: 0..2,
         staleAckRejected: BOOLEAN,
         cancelIdentityValid: BOOLEAN,
@@ -202,7 +205,10 @@ TypeOK ==
         launchIntentPersisted: BOOLEAN,
         launchAttempted: BOOLEAN,
         processCreated: BOOLEAN,
+        jobAssigned: BOOLEAN,
+        jobMembershipVerified: BOOLEAN,
         processIdentityPersisted: BOOLEAN,
+        processResumed: BOOLEAN,
         shellRunning: BOOLEAN,
         launchReconciliation: BOOLEAN,
         duplicateLaunchRejected: BOOLEAN,
@@ -254,6 +260,7 @@ Init ==
         proofLogicalAuthorityId |-> 0,
         ackExchangeId |-> 1,
         incomingAckExchangeId |-> 1,
+        incomingAckGeneration |-> 0,
         proofExchangeId |-> 0,
         staleAckRejected |-> FALSE,
         cancelIdentityValid |-> FALSE,
@@ -292,7 +299,10 @@ Init ==
         launchIntentPersisted |-> FALSE,
         launchAttempted |-> FALSE,
         processCreated |-> FALSE,
+        jobAssigned |-> FALSE,
+        jobMembershipVerified |-> FALSE,
         processIdentityPersisted |-> FALSE,
+        processResumed |-> FALSE,
         shellRunning |-> FALSE,
         launchReconciliation |-> FALSE,
         duplicateLaunchRejected |-> FALSE,
@@ -386,18 +396,18 @@ RequestCancel ==
         !.cancelRequested = TRUE,
         !.cancelProvenBeforeLaunch = (~result.launchAttempted /\ executionCount = 0),
         !.cancelDuringLaunchUncertainty =
-            (result.launchAttempted /\ ~result.processCreated),
+            (result.launchAttempted /\ ~result.processResumed),
         !.cancelAppliedToKnownProcess =
             (result.processCreated \/ result.executionRunning \/ executionCount = 1),
         !.cancellationOutcomeKnown = (~result.launchAttempted /\ executionCount = 0),
         !.launchReconciliation =
-            (@ \/ (result.launchAttempted /\ ~result.processCreated)),
+            (@ \/ (result.launchAttempted /\ ~result.processResumed)),
         !.outcomeKnown =
             IF ~result.launchAttempted /\ executionCount = 0 THEN TRUE ELSE @,
         !.outcome =
             IF ~result.launchAttempted /\ executionCount = 0
             THEN CancelledOutcome
-            ELSE IF result.launchAttempted /\ ~result.processCreated
+            ELSE IF result.launchAttempted /\ ~result.processResumed
             THEN ReconciliationOutcome
             ELSE @
         ]
@@ -766,6 +776,7 @@ ObserveClaimAck ==
     /\ claim.ackSent
     /\ claim.ackHealthy
     /\ claim.sentGeneration = transport.generation
+    /\ claim.incomingAckGeneration = transport.generation
     /\ claim.incomingAckExchangeId = claim.ackExchangeId
     /\ ~claim.proven
     /\ ~failedClosed
@@ -860,8 +871,32 @@ CreateShellProcess ==
         reconciliationChecks, reconciliationReminderEvents
         >>
 
-PersistShellProcessIdentity ==
+AssignShellJob ==
     /\ result.processCreated
+    /\ ~result.jobAssigned
+    /\ ~result.launchReconciliation
+    /\ result' = [result EXCEPT !.jobAssigned = TRUE]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+VerifyShellJobMembership ==
+    /\ result.jobAssigned
+    /\ ~result.jobMembershipVerified
+    /\ ~result.launchReconciliation
+    /\ result' = [result EXCEPT !.jobMembershipVerified = TRUE]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+PersistShellProcessIdentity ==
+    /\ result.jobMembershipVerified
     /\ ~result.processIdentityPersisted
     /\ ~result.launchReconciliation
     /\ result' = [result EXCEPT !.processIdentityPersisted = TRUE]
@@ -872,8 +907,21 @@ PersistShellProcessIdentity ==
         reconciliationChecks, reconciliationReminderEvents
         >>
 
-AdmitShellRunning ==
+ResumeShellProcess ==
     /\ result.processIdentityPersisted
+    /\ ~result.processResumed
+    /\ ~result.launchReconciliation
+    /\ ~cancelled
+    /\ result' = [result EXCEPT !.processResumed = TRUE]
+    /\ UNCHANGED <<
+        authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
+        authorityBurst, authorityOverflow, authorityFailureVisible, claim,
+        failedClosed, executionCount, cancelled, staleGenerationSendRejected,
+        reconciliationChecks, reconciliationReminderEvents
+        >>
+
+AdmitShellRunning ==
+    /\ result.processResumed
     /\ ~result.shellRunning
     /\ ~result.launchReconciliation
     /\ result' = [result EXCEPT !.shellRunning = TRUE]
@@ -1110,7 +1158,9 @@ PresentStaleAck ==
     /\ claim.incomingAckExchangeId = claim.ackExchangeId
     /\ ~claim.proven
     /\ claim' = [claim EXCEPT
-        !.incomingAckExchangeId = IF claim.ackExchangeId = 1 THEN 2 ELSE 1
+        !.incomingAckExchangeId = IF claim.ackExchangeId = 1 THEN 2 ELSE 1,
+        !.incomingAckGeneration =
+            IF transport.generation = 0 THEN MaxTransportGeneration ELSE 0
         ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer, transport,
@@ -1157,7 +1207,11 @@ ConnectionFailsDuringExecution ==
 AttemptConnectionGenerationOverlap ==
     /\ transport.state = ActiveGeneration
     /\ ~transport.connectionOverlapAttempted
-    /\ transport' = [transport EXCEPT !.connectionOverlapAttempted = TRUE]
+    /\ transport' = [transport EXCEPT
+        !.connectionOverlapAttempted = TRUE,
+        !.activeGenerationCount =
+            IF EnforceConnectionSingleton THEN @ ELSE @ + 1
+        ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer,
         authorityBurst, authorityOverflow, authorityFailureVisible, claim,
@@ -1169,7 +1223,10 @@ AttemptConnectionGenerationOverlap ==
 AttemptPumpGenerationOverlap ==
     /\ transport.pumpActive
     /\ ~transport.pumpOverlapAttempted
-    /\ transport' = [transport EXCEPT !.pumpOverlapAttempted = TRUE]
+    /\ transport' = [transport EXCEPT
+        !.pumpOverlapAttempted = TRUE,
+        !.pumpActiveCount = IF EnforcePumpSingleton THEN @ ELSE @ + 1
+        ]
     /\ UNCHANGED <<
         authorityQueue, bulkQueue, reconciliationQueue, writer,
         authorityBurst, authorityOverflow, authorityFailureVisible, claim,
@@ -1192,7 +1249,8 @@ GenerationLifecycle ==
     \/ AttemptConnectionGenerationOverlap \/ AttemptPumpGenerationOverlap
 ShellLaunchProgress ==
     PersistShellLaunchIntent \/ AttemptShellLaunch \/ CreateShellProcess
-    \/ PersistShellProcessIdentity \/ AdmitShellRunning
+    \/ AssignShellJob \/ VerifyShellJobMembership
+    \/ PersistShellProcessIdentity \/ ResumeShellProcess \/ AdmitShellRunning
     \/ CrashDuringUncertainShellLaunch \/ RejectDuplicateShellLaunch
 
 Next ==
@@ -1260,6 +1318,11 @@ CancellationSafetyPreserved ==
         (result.launchReconciliation /\ ~result.shellRunning /\
          result.outcome = ReconciliationOutcome))
 
+JobContainmentPrecedesResume ==
+    result.processResumed =>
+        (result.jobAssigned /\ result.jobMembershipVerified /\
+         result.processIdentityPersisted)
+
 PreLaunchCancellationPreventsProcessCreation ==
     result.cancelProvenBeforeLaunch => ~result.processCreated
 
@@ -1312,7 +1375,8 @@ StaleAckCannotSatisfyNewGeneration ==
         /\ claim.proofExchangeId = claim.ackExchangeId
 
 StaleAckForNewExchangeCannotProveAuthority ==
-    claim.incomingAckExchangeId # claim.ackExchangeId =>
+    (claim.incomingAckExchangeId # claim.ackExchangeId \/
+     claim.incomingAckGeneration # transport.generation) =>
         (~claim.proven \/ claim.proofSource # AckProof)
 
 ReconnectDoesNotInvalidateProvenLogicalAuthority ==

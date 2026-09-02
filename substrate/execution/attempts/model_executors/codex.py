@@ -783,19 +783,32 @@ class CodexModelExecutor:
         # which prevents legitimate attempt commits (`.git/index.lock`).
         self.model = model or selected_codex_model()
         self.sandbox = sandbox
+        self._executable_path = _resolve_codex()
+        prelaunch_attestation = _codex_executable_attestation(
+            self._executable_path,
+            version="",
+        )
+        self._prelaunch_trust_error = ""
+        if self.model == "gpt-5.6-sol" and not prelaunch_attestation[
+            "codex_executable_approved"
+        ]:
+            self._prelaunch_trust_error = (
+                "Codex executable is not approved by realpath/hash policy before launch"
+            )
+        version = self._version() if not self._prelaunch_trust_error else ""
         self.identity = ModelExecutorIdentity(
             provider="codex",
             model=self.model,
-            version=self._version(),
+            version=version,
             adapter=type(self).__name__,
         )
         self.executable_attestation = _codex_executable_attestation(
-            _resolve_codex(),
+            self._executable_path,
             version=self.identity.version,
         )
 
     def _version(self) -> str:
-        cli = _resolve_codex()
+        cli = self._executable_path
         if not cli:
             return ""
         try:
@@ -809,9 +822,12 @@ class CodexModelExecutor:
         return (r.stdout or r.stderr or "").strip() if r else ""
 
     def readiness(self, *, env: dict[str, str] | None = None) -> ModelExecutorReadiness:
-        cli = _resolve_codex()
+        cli = self._executable_path
         if not cli:
             return ModelExecutorReadiness(False, self.identity, "codex CLI not found", False)
+        trust_error = self._active_executable_trust_error()
+        if trust_error:
+            return ModelExecutorReadiness(False, self.identity, trust_error, False)
         try:
             status = _run_codex_metadata_command(
                 [cli, "login", "status"],
@@ -843,8 +859,8 @@ class CodexModelExecutor:
         )
 
     def build_invocation(self, packet: ModelWorkPacketInput) -> ModelInvocation:
-        cli = _resolve_codex()
-        if not cli:
+        cli = self._executable_path
+        if not cli or self._active_executable_trust_error():
             return ModelInvocation(argv=[])
 
         return ModelInvocation(
@@ -880,8 +896,7 @@ class CodexModelExecutor:
                 duration_seconds=duration_seconds,
             )
         proc = completed
-        invocation = self.build_invocation(packet)
-        argv = invocation.argv
+        argv = self._invocation_argv(packet)
         parsed, usage, model_seen, parse_errors, parse_meta = _parse_jsonl(
             getattr(proc, "stdout", "") or ""
         )
@@ -909,10 +924,7 @@ class CodexModelExecutor:
             and not parse_meta.get("turn_failed_count")
             and not parse_meta.get("error_event_count")
         )
-        executable_attestation = _codex_executable_attestation(
-            argv[0] if argv else "",
-            version=self.identity.version,
-        )
+        executable_attestation = dict(self.executable_attestation)
         if self.model == "gpt-5.6-sol" and not executable_attestation[
             "codex_executable_approved"
         ]:
@@ -981,12 +993,15 @@ class CodexModelExecutor:
     def invoke(self, packet: ModelWorkPacketInput, *, env: dict[str, str]) -> ModelTerminalResult:
         invocation = self.build_invocation(packet)
         if not invocation.argv:
+            reason = self._active_executable_trust_error() or "codex CLI not found"
             return ModelTerminalResult(
                 ok=False,
                 status="failed",
-                summary="codex CLI not found",
+                summary=reason,
+                stderr=reason,
                 retry_class="owner_auth_or_provider",
                 identity=self.identity,
+                execution_identity=dict(self.executable_attestation),
                 proof_binding=packet.proof_binding,
             )
         start = time.monotonic()
@@ -1023,6 +1038,36 @@ class CodexModelExecutor:
                 proof_binding=packet.proof_binding,
             )
         return self.collect_result(packet, proc, duration_seconds=duration)
+
+    def _active_executable_trust_error(self) -> str:
+        if self._prelaunch_trust_error:
+            return self._prelaunch_trust_error
+        if self.model != "gpt-5.6-sol":
+            return ""
+        current = _codex_executable_attestation(
+            self._executable_path,
+            version=self.identity.version,
+        )
+        if current != self.executable_attestation:
+            return "Codex executable identity changed after pre-launch approval"
+        return validate_codex_executable_attestation(current)
+
+    def _invocation_argv(self, packet: ModelWorkPacketInput) -> list[str]:
+        return [
+            self._executable_path,
+            "exec",
+            "--json",
+            "--ephemeral",
+            "--ignore-user-config",
+            "--skip-git-repo-check",
+            "--sandbox",
+            self.sandbox,
+            "--cd",
+            packet.worktree_path,
+            "-m",
+            self.model,
+            "-",
+        ] if self._executable_path else []
 
 
 __all__ = ["CodexModelExecutor"]
