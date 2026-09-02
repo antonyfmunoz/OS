@@ -647,6 +647,13 @@ def test_typed_suspend_evidence_rejects_unknown_observation_method():
         replace(evidence, observation_method="UNTRUSTED_OBSERVER")
 
 
+def test_typed_suspend_evidence_requires_thread_for_positive_thread_state():
+    evidence = _resume(_resume_test_job(resume_result=1))
+
+    with pytest.raises(ValueError, match="positive thread-state evidence"):
+        replace(evidence, thread_id=None)
+
+
 @pytest.mark.parametrize(
     ("case", "changes", "reason_fragment"),
     (
