@@ -54,6 +54,13 @@ def _packet(tmp_path, *, prompt: str = "do work") -> ModelWorkPacketInput:
     )
 
 
+def _fixture_codex_path(tmp_path):
+    path = tmp_path / "codex"
+    path.write_bytes(b"test codex executable")
+    path.chmod(0o755)
+    return path
+
+
 def test_deterministic_adapter_satisfies_terminal_contract(tmp_path):
     adapter = DeterministicConformanceExecutor()
     ready = adapter.readiness()
@@ -171,7 +178,7 @@ def test_codex_adapter_invokes_exec_with_prompt_on_stdin(tmp_path, monkeypatch):
 
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -643,7 +650,7 @@ def test_governed_sol_rejects_byte_identical_copy_at_unapproved_realpath(
 def test_codex_adapter_rejects_empty_output(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -657,7 +664,7 @@ def test_codex_adapter_rejects_empty_output(tmp_path, monkeypatch):
 def test_codex_adapter_rejects_malformed_jsonl_even_with_content(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -680,7 +687,7 @@ def test_codex_adapter_rejects_malformed_jsonl_even_with_content(tmp_path, monke
 def test_codex_adapter_rejects_truncated_jsonl_without_terminal_event(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -699,7 +706,7 @@ def test_codex_adapter_rejects_truncated_jsonl_without_terminal_event(tmp_path, 
 def test_codex_adapter_rejects_multiple_terminal_events(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -722,7 +729,7 @@ def test_codex_adapter_rejects_multiple_terminal_events(tmp_path, monkeypatch):
 def test_codex_adapter_rejects_turn_failed_event(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -742,7 +749,7 @@ def test_codex_adapter_rejects_turn_failed_event(tmp_path, monkeypatch):
 def test_codex_adapter_rejects_terminal_error_event(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -762,7 +769,7 @@ def test_codex_adapter_rejects_terminal_error_event(tmp_path, monkeypatch):
 def test_codex_adapter_rejects_missing_usage_metadata(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -787,7 +794,7 @@ def test_codex_adapter_rejects_unobservable_terminal_model_even_with_exact_selec
 ):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -817,7 +824,7 @@ def test_codex_adapter_rejects_unobservable_terminal_model_even_with_exact_selec
 def test_codex_adapter_rejects_terminal_model_mismatch(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -844,7 +851,7 @@ def test_codex_adapter_rejects_terminal_model_mismatch(tmp_path, monkeypatch):
 def test_codex_adapter_rejects_wrong_json_field_shapes_without_crashing(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -869,7 +876,7 @@ def test_codex_adapter_rejects_wrong_json_field_shapes_without_crashing(tmp_path
 def test_codex_adapter_rejects_non_string_message_content(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -893,7 +900,7 @@ def test_codex_adapter_rejects_non_string_message_content(tmp_path, monkeypatch)
 def test_codex_adapter_sanitizes_credential_bearing_output(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -912,7 +919,7 @@ def test_codex_adapter_sanitizes_credential_bearing_output(tmp_path, monkeypatch
 def test_codex_adapter_sanitizes_successful_model_content(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -943,7 +950,7 @@ def test_codex_adapter_sanitizes_successful_model_content(tmp_path, monkeypatch)
 def test_codex_adapter_sanitizes_common_secret_shapes(tmp_path, monkeypatch, secret_text):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -965,7 +972,7 @@ def test_codex_adapter_sanitizes_common_secret_shapes(tmp_path, monkeypatch, sec
 def test_terminal_result_binds_executor_identity_and_proof_metadata(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -995,7 +1002,7 @@ def test_codex_adapter_classifies_timeout(tmp_path, monkeypatch):
 
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -1017,7 +1024,7 @@ def test_codex_adapter_preserves_timeout_stdout_stderr_evidence(tmp_path, monkey
 
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -1031,7 +1038,7 @@ def test_codex_adapter_preserves_timeout_stdout_stderr_evidence(tmp_path, monkey
     assert "not logged in" in result.stderr
 
 
-def test_codex_version_uses_owned_tree_timeout_and_fails_closed(monkeypatch):
+def test_codex_version_uses_owned_tree_timeout_and_fails_closed(tmp_path, monkeypatch):
     calls: list[tuple[list[str], str, float]] = []
 
     def timeout(cmd, *, caller, timeout, **_kwargs):
@@ -1040,7 +1047,7 @@ def test_codex_version_uses_owned_tree_timeout_and_fails_closed(monkeypatch):
 
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -1050,10 +1057,12 @@ def test_codex_version_uses_owned_tree_timeout_and_fails_closed(monkeypatch):
     adapter = CodexModelExecutor(model="gpt-test")
 
     assert adapter.identity.version == ""
-    assert calls == [(["/usr/bin/codex", "--version"], "codex_executor_version", 10.0)]
+    assert calls == [
+        ([str(_fixture_codex_path(tmp_path)), "--version"], "codex_executor_version", 10.0)
+    ]
 
 
-def test_codex_readiness_uses_owned_tree_timeout_and_fails_closed(monkeypatch):
+def test_codex_readiness_uses_owned_tree_timeout_and_fails_closed(tmp_path, monkeypatch):
     calls: list[tuple[list[str], str, float]] = []
 
     def run(cmd, *, caller, timeout, **_kwargs):
@@ -1069,7 +1078,7 @@ def test_codex_readiness_uses_owned_tree_timeout_and_fails_closed(monkeypatch):
 
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._resolve_codex",
-        lambda: "/usr/bin/codex",
+        lambda: str(_fixture_codex_path(tmp_path)),
     )
     monkeypatch.setattr(
         "substrate.execution.attempts.model_executors.codex._run_codex_process_tree",
@@ -1083,8 +1092,16 @@ def test_codex_readiness_uses_owned_tree_timeout_and_fails_closed(monkeypatch):
     assert "timed out after 20s" in ready.reason
     assert "descendant retained stdio" in ready.reason
     assert calls == [
-        (["/usr/bin/codex", "--version"], "codex_executor_version", 10.0),
-        (["/usr/bin/codex", "login", "status"], "codex_executor_readiness", 20.0),
+        (
+            [str(_fixture_codex_path(tmp_path)), "--version"],
+            "codex_executor_version",
+            10.0,
+        ),
+        (
+            [str(_fixture_codex_path(tmp_path)), "login", "status"],
+            "codex_executor_readiness",
+            20.0,
+        ),
     ]
 
 
