@@ -623,9 +623,10 @@ class _WindowsDurableJob:
                         previous_count = self._kernel32.ResumeThread(thread)
                         if previous_count == 0xFFFFFFFF:
                             raise OSError(self._ctypes.get_last_error(), "ResumeThread failed")
-                        if previous_count < 1:
+                        if previous_count != 1:
                             raise RuntimeError(
-                                f"initial thread for pid {proc.pid} was not suspended"
+                                "initial thread for pid "
+                                f"{proc.pid} had unexpected suspend count {previous_count}"
                             )
                         return
                     finally:

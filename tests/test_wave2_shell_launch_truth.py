@@ -361,7 +361,58 @@ def test_resume_thread_requires_positive_suspended_count():
 
     job._ThreadEntry = _Entry
 
-    with pytest.raises(RuntimeError, match="was not suspended"):
+    with pytest.raises(RuntimeError, match="unexpected suspend count 0"):
+        job.resume_suspended_process(SimpleNamespace(pid=42))
+
+
+def test_resume_thread_rejects_multiple_suspend_count():
+    class _Ctypes:
+        @staticmethod
+        def c_void_p(value):
+            return SimpleNamespace(value=value)
+
+        @staticmethod
+        def byref(value):
+            return SimpleNamespace(_obj=value)
+
+        @staticmethod
+        def sizeof(_value):
+            return 1
+
+    class _Kernel:
+        def CreateToolhelp32Snapshot(self, *_args):
+            return 1
+
+        def Thread32First(self, _snapshot, entry_ref):
+            entry = entry_ref._obj
+            entry.th32OwnerProcessID = 42
+            entry.th32ThreadID = 7
+            return 1
+
+        def Thread32Next(self, *_args):
+            return 0
+
+        def OpenThread(self, *_args):
+            return 2
+
+        def ResumeThread(self, _thread):
+            return 2
+
+        def CloseHandle(self, _handle):
+            return 1
+
+    job = object.__new__(client_mod._WindowsDurableJob)
+    job._kernel32 = _Kernel()
+    job._ctypes = _Ctypes()
+
+    class _Entry:
+        dwSize = 0
+        th32OwnerProcessID = 0
+        th32ThreadID = 0
+
+    job._ThreadEntry = _Entry
+
+    with pytest.raises(RuntimeError, match="unexpected suspend count 2"):
         job.resume_suspended_process(SimpleNamespace(pid=42))
 
 
